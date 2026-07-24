@@ -4,8 +4,9 @@ import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Activity, AlertOctagon, Ban, Box, Calendar, Check, CheckCircle2, ChevronLeft, Clock, Eye, FileText, Lock, Link2, MapPin, Package, Pencil, Phone, PlayCircle, Plus, Printer, Users } from 'lucide-react';
+import { Activity, Ban, Box, Calendar, Check, CheckCircle2, ChevronLeft, Clock, Eye, FileText, Lock, Link2, MapPin, Package, Pencil, Phone, PlayCircle, Plus, Printer, Users } from 'lucide-react';
 import { Badge, getStatusBadgeVariant, type BadgeVariant } from '@/components/ui/Badge';
+import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
@@ -92,12 +93,12 @@ import type { SurveyReportListItem } from '@/types/survey';
 // `PUT /orders/:id/items/confirm-prepared` (mục 2b doc) test qua `curl` không hoạt động như mô tả
 // (rơi vào validate của route khác), xem docs/more-require.md mục (w).
 
-type DetailTab = 'overview' | 'lifecycle' | 'items' | 'plans' | 'quotation' | 'dispute';
+type DetailTab = 'overview' | 'lifecycle' | 'items' | 'plans' | 'quotation';
 
 // Cho phép mở thẳng 1 tab qua URL (?tab=items...) — dùng bởi nút "Xuất thiết bị" ở trang chi tiết
 // báo giá (docs/xuatthietbi_tubaogia_api.md mục 5: điều hướng sang tab "Thiết bị & Kho hàng").
 function parseTabParam(value: string | null): DetailTab {
-  const valid: DetailTab[] = ['overview', 'lifecycle', 'items', 'plans', 'quotation', 'dispute'];
+  const valid: DetailTab[] = ['overview', 'lifecycle', 'items', 'plans', 'quotation'];
   return valid.includes(value as DetailTab) ? (value as DetailTab) : 'overview';
 }
 
@@ -108,7 +109,6 @@ const TABS: { id: DetailTab; label: string; icon: typeof Activity; doc?: string 
   { id: 'items', label: 'Thiết bị & Kho hàng', icon: Box, doc: 'docs/thietbikhohang_api.md' },
   { id: 'plans', label: 'Lịch trình & Kỹ thuật', icon: Calendar, doc: 'docs/lichtrinhkythuat_api.md' },
   { id: 'quotation', label: 'Báo giá & Hợp đồng', icon: FileText, doc: 'docs/baogiavahopdong_api.md' },
-  { id: 'dispute', label: 'Tranh chấp', icon: AlertOctagon },
 ];
 
 const LIFECYCLE_STEPS: { id: OrderStatus; label: string; desc: string }[] = [
@@ -210,13 +210,11 @@ function ManagerOrderDetailContent() {
   const [isCreatePlanOpen, setIsCreatePlanOpen] = useState(false);
 
   const [quotationDetail, setQuotationDetail] = useState<QuotationDetailApi | null>(null);
-  const [approvedQuotationsCount, setApprovedQuotationsCount] = useState(0);
   const [linkableQuotations, setLinkableQuotations] = useState<QuotationListItem[]>([]);
   const [selectedLinkQuoteId, setSelectedLinkQuoteId] = useState('');
   const [isLinkingQuote, setIsLinkingQuote] = useState(false);
+  const [linkQuoteError, setLinkQuoteError] = useState<string | null>(null);
   const [isCreateQuotationOpen, setIsCreateQuotationOpen] = useState(false);
-  const [isUnlinkingQuote, setIsUnlinkingQuote] = useState(false);
-  const [isUnlinkConfirmOpen, setIsUnlinkConfirmOpen] = useState(false);
 
   const load = () => {
     setIsLoading(true);
@@ -260,15 +258,9 @@ function ManagerOrderDetailContent() {
 
   // Tab "Báo giá & Hợp đồng" — GET /customers/:id/quotations vẫn lỗi thật (docs/more-require.md mục
   // (p.1), chưa được Backend sửa), dùng workaround GET /quotations?customerId= (endpoint phẳng, xác
-  // nhận hoạt động đúng qua curl) để đếm số báo giá APPROVED của khách hàng + liệt kê báo giá có thể
-  // liên kết.
+  // nhận hoạt động đúng qua curl) để liệt kê báo giá có thể liên kết.
   useEffect(() => {
     if (!order) return;
-    quotationApiService
-      .getQuotations({ customerId: order.customerId })
-      .then((res) => setApprovedQuotationsCount(res.meta?.counts?.approved ?? 0))
-      .catch(() => setApprovedQuotationsCount(0));
-
     if (order.quotationId) {
       setLinkableQuotations([]);
       quotationApiService
@@ -278,7 +270,9 @@ function ManagerOrderDetailContent() {
     } else {
       setQuotationDetail(null);
       quotationApiService
-        .getQuotations({ customerId: order.customerId, status: 'approved' })
+        // Không lọc theo status ở đây nữa — hiện tất cả báo giá của khách (kể cả nháp) chưa liên kết đơn
+        // nào, để Manager tự chọn rồi mới quyết định duyệt trước khi liên kết nếu cần.
+        .getQuotations({ customerId: order.customerId })
         .then((res) => {
           const candidates: QuotationListItem[] = res.data ?? [];
           return Promise.all(
@@ -290,7 +284,8 @@ function ManagerOrderDetailContent() {
             ),
           );
         })
-        .then((pairs) => setLinkableQuotations(pairs.filter((p) => !p.linkedOrderId).map((p) => p.item)))
+        // Loại báo giá đã "Từ chối" — không có lý do nghiệp vụ nào để liên kết báo giá bị từ chối vào đơn.
+        .then((pairs) => setLinkableQuotations(pairs.filter((p) => !p.linkedOrderId && p.item.status !== 'rejected').map((p) => p.item)))
         .catch(() => setLinkableQuotations([]));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ tải lại khi order thay đổi thật sự
@@ -457,7 +452,11 @@ function ManagerOrderDetailContent() {
     const targetQuotationId = quotationIdOverride ?? selectedLinkQuoteId;
     if (!targetQuotationId) return;
     setIsLinkingQuote(true);
+    setLinkQuoteError(null);
     try {
+      // Cho phép liên kết báo giá ở bất kỳ trạng thái nào (kể cả nháp) miễn chưa gắn đơn khác — Manager
+      // chủ động chọn, không giới hạn chỉ báo giá đã duyệt.
+      const quoRes = await quotationApiService.getQuotation(targetQuotationId);
       await orderApiService.updateOrderQuotation(order.orderId, { quotationId: targetQuotationId });
 
       // Cộng dồn số lượng từ báo giá vừa liên kết vào danh sách hạng mục hiện có của đơn — tab "Thiết
@@ -465,7 +464,6 @@ function ManagerOrderDetailContent() {
       // vì giữ nguyên order.items cũ (độc lập hoàn toàn với báo giá) như trước. Hạng mục đã có sẵn trên
       // đơn: giữ nguyên đơn giá đã chốt, chỉ cộng thêm số lượng. Hạng mục mới từ báo giá: thêm dòng mới,
       // đơn giá = lineTotal/quantity (giá thực tế sau chiết khấu đã chốt ở báo giá).
-      const quoRes = await quotationApiService.getQuotation(targetQuotationId);
       const mergedByItemId = new Map<string, CreateOrderItemPayload>();
       order.items.forEach((it) => {
         mergedByItemId.set(it.itemId, { itemId: it.itemId, quantity: it.quantity, unitPrice: it.unitPrice, source: it.source, notes: it.notes });
@@ -491,23 +489,12 @@ function ManagerOrderDetailContent() {
       // liên kết", vốn khiến backend chấp nhận đổi liên kết hàng loạt lần mà không cảnh báo gì (xem
       // gating theo order.quotationId thay vì quotationDetail bên dưới — đây là lớp phòng thủ thứ 2).
       await load();
+    } catch {
+      setLinkQuoteError('Liên kết báo giá thất bại. Vui lòng thử lại.');
     } finally {
       setIsLinkingQuote(false);
     }
   };
-
-  const handleUnlinkQuotation = async () => {
-    setIsUnlinkingQuote(true);
-    try {
-      await orderApiService.updateOrderQuotation(order.orderId, { quotationId: null });
-      setIsUnlinkConfirmOpen(false);
-      await load();
-    } finally {
-      setIsUnlinkingQuote(false);
-    }
-  };
-
-  const canUnlinkQuotation = approvedQuotationsCount > 1;
 
   // Yêu cầu người dùng (2026-07-22): chỉ tạo lịch trình loại việc "Lắp đặt thiết bị" (tab "Lịch trình
   // & Kỹ thuật") mới tự chuyển mốc tiến trình đơn sang "3. Đang thực hiện" — các loại việc khác (khảo
@@ -543,6 +530,14 @@ function ManagerOrderDetailContent() {
           {exportToast === 'success' ? 'Xuất thiết bị thành công.' : 'Đơn đã khớp báo giá, không có gì cần xuất thêm.'}
         </motion.div>
       )}
+      <Breadcrumb
+        items={[
+          { label: 'Đơn đặt' },
+          { label: 'Danh sách đơn đặt', href: '/manager/orders' },
+          { label: order.orderCode },
+        ]}
+        className="mb-3"
+      />
       <div className="flex flex-col gap-4 border-b border-slate-100 pb-5 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-3">
           <button
@@ -1204,16 +1199,6 @@ function ManagerOrderDetailContent() {
                               Xem báo giá
                             </Button>
                           </Link>
-                          <Button
-                            size="sm"
-                            variant="danger"
-                            disabled={!canUnlinkQuotation}
-                            title={canUnlinkQuotation ? undefined : 'Khách hàng chỉ có 1 báo giá đã duyệt, không thể hủy liên kết'}
-                            onClick={() => setIsUnlinkConfirmOpen(true)}
-                          >
-                            <Ban className="h-4 w-4" />
-                            Hủy liên kết
-                          </Button>
                         </div>
                       </>
                     ) : (
@@ -1225,14 +1210,14 @@ function ManagerOrderDetailContent() {
                     <p className="rounded-lg border border-dashed border-slate-200 p-3 text-xs text-slate-500">Đơn này chưa liên kết báo giá nào.</p>
                     <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-4">
                       <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="text-xs font-semibold text-slate-700">Liên kết báo giá đã duyệt</p>
+                        <p className="text-xs font-semibold text-slate-700">Liên kết báo giá có sẵn</p>
                         <Button size="sm" variant="secondary" onClick={() => setIsCreateQuotationOpen(true)}>
                           <Plus className="h-4 w-4" />
                           Tạo báo giá liên kết
                         </Button>
                       </div>
                       {linkableQuotations.length === 0 ? (
-                        <p className="mt-2 text-xs italic text-slate-400">Khách hàng chưa có báo giá đã duyệt nào có thể liên kết.</p>
+                        <p className="mt-2 text-xs italic text-slate-400">Khách hàng chưa có báo giá nào có thể liên kết.</p>
                       ) : (
                         <div className="mt-2 flex flex-wrap items-end gap-2">
                           <div className="min-w-[220px] flex-1">
@@ -1241,7 +1226,10 @@ function ManagerOrderDetailContent() {
                               onChange={(e) => setSelectedLinkQuoteId(e.target.value)}
                               options={[
                                 { value: '', label: '-- Chọn báo giá --' },
-                                ...linkableQuotations.map((q) => ({ value: q.quotationId, label: `${q.code} · ${formatCurrency(q.totalAmount)}` })),
+                                ...linkableQuotations.map((q) => ({
+                                  value: q.quotationId,
+                                  label: `${q.code} · ${formatCurrency(q.totalAmount)} · ${QUOTATION_STATUS_META[q.status]?.label ?? q.status}`,
+                                })),
                               ]}
                             />
                           </div>
@@ -1251,6 +1239,7 @@ function ManagerOrderDetailContent() {
                           </Button>
                         </div>
                       )}
+                      {linkQuoteError && <p className="mt-2 text-xs font-medium text-red-600">{linkQuoteError}</p>}
                     </div>
                   </div>
                 )}
@@ -1512,25 +1501,6 @@ function ManagerOrderDetailContent() {
         ) : (
           <p className="py-6 text-center text-sm italic text-slate-400">Chưa có ảnh minh chứng.</p>
         )}
-      </Modal>
-
-      <Modal
-        isOpen={isUnlinkConfirmOpen}
-        onClose={() => setIsUnlinkConfirmOpen(false)}
-        title="Hủy liên kết báo giá?"
-        subtitle="Đơn sẽ không còn báo giá liên kết — bạn có thể liên kết lại 1 báo giá đã duyệt khác của cùng khách hàng ngay sau đó."
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setIsUnlinkConfirmOpen(false)} disabled={isUnlinkingQuote}>
-              Đóng
-            </Button>
-            <Button variant="danger" onClick={handleUnlinkQuotation} isLoading={isUnlinkingQuote}>
-              Hủy liên kết
-            </Button>
-          </>
-        }
-      >
-        <div />
       </Modal>
 
       <CreateSchedulePlanModal

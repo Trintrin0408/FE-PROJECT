@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import type { AxiosError } from 'axios';
 import { Truck, Search, Eye, Pencil, Lock, LockOpen, MapPin, Phone, Plus, AlertCircle, Loader2 } from 'lucide-react';
 import { Table, TableColumn } from '@/components/ui/Table';
@@ -10,7 +11,6 @@ import { Button } from '@/components/ui/Button';
 import { Pagination } from '@/components/ui/Pagination';
 import type { PaginationState } from '@/hooks/usePagination';
 import { useDebounce } from '@/hooks/useDebounce';
-import { SupplierProfileModal } from '@/components/suppliers/SupplierProfileModal';
 import { SupplierFormModal, type SupplierFormValues } from '@/components/suppliers/SupplierFormModal';
 import Reveal from '@/components/ui/Reveal';
 import { formatCurrency } from '@/utils/formatCurrency';
@@ -66,7 +66,6 @@ export default function Page() {
   const [formModal, setFormModal] = useState<{ mode: 'create' | 'edit'; supplier: Supplier | null } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [detailSupplier, setDetailSupplier] = useState<Supplier | null>(null);
   const [reloadTick, setReloadTick] = useState(0);
 
   useEffect(() => {
@@ -187,15 +186,14 @@ export default function Page() {
       label: 'Thao Tác',
       render: (s) => (
         <div className="flex items-center gap-1">
-          <button
-            type="button"
+          <Link
+            href={`/admin/suppliers/${s.supplierId}`}
             aria-label="Xem chi tiết"
             title="Xem chi tiết"
-            onClick={() => setDetailSupplier(s)}
             className="inline-flex rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-blue-600"
           >
             <Eye className="h-4 w-4" />
-          </button>
+          </Link>
           <button
             type="button"
             aria-label="Chỉnh sửa"
@@ -300,8 +298,6 @@ export default function Page() {
         onClose={() => setFormModal(null)}
         onSubmit={handleSubmitForm}
       />
-
-      <SupplierProfileModal supplier={detailSupplier} onClose={() => setDetailSupplier(null)} />
     </div>
   );
 }

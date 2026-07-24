@@ -9,7 +9,7 @@ import { Pagination } from '@/components/ui/Pagination';
 import type { PaginationState } from '@/hooks/usePagination';
 import { useDebounce } from '@/hooks/useDebounce';
 import PlanDetailDrawer from '@/components/planning/PlanDetailDrawer';
-import PlanFormDrawer, { UnplannedOrderOption } from '@/components/planning/PlanFormDrawer';
+import PlanFormDrawer, { PlanOrderOption } from '@/components/planning/PlanFormDrawer';
 import Reveal from '@/components/ui/Reveal';
 import { formatDate, formatTime } from '@/utils/formatDate';
 import { daysUntil, getEventUrgency } from '@/utils/eventDate';
@@ -85,10 +85,13 @@ export default function AdminPlanningPage() {
 
   const groups = useMemo(() => groupPlansByOrder(plans), [plans]);
   const groupByOrderId = useMemo(() => new Map(groups.map((g) => [g.orderId, g])), [groups]);
-  const unplannedOrders: UnplannedOrderOption[] = useMemo(
+  // Theo yêu cầu người dùng (2026-07-24): KHÔNG loại đơn đã có kế hoạch khỏi danh sách chọn nữa — 1 đơn
+  // có thể tạo thêm nhiều kế hoạch/hoạt động khác nhau qua "Tạo kế hoạch mới", không bắt buộc phải dùng
+  // "Chỉnh sửa kế hoạch" cho đơn đã có sẵn 1 kế hoạch. Chỉ còn loại theo trạng thái đơn (đã xong/đã hủy).
+  const selectableOrders: PlanOrderOption[] = useMemo(
     () =>
       orders
-        .filter((o) => !groupByOrderId.has(o.orderId))
+        .filter((o) => o.orderStatus !== 'COMPLETED' && o.orderStatus !== 'CANCELLED')
         .map((o) => ({
           orderId: o.orderId,
           orderCode: o.orderCode,
@@ -97,7 +100,7 @@ export default function AdminPlanningPage() {
           eventDate: o.eventDate,
           location: o.location ?? '',
         })),
-    [orders, groupByOrderId],
+    [orders],
   );
 
   const todayStr = useMemo(() => toDateStr(new Date()), []);
@@ -730,7 +733,7 @@ export default function AdminPlanningPage() {
         <PlanFormDrawer
           isOpen={isFormOpen}
           editingGroup={editingGroup ? (groupByOrderId.get(editingGroup.orderId) ?? editingGroup) : null}
-          unplannedOrders={unplannedOrders}
+          selectableOrders={selectableOrders}
           onClose={() => {
             setIsFormOpen(false);
             setEditingGroup(null);

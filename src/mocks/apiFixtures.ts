@@ -4,7 +4,7 @@ import type { SchedulePlan } from '@/types/schedulePlan';
 import type { SurveyReport } from '@/types/survey';
 import type { BusinessPolicy } from '@/types/policy';
 import type { WageRecord } from '@/types/wage';
-import type { OrderWarning } from '@/types/orderWarning';
+import type { OrderWarningSummary } from '@/types/order';
 import type { Evidence } from '@/types/evidence';
 import type { SupplierTransaction } from '@/types/procurement';
 import { getAdminOrders } from '@/mocks/db/orders';
@@ -118,10 +118,12 @@ export const MOCK_SURVEY_REPORTS: SurveyReport[] = [
 ];
 
 // Dữ liệu ảo cho các service CHƯA được trang nào gọi tới (DEMO_CHECKLIST.md Task 10) — chỉ để
-// policyApiService/wageApiService/orderWarningApiService/evidenceApiService/procurementApiService's
-// GET route (getTransactions/getTransactionById) không còn rơi vào fallback rỗng chung một khi có
-// trang mới gắn vào. policyValue/policyType phản ánh đúng "Quy tắc nghiệp vụ cốt lõi" đã ghi ở
-// CLAUDE.md mục 1 (đổi ngày, hoàn cọc, đền bù, tiền công) để nhất quán số liệu toàn site.
+// policyApiService/wageApiService/evidenceApiService/procurementApiService's GET route
+// (getTransactions/getTransactionById) không còn rơi vào fallback rỗng chung một khi có trang mới
+// gắn vào. policyValue/policyType phản ánh đúng "Quy tắc nghiệp vụ cốt lõi" đã ghi ở CLAUDE.md mục 1
+// (đổi ngày, hoàn cọc, đền bù, tiền công) để nhất quán số liệu toàn site. MOCK_ORDER_WARNINGS giờ chỉ
+// còn dùng để nhúng `OrderDetail.orderWarnings` (mockAdapter.ts) — endpoint riêng
+// `GET/POST /orders/{id}/warnings` đã bị bỏ hẳn khỏi frontend (xem docs/more-require.md mục (an.2)).
 export const MOCK_POLICIES: BusinessPolicy[] = [
   { policyId: 'pol-1', policyCode: 'HOAN-COC-30', policyName: 'Hoàn cọc khi hủy đơn ≥30 ngày trước sự kiện', policyType: 'CANCELLATION', policyValue: 100, unit: '%', description: 'Khách báo hủy trước ≥30 ngày so với ngày lắp đặt: hoàn 100% tiền cọc.', isActive: true, createdAt: NOW, updatedAt: NOW },
   { policyId: 'pol-2', policyCode: 'HOAN-COC-7-30', policyName: 'Hoàn cọc khi hủy đơn 7–30 ngày trước sự kiện', policyType: 'CANCELLATION', policyValue: 50, unit: '%', description: 'Khách báo hủy trong khoảng 7–30 ngày trước ngày lắp đặt: hoàn 50% tiền cọc.', isActive: true, createdAt: NOW, updatedAt: NOW },
@@ -140,7 +142,7 @@ export const MOCK_WAGES: WageRecord[] = [
   { wageId: 'wage-4', wageCode: 'CL-2026-07-004', orderId: ORDER_C_ID, userId: 'mock-tech-2', wageRole: 'SOUND', shifts: 1, wageRate: 250000, totalWage: 250000, status: 'DRAFT', notes: 'Technical Staff mới check-in, chưa được Leader xác nhận', createdAt: NOW, updatedAt: NOW },
 ];
 
-export const MOCK_ORDER_WARNINGS: OrderWarning[] = [
+export const MOCK_ORDER_WARNINGS: OrderWarningSummary[] = [
   { warningId: 'warn-1', orderId: ORDER_A_ID, content: 'Thiếu 2 ghế Tiffany trắng so với hạng mục đã chốt trong báo giá.', isResolved: false, createdAt: '2026-07-18T10:00:00Z' },
   { warningId: 'warn-2', orderId: ORDER_A_ID, content: 'Khách yêu cầu đổi giờ thi công sớm hơn 1 tiếng, cần xác nhận lại với đội thi công.', isResolved: true, resolvedBy: 'mock-manager-1', resolvedAt: '2026-07-19T08:00:00Z', createdAt: '2026-07-18T15:00:00Z' },
   { warningId: 'warn-3', orderId: ORDER_C_ID, content: `Nhà cung cấp ${SUPPLIER_3.supplierName} báo trễ 1 ngày so với lịch giao thiết bị âm thanh.`, isResolved: false, createdAt: '2026-07-16T11:00:00Z' },

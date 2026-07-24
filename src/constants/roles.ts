@@ -8,6 +8,8 @@ export const ROLES = {
 export const ROLE_DASHBOARD_PATH: Record<string, string> = {
   Admin: '/admin/dashboard',
   Manager: '/manager/dashboard',
+  LEADER_STAFF: '/staff-mobile/dashboard',
+  TECHNICAL_STAFF: '/staff-mobile/dashboard',
 };
 
 // Không còn endpoint GET /roles — role là enum cố định. Dùng cho AuthProfile.role.roleName

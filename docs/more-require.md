@@ -718,6 +718,10 @@ tồn đọng riêng, chưa xử lý ở lần sửa này.
   `src/app/admin/orders_audit/page.tsx`, `src/components/quotations/CreateQuotationWizardModal.tsx`
   (chỉ sửa lời gọi `getCustomers`, giữ nguyên `getInventory({limit:200})` vì route đó không giới hạn),
   `src/components/schedule/CreateTaskModal.tsx` (sửa cả `getOrders` và `getCustomers`).
+  **Cập nhật 2026-07-24**: sót 1 chỗ — `src/components/layout/Header.tsx` (load "sự kiện sắp tới" ở
+  header, chạy trên MỌI trang) vẫn gọi `getOrders({limit:200})`, gây `[API 400] GET /orders` lặp lại ở
+  console trên mọi trang (không vỡ UI vì có `.catch()`, nhưng banner "sự kiện sắp tới" luôn rỗng). Đã sửa
+  về `limit: 100` cùng đợt này.
   **Đề xuất Backend** (không bắt buộc, chỉ để nhất quán API): hoặc nâng giới hạn `/customers`/`/orders`
   lên khớp `/catalog/items`/`/inventory` (khuyến nghị, ít việc FE hơn về sau), hoặc tài liệu hóa rõ giới
   hạn `limit` tối đa của mỗi route trong OpenAPI spec để FE không phải dò bằng `curl`. **Input/Output**:
@@ -1582,3 +1586,270 @@ tồn đọng riêng, chưa xử lý ở lần sửa này.
   cần Backend/Product xác nhận 2 điểm trên trước khi mobile code phần "Staff xác nhận sẵn sàng tham
   gia". `docs/lichtrinhkythuat_api.md` mục 0/6 cần rà soát lại cho khớp (đang mô tả ngược — ghi là hành
   động Manager) khi có dịp cập nhật file đó, chưa tự sửa trong lần này.
+
+## (ak) Chuông thông báo Header (2026-07-23) — đã nối "Mốc sắp diễn ra" sang dữ liệu thật, 2 phần còn lại vẫn chặn bởi backend
+
+- **Bối cảnh**: người dùng yêu cầu nối chuông thông báo ở `Header.tsx` với backend thật. Dropdown có 2
+  khối: "Mốc sắp diễn ra" và "Yêu cầu thay đổi chờ duyệt", cộng với 1 API `/notifications` chung đã có
+  sẵn ở `notification.service.ts` nhưng chưa được Header dùng tới.
+- **Đã nối thật**: khối "Mốc sắp diễn ra" — trước đọc từ mock `mocks/db/approachingEvents.ts` (orderId
+  không khớp Order thật, link "xem chi tiết" trỏ sai đơn khi bấm vào). Đã xóa file mock đó, thay bằng
+  `src/utils/approachingEvents.ts` (hàm thuần `computeApproachingEvents`) + `Header.tsx` tự fetch qua
+  `orderApiService.getOrders({limit:200})` và `schedulePlanApiService.getSchedulePlans({dateFrom,dateTo})`
+  thật. Nhãn mốc hiện trường đổi từ enum `ActivityType` (Khảo sát/Lắp đặt/Thu hồi — vốn chỉ có ở mock)
+  sang `SchedulePlan.taskName` (free-form, join thật từ backend).
+- **Chưa nối được — do giới hạn backend, không phải việc frontend tự làm**:
+  1. **"Yêu cầu thay đổi chờ duyệt"**: model `ChangeRequest` đã bị xóa hoàn toàn khỏi backend thật (xem
+     comment đầu `changeRequest.service.ts`) — 0 route/controller/model tương ứng. Vẫn giữ nguyên đọc từ
+     mock `mocks/db/changeRequests.ts` như trước. Backend cần làm lại tính năng này (hoặc xác nhận có
+     entity thay thế) trước khi nối lại.
+  2. **API `/notifications` chung** (`notification.service.ts`): endpoint có thật nhưng là **stub hoàn
+     toàn** — `GET` luôn trả mảng rỗng, `PUT read`/`read-all` không cập nhật `NotificationRecipient` dù
+     schema đã có model. Chưa thêm khối hiển thị riêng cho API này ở Header vì nối vào lúc này sẽ luôn
+     rỗng, không có giá trị hiển thị thật — nên làm khi Backend implement xong logic ghi/đọc thật.
+- **Trạng thái**: mục 1 đã xong, có thể coi là "đã nối BE" cho phần khả thi. Mục 2.1 chờ Backend làm lại
+  API change-request. Mục 2.2 chờ Backend hiện thực hoá logic notification (đã có route, chưa có logic).
+
+### (ak.2) Bổ sung 2026-07-23: xóa hẳn khối "Yêu cầu thay đổi chờ duyệt", thêm khối "Cảnh báo cần xử lý" (OrderWarning thật)
+
+- **Theo yêu cầu người dùng**: bỏ hẳn khối "Yêu cầu thay đổi chờ duyệt" khỏi `Header.tsx` (không chỉ để
+  mock nữa) — cùng lúc dọn theo state/handler/import liên quan (`pendingChangeRequests`,
+  `handleApproveChangeRequest`, `locallyApprovedIds`, import từ `mocks/db/changeRequests.ts`).
+- **Người dùng cũng hỏi thêm 2 nguồn thông báo mới**: (1) staff cập nhật trạng thái công việc, (2) audit
+  log hệ thống khi có thay đổi cần duyệt/cần báo người trước. Đã tra `D:\bnwems-backend-api`:
+  - **Audit log**: model `auditLog` có tồn tại (Prisma, được `user.service.ts` ghi khi tạo/sửa/xóa user)
+    nhưng **không có route nào expose ra ngoài** (`grep audit` trong `src/routes` ra 0 kết quả) — chỉ ghi,
+    không đọc lại được qua API. **Không nối được** ở thời điểm này.
+  - **Staff cập nhật trạng thái công việc**: là `SchedulePlan.status`, nhưng theo mục (aj) ở trên, các
+    bước CONFIRMED/IN_PROGRESS/COMPLETED giờ đều do Staff tự chuyển qua mobile, **không sinh hàng đợi
+    "chờ Manager duyệt"** — nên tự thay đổi trạng thái không phải nguồn thông báo phù hợp.
+  - **Đã chọn thay thế**: `OrderWarning` (`GET/POST /api/v1/orders/{id}/warnings`,
+    `PUT /api/v1/warnings/{id}/resolve`) — model thật, khớp đúng ý "cần người duyệt/xử lý". Giới hạn:
+    backend chỉ có endpoint lấy warning **theo từng đơn**, không có endpoint liệt kê toàn bộ warning
+    chưa xử lý trên mọi đơn — `Header.tsx` phải gọi lặp `getOrderWarnings(orderId)` cho từng đơn đang
+    hoạt động (danh sách đã fetch sẵn cho khối "Mốc sắp diễn ra") rồi gộp lại phía client. Chấp nhận
+    được ở quy mô hiện tại (back-office nội bộ, không nhiều đơn hoạt động cùng lúc), nhưng nếu số đơn
+    tăng nhiều, nên đề xuất Backend thêm endpoint `GET /orders/warnings?resolved=false` liệt kê toàn bộ.
+  - Đây cũng là service **lần đầu được UI nào đó gọi tới** — trước đó `orderWarningApiService` tồn tại
+    trong code nhưng không trang nào dùng (chỉ có trong `mocks/apiFixtures.ts` chờ sẵn, xem comment đầu
+    file đó — "DEMO_CHECKLIST.md Task 10").
+- **Trạng thái**: đã xong khối "Cảnh báo cần xử lý" (nối BE thật, có nút "Đã xử lý" gọi
+  `resolveOrderWarning`). Audit log vẫn chờ Backend expose route đọc. "Yêu cầu thay đổi chờ duyệt" đã bỏ
+  hẳn khỏi Header theo yêu cầu người dùng — nếu sau này Backend làm lại `ChangeRequest`, cần hỏi lại
+  người dùng có muốn thêm lại vào Header hay không (không tự ý thêm lại).
+
+## (al) 🔴 NGHIÊM TRỌNG (2026-07-23) — Toàn bộ ID trong database thật là UUID (`varchar(36)`), nhưng `prisma/schema.prisma` + validator + service layer của backend đang code theo BigInt số đếm dần — gần như MỌI endpoint "theo ID" có nguy cơ lỗi
+
+- **Phát hiện khi**: đang test nối chuông thông báo Header với backend, gặp `GET /quotations/{id}` trả
+  400 dù `id` gửi lên đúng là `order.quotationId` lấy từ chính response `GET /orders/{id}` (không phải
+  do frontend gửi sai). Tái hiện được ở cả 2 chiều: mở báo giá rồi xem đơn liên kết, và mở đơn rồi xem
+  báo giá đã liên kết (`src/app/manager/orders/[id]/page.tsx:275`,
+  `src/app/manager/quotations/[id]/page.tsx:112`).
+- **Đã xác nhận trực tiếp qua query database thật `bnwems`** (không suy đoán): **TOÀN BỘ khóa chính của
+  TOÀN BỘ bảng trong database đều là `varchar(36)`** (định dạng UUID, vd
+  `84432a45-003f-4ee1-8f45-00bf0d44c52c`) — đã kiểm tra `orders.order_id`, `orders.customer_id`,
+  `orders.quotation_id`, `quotations.quotation_id`, `customers.customer_id`, `users.user_id`,
+  `items.item_id`, `deposits.deposit_id`, `settlements.settlement_id`, và liệt kê toàn bộ khóa chính của
+  mọi bảng còn lại (`attendances`, `business_policies`, `change_requests`, `collected_equipment_reports`,
+  `evidences`, `inventory`, `inventory_movements`, `item_categories`, `item_types`, `notifications`,
+  `order_items`, `quotation_items`, `schedule_plans`, `schedule_plan_assignees`, `supplier_transactions`,
+  `suppliers`, `survey_reports`, `work_tasks`...) — **không có ngoại lệ**, ngoại trừ bảng nội bộ của
+  Prisma (`_prisma_migrations.id`, vốn luôn là UUID theo chuẩn Prisma, không liên quan).
+- **Nhưng code backend lại giả định BigInt số đếm dần ở CẢ 3 tầng**, không đồng bộ với thực tế trên:
+  1. **`prisma/schema.prisma`**: khai `BigInt @id @default(autoincrement())` cho khóa chính — đã xác nhận
+     ở `Order.orderId`/`customerId`/`quotationId` (dòng 484-489), `Quotation.quotationId` (dòng 445),
+     `InternalUser.userId` (dòng 189), `Customer.customerId` (dòng 322), `Item.itemId` (dòng 385) — nhiều
+     khả năng **toàn bộ model khác cũng vậy** (chưa kiểm tra hết nhưng không có lý do các model còn lại
+     khác biệt).
+  2. **Validator (`src/validators/*.ts`)**: pattern `z.string().regex(/^\d+$/, 'Invalid ID format')` cho
+     mọi field ID (params `id`, hoặc body/query `customerId`/`orderId`/`itemId`/`categoryId`/`typeId`/
+     `supplierId`/`userId`/`assignedTo`...) — **81 chỗ trên 10 file**
+     (`order`, `quotation`, `customer`, `catalog`, `inventory`, `operations`, `policy`, `supplier`,
+     `user`, `wage` validator). Lưu ý: **không phải cả 81 chỗ đều là ID** — khoảng 24-26 chỗ là
+     `page`/`limit` (phân trang, đúng là nên giữ số) — cần bóc tách kỹ, chỉ sửa field ID thật.
+     Ngoài regex-string, `order.validator.ts` còn có kiểu **`z.number().int().positive()`** cho
+     `customerId`/`quotationId`/`policyId`/`itemId` trong `createOrderSchema.body` (dòng 32-34, 43) — bug
+     tương tự nhưng khác dạng (type mismatch số/chuỗi thay vì regex), rất có thể lặp lại ở
+     `createQuotationSchema` và các schema tạo mới khác.
+  3. **Service layer (`src/services/*.service.ts`)**: ép kiểu tường minh, vd `order.service.ts:40`
+     `prisma.order.findUnique({ where: { orderId: BigInt(id) } })` — nếu `id` là UUID, `BigInt(id)` ném
+     lỗi runtime ngay (không phải lỗi bắt được gọn gàng). **Chỉ sửa validator KHÔNG đủ** — request sẽ
+     qua được bước kiểm tra định dạng rồi crash ngay bước này.
+- **Giả thuyết quan trọng cần Backend xác nhận**: lỗi `GET /orders` trả 400 `code: 'DB_ERROR'` mà frontend
+  từng gặp trong phiên làm việc này (xử lý bằng retry 1 lần trong `src/services/api.ts:48-57`, comment cũ
+  đoán là "Prisma P2024 connection pool timeout trên Aiven") — **rất có thể thực chất là hệ quả của đúng
+  mismatch này**: Prisma cố đọc cột `varchar(36)` vào field khai `BigInt` trong lúc `findMany()` trả về
+  toàn bộ cột cho mỗi dòng, ném `PrismaClientKnownRequestError` → `errorMiddleware` bắt thành 400
+  `DB_ERROR` (xem `D:\bnwems-backend-api\src\middlewares\error.middleware.ts` dòng 47-51) — **không hẳn
+  do nghẽn kết nối**. Backend nên kiểm tra lại log Prisma thật (không chỉ dựa vào `code: 'DB_ERROR'`
+  chung chung) để xác nhận đúng nguyên nhân trước khi coi đây là vấn đề hạ tầng/connection pool.
+- **Vì sao FE chưa tự sửa**: đây là thay đổi nền tảng ở tầng dữ liệu backend (đổi kiểu cột ID xuyên suốt
+  `schema.prisma` + generate lại Prisma Client + rà soát toàn bộ chỗ ép `BigInt(id)`/`Number(id)` trong
+  service layer + đồng bộ lại validator), rủi ro cao, ảnh hưởng toàn hệ thống đang kết nối database thật
+  — vượt phạm vi sửa nhanh từ phía frontend, và trái nguyên tắc "không tự ý sửa BE" của dự án. Repo
+  backend hiện ở branch `feature/align-new-api-contracts-and-test` — có thể người phụ trách đã biết/đang
+  xử lý việc này.
+- **Đề xuất hướng xử lý cho Backend** (2 hướng, cần Backend/DB owner quyết định, không phải FE):
+  (a) Sửa `schema.prisma`: đổi toàn bộ ID liên quan từ `BigInt @id @default(autoincrement())` sang
+  `String @id @db.VarChar(36)` (khớp đúng dữ liệu thật đang chạy) + generate lại Prisma Client + bỏ hết
+  `BigInt(id)`/`Number(id)` trong service layer + đổi validator từ regex số sang `z.string().uuid()`; hoặc
+  (b) nếu ý định thật sự là chuyển toàn hệ thống sang BigInt số đếm dần, cần chạy migration đổi kiểu dữ
+  liệu + convert toàn bộ giá trị hiện có trong database thật (rủi ro mất liên kết dữ liệu nếu làm sai) —
+  hướng (a) an toàn hơn nhiều vì chỉ đổi phía code cho khớp dữ liệu đã có sẵn, không đụng vào dữ liệu.
+- **Trạng thái**: mới chỉ phát hiện + ghi lại bằng chứng, **FE chưa sửa gì ở repo backend**. Theo yêu cầu
+  người dùng (2026-07-23), chỉ ghi báo cáo này để chuyển cho người phụ trách backend tự quyết định hướng
+  xử lý.
+- **⚠️ CẬP NHẬT 2026-07-24 — mục này đã điều tra NHẦM repo backend, xem (am) bên dưới**: máy dev có 2 thư
+  mục backend riêng biệt cùng trỏ 1 database và cùng `PORT=3001` — `D:\bnwems-backend-api` (repo CŨ, commit
+  gần nhất 2026-07-06) và `D:\sep490-backend-api` (repo ĐANG PHÁT TRIỂN THẬT, commit mới nhất 2026-07-24).
+  Toàn bộ phân tích BigInt/UUID ở trên tra cứu vào `D:\bnwems-backend-api` (đường dẫn stack trace/đường dẫn
+  file trích dẫn ở trên đều là `D:\bnwems-backend-api\...`) — **không phải backend thật đang được đội
+  backend phát triển**. Đã xác nhận lại trực tiếp trên `D:\sep490-backend-api\prisma\schema.prisma`: mọi
+  khóa chính đã là `String @id @default(dbgenerated("(uuid())")) @db.VarChar(36)` (vd `Order.orderId` dòng
+  430, `Customer.customerId` dòng 236, `Quotation.quotationId` dòng 380...) — **khớp đúng UUID thật trong
+  database**, không còn BigInt. Kết luận: bug "NGHIÊM TRỌNG" mô tả ở mục này **không tồn tại trên backend
+  thật hiện hành** — giữ lại mục (al) nguyên văn để làm lịch sử điều tra, nhưng **không dùng làm căn cứ báo
+  cho Backend nữa**.
+
+## (am) 🔴 Máy dev có 2 thư mục backend cùng chạy port 3001 (`D:\bnwems-backend-api` CŨ vs `D:\sep490-backend-api` THẬT) — nhiều kết luận trước đây trong file này (kể cả (ak.2), (al)) đã tra nhầm repo cũ, cần đối chiếu lại `D:\sep490-backend-api` trước khi kết luận backend thiếu/lỗi gì
+
+- **Phát hiện khi**: user báo lỗi console `[API 404] GET /orders/{id}/warnings` khi test khối "Cảnh báo cần
+  xử lý" ở Header (đã nối theo (ak.2), lúc đó tưởng route đã có ở backend). Tra lại thì route này **không
+  tồn tại** trong `D:\sep490-backend-api\src\modules\sales\order.routes.ts` (liệt kê toàn bộ route của
+  order, không có route nào khớp `warnings`; cũng không có module/controller/service nào tên `warning`
+  trong toàn bộ `src/` của repo này).
+- **Vì sao (ak.2) từng viết là "đã có, model thật"**: lúc viết (ak.2), câu lệnh tra cứu đã chạy nhầm vào
+  `D:\bnwems-backend-api` — một checkout backend CŨ, commit gần nhất 2026-07-06, đứng yên không cập nhật.
+  Repo backend thật đang được phát triển là `D:\sep490-backend-api` (commit mới nhất tính đến lúc viết mục
+  này: 2026-07-24). Hai repo này **có cùng `DATABASE_URL` (cùng 1 database MySQL thật trên Aiven) và cùng
+  `PORT=3001`** trong `.env` của từng repo — nếu chỉ 1 trong 2 process được chạy `npm run dev`, request tới
+  `localhost:3001` vẫn trả lời bình thường (không lỗi kết nối) nhưng có thể là **code của repo sai** đang
+  phục vụ, khiến kết luận "endpoint có/không có", "field tên gì", "kiểu dữ liệu ID gì" đều có thể sai nếu
+  tra nhầm thư mục.
+- **Bằng chứng cụ thể đã đối chiếu `D:\sep490-backend-api` (repo thật) với database thật**:
+  - Model `User` map bảng `users` (không phải `InternalUser`/`internal_users` như repo cũ) — khớp đúng
+    `SHOW TABLES` thật.
+  - Có model `ChangeRequest`/`ChangeRequestItem` map `change_requests`/`change_request_items` — khớp bảng
+    thật, khác hẳn kết luận cũ ở (ak) "model ChangeRequest đã bị xóa hoàn toàn khỏi backend thật" (kết luận
+    đó cũng tra nhầm repo cũ, cần re-test lại nếu muốn khôi phục khối "Yêu cầu thay đổi chờ duyệt").
+  - Toàn bộ ID đã là `String @db.VarChar(36)` (UUID), không phải `BigInt` — xem chi tiết ở phần cập nhật
+    (al) bên trên.
+  - Không có route/module/controller nào cho `OrderWarning`, `audit log đọc`, hay danh sách warning gộp —
+    cả 2 phần "Audit log" và "OrderWarning" ghi ở (ak)/(ak.2) đều cần Backend làm mới thật sự, không phải
+    chỉ là giới hạn nhỏ như mô tả cũ.
+- **Hành động đã làm**: không sửa gì ở cả 2 repo backend (đúng nguyên tắc không tự ý sửa BE). Đã báo cho
+  user tắt process cũ đang chiếm port 3001 (chạy từ `D:\bnwems-backend-api`, PID xác định qua
+  `netstat -ano` + `wmic process`) để `D:\sep490-backend-api` là backend thật sự trả lời request.
+- **Khuyến nghị cho các lần điều tra backend sau này**: luôn xác nhận lại đường dẫn thư mục backend đang
+  thực sự lắng nghe `PORT=3001` (`netstat -ano | findstr :3001` rồi tra ngược PID ra `CommandLine`/
+  `ExecutablePath`) trước khi kết luận "backend có/không có X" — không suy đoán qua tên thư mục hay giả định
+  chỉ có 1 checkout backend trên máy.
+- **Trạng thái**: khối "Cảnh báo cần xử lý" ở Header hiện luôn rỗng vì gọi vào endpoint không tồn tại
+  (`.catch(() => [])` ở `Header.tsx:73` nên không crash, chỉ không hiển thị gì thật). Cần Backend
+  (`D:\sep490-backend-api`) làm route `GET/POST /orders/{id}/warnings` + `PUT /warnings/{id}/resolve`
+  trước khi tính năng này hoạt động thật; nếu không làm sớm, cân nhắc tạm ẩn khối này khỏi Header thay vì
+  để âm thầm rỗng (hỏi lại user trước khi ẩn, không tự ý bỏ UI theo quy tắc chung của dự án).
+- **Cập nhật 2026-07-24**: user chọn giữ nguyên UI/API call, chỉ chặn tiếng ồn console — đã thêm điều kiện
+  `isKnownMissingOrderWarnings` (regex `/^\/orders\/[^/]+\/warnings$/`) vào `src/services/api.ts` để bỏ qua
+  riêng log `[API 404]` của route này, các lỗi 4xx/5xx khác vẫn log như cũ. Xoá điều kiện này ngay khi
+  Backend làm xong endpoint.
+
+## (an) 2026-07-24 — Thêm lại khối "Yêu cầu thay đổi chờ duyệt" ở chuông Header bằng dữ liệu mô phỏng + yêu cầu chính thức cho Backend làm API `change-requests`
+
+- **Bối cảnh**: sau khi (am) xác nhận lại đúng backend thật (`D:\sep490-backend-api`) thì phát hiện bảng
+  `change_requests`/`change_request_items` **vẫn tồn tại trong database thật** và model Prisma
+  `ChangeRequest`/`ChangeRequestItem` (`prisma/schema.prisma:622-654`) cũng đã khai đúng — khác hẳn kết
+  luận cũ ở (ak) ("model ChangeRequest đã bị xóa hoàn toàn khỏi backend thật", tra nhầm repo cũ). User yêu
+  cầu thêm lại khối "Yêu cầu thay đổi chờ duyệt" vào chuông Header dựa trên phát hiện này.
+- **Giới hạn còn lại**: dù bảng/model đã có, **backend hiện tại vẫn chưa có route/controller/service** nào
+  expose ra API (`grep -rli changerequest src/` trong `D:\sep490-backend-api` ra 0 kết quả). Nên chưa thể
+  nối API thật ngay — đã thêm lại UI ở `Header.tsx` dùng `changeRequestApiService.getChangeRequests({status:
+  'pending'})` (đã có sẵn, đi qua `mockAdapter.ts` → `mocks/db/changeRequests.ts`), đánh dấu rõ
+  **"(Dữ liệu minh họa)"** (in nghiêng, có `title` giải thích) theo đúng quy tắc mục 4 CLAUDE.md khi biết rõ
+  backend chưa hỗ trợ. Nút "Duyệt"/"Từ chối" gọi `changeRequestApiService.approveChangeRequest()` (cũng
+  mock qua `PUT /change-requests/:id/approve`).
+- **Đã sửa lại 2 comment ghi sai** (do tra nhầm repo cũ) để không gây hiểu lầm cho lần sau:
+  `src/services/changeRequest.service.ts` (đầu file) và `src/components/orders/FieldChangeRequestCard.tsx`
+  (tooltip "(Dữ liệu minh họa)") — cả 2 giờ ghi đúng: bảng/model còn, chỉ thiếu route.
+- **Yêu cầu chính thức cho Backend** (`D:\sep490-backend-api`) — làm route cho `ChangeRequest` khớp đúng
+  shape mà frontend đã sẵn ở `src/types/changeRequest.ts` + `src/services/changeRequest.service.ts`:
+  1. `GET /api/v1/change-requests?status=pending&orderId=&page=&limit=` — liệt kê change request, hỗ trợ
+     lọc theo `status` (`pending`/`approved`/`rejected`) và `orderId`, trả kèm `meta.totalCount` (đúng
+     pattern paginate chung của dự án).
+  2. `POST /api/v1/orders/:orderId/change-requests` — Leader Staff (mobile) tạo change request tại hiện
+     trường, body `{ type: 'add'|'remove'|'replace', items: [{ catalogItemId, quantity, action: 'add'|
+     'remove' }] }` (khớp `CreateChangeRequestPayload`); `type='replace'` cần cả 1 item `action='remove'`
+     (đồ cũ) và 1 item `action='add'` (đồ mới) trong `items`.
+  3. `PUT /api/v1/change-requests/:id/approve` — Manager duyệt/từ chối, body `{ status: 'approved'|
+     'rejected' }`; khi `approved` cần tính lại số tiền theo đúng công thức mục 1 CLAUDE.md (`add`: cộng
+     giá thiết bị + phụ phí vận chuyển nếu khoảng cách kho→địa điểm > 2km; `remove`: trừ 100% giá trị thiết
+     bị bị bớt; `replace`: `tổng mới = cũ - giá đồ cũ + giá đồ mới`) và cộng dồn vào settlement cuối của
+     order — hiện chưa rõ pricing tính ở đâu (theo comment cũ trong `types/changeRequest.ts`: "tính tự động
+     khi approve và cộng vào settlement cuối"), cần Backend xác nhận field/luồng lưu số tiền phát sinh này.
+  4. Đối chiếu `catalog_item_id` trong `change_request_items` — validator nên dùng `z.string().uuid()`
+     khớp UUID thật của bảng `items` (không phải regex số, theo đúng phát hiện chung ở mục (al)).
+- **Trạng thái**: UI Header đã có lại, đang chạy bằng dữ liệu mô phỏng in nghiêng. Chờ Backend làm 3 route
+  trên rồi đổi `changeRequestApiService` sang gọi thật + gỡ nhãn "(Dữ liệu minh họa)" ở cả `Header.tsx` và
+  `FieldChangeRequestCard.tsx`.
+
+### (an.2) Cập nhật 2026-07-24: theo yêu cầu người dùng, BỎ HẲN khối "Cảnh báo cần xử lý" (OrderWarning) khỏi Header — khác quyết định ở (an), không liên quan tới khối "Yêu cầu thay đổi chờ duyệt"
+
+- **Yêu cầu người dùng**: bỏ UI + API gọi `GET /orders/{id}/warnings` (khối "Cảnh báo cần xử lý" thêm ở
+  (ak.2)) — vì route này chưa tồn tại ở backend thật (`D:\sep490-backend-api`, xem (am)) và người dùng
+  không muốn giữ lại nữa (khác với "Yêu cầu thay đổi chờ duyệt" ở (an), vẫn giữ dạng mock).
+- **Đã xóa hoàn toàn** (không chỉ ẩn UI):
+  - `Header.tsx`: bỏ state `orderWarnings`, effect gọi lặp `getOrderWarnings(order.orderId)` cho từng đơn,
+    handler `handleResolveWarning`, khối JSX "Cảnh báo cần xử lý" trong dropdown chuông, và trừ khỏi
+    `totalNotifications`.
+  - `src/services/orderWarning.service.ts` và `src/types/orderWarning.ts` — xóa file, vì sau khi bỏ khỏi
+    Header thì không còn nơi nào gọi tới (đã grep xác nhận 0 kết quả).
+  - `src/services/mockAdapter.ts`: bỏ 2 route mock `GET/POST /orders/:orderId/warnings` và
+    `PUT /warnings/:warningId/resolve` (không còn caller). Giữ nguyên `MOCK_ORDER_WARNINGS` trong
+    `mocks/apiFixtures.ts` vì mảng này còn được `mockAdapter.ts` dùng để nhúng sẵn `orderWarnings` trong
+    response `GET /orders/{id}` (field `OrderDetail.orderWarnings`, xem `types/order.ts`) — đổi type import
+    sang `OrderWarningSummary` (`types/order.ts`) thay vì file `types/orderWarning.ts` đã xóa.
+  - `src/services/api.ts`: bỏ điều kiện `isKnownMissingOrderWarnings` (thêm ở mục (am) để chặn log 404
+    riêng route này) — không còn cần thiết vì không còn request nào gọi route đó nữa.
+- **Không đụng tới**: field `OrderDetail.orderWarnings?`/`OrderWarningSummary` (`types/order.ts`) và
+  `Report`/dashboard type có field `orderWarnings` (`types/report.ts`) — đây là phần nhúng sẵn trong
+  response khác (order detail, report), không phải endpoint riêng `GET /orders/{id}/warnings` mà user yêu
+  cầu bỏ, và hiện không trang nào đọc field này nên để nguyên, không mở rộng phạm vi ngoài yêu cầu.
+- **Trạng thái**: đã xóa xong, `npx tsc --noEmit` chạy sạch không lỗi. Nếu sau này Backend làm route
+  `/orders/{id}/warnings`, cần hỏi lại người dùng có muốn thêm lại tính năng này hay không (không tự ý
+  thêm lại, theo đúng quy tắc chung của dự án).
+
+## (ao) 2026-07-24 — Backend đã làm xong cả 3 route `change-requests` yêu cầu ở (an) — đã nối API thật, gỡ nhãn "(Dữ liệu minh họa)"
+
+- **Xác nhận trực tiếp trên `D:\sep490-backend-api\src\modules\sales\`**: cả 3 route yêu cầu ở (an) đều đã
+  có — `changeRequest.routes.ts` (`GET /change-requests`, `PUT /change-requests/:changeRequestId/approve`,
+  mounted tại `/api/v1/change-requests`) và `order.routes.ts:143` (`POST /orders/:orderId/change-requests`).
+  `NEXT_PUBLIC_MOCK_MODE=false` trong `.env.local` nên FE vốn đã gọi thẳng backend thật từ trước (không qua
+  `mockAdapter.ts`) — chỉ type/service/UI chưa khớp shape response thật.
+- **Response thật khác giả định cũ**: `GET /change-requests` trả kèm `orderCode`, `eventName`,
+  `customerName`, `customerPhone`, `amount` (tính on-the-fly từ items + giá catalog hiện tại, không lưu cột
+  riêng) ngay trên từng change-request — không cần FE tự tra `customerName` qua danh sách order như code cũ ở
+  `Header.tsx`. Từng item trả thêm `changeRequestItemId`, `itemName`, `rentalPrice`. `meta` phân trang theo
+  đúng pattern `page/limit/totalItems/totalPages` (không phải `totalCount` như comment cũ).
+- **Đã cập nhật**:
+  - `src/types/changeRequest.ts`: viết lại `ChangeRequest`/`ChangeRequestItem` khớp đúng response thật, tách
+    `ChangeRequestItemInput` riêng cho body tạo (`CreateChangeRequestPayload`).
+  - `src/services/changeRequest.service.ts`: sửa `meta` type; `createChangeRequest()` gọi thật
+    `POST /orders/:orderId/change-requests` (trước đó luôn `throw` vì nghĩ route chưa tồn tại).
+  - `src/services/mockAdapter.ts`: xóa hẳn `mapFieldChangeRequestToApi` + 2 route mock
+    `GET /change-requests` / `PUT /change-requests/:id/approve` (đúng chỉ dẫn "XÓA toàn bộ mock này ngay khi
+    backend bổ sung API thật" ghi sẵn trong comment cũ) — không còn dùng `FieldChangeRequest` làm nguồn giả
+    lập cho model `ChangeRequest` thật nữa. `mocks/db/changeRequests.ts` (`FieldChangeRequest`) vẫn giữ
+    nguyên vì còn phục vụ 2 trang `/manager/field-ops/*` (xem mục "Chưa đụng tới" bên dưới).
+  - `src/components/layout/Header.tsx`: gỡ nhãn "(Dữ liệu minh họa)", bỏ logic tự tra `customerName` qua
+    `activeOrders` (không cần nữa, dùng thẳng `cr.customerName` từ response), state `activeOrders` không còn
+    dùng nên xóa luôn.
+  - `src/components/orders/FieldChangeRequestCard.tsx`: gỡ nhãn "(Dữ liệu minh họa)".
+- **Chưa đụng tới (ngoài phạm vi)**: trang `/manager/field-ops/change-requests` và
+  `mocks/db/changeRequests.ts` (`FieldChangeRequest`) — đây là mô hình mock hoàn toàn khác (vocabulary
+  ADD/REMOVE/REPLACE hoa, item lưu theo tên thay vì `catalogItemId`, có thêm `reason`/`distanceKm`/phụ phí
+  vận chuyển mô phỏng mà backend thật không có cột tương ứng) được dựng riêng từ trước theo mục 0 CLAUDE.md
+  ("trang thuần giao diện", chưa có màn hình admin/coordination tương ứng để mirror). Nối trang này sang model
+  `ChangeRequest` thật sẽ mất các trường mô phỏng đó — cần hỏi lại người dùng trước khi đổi, không tự ý gộp
+  2 model.
+- **Trạng thái**: khối "Yêu cầu thay đổi chờ duyệt" ở Header + card ở tab Khảo sát/Nhân sự (order detail) đã
+  nối API thật hoàn toàn (list + approve/reject + create). `npx tsc --noEmit` chạy sạch không lỗi.

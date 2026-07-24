@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, Search } from 'lucide-react';
 
 interface SearchableSelectOption {
@@ -18,6 +18,8 @@ interface SearchableSelectProps {
   disabled?: boolean;
   required?: boolean;
   emptyText?: string;
+  /** Gọi mỗi khi người dùng gõ vào ô tìm kiếm — dùng khi cần tìm kiếm thêm qua API (server-side) thay vì chỉ lọc trong `options` đã có sẵn. */
+  onQueryChange?: (query: string) => void;
 }
 
 export function SearchableSelect({
@@ -30,11 +32,20 @@ export function SearchableSelect({
   disabled,
   required,
   emptyText = 'Không tìm thấy kết quả phù hợp.',
+  onQueryChange,
 }: Readonly<SearchableSelectProps>) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const updateQuery = useCallback(
+    (next: string) => {
+      setQuery(next);
+      onQueryChange?.(next);
+    },
+    [onQueryChange],
+  );
 
   const selectedOption = options.find((o) => o.value === value);
 
@@ -49,12 +60,12 @@ export function SearchableSelect({
     const handleClickOutside = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setOpen(false);
-        setQuery('');
+        updateQuery('');
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [open]);
+  }, [open, updateQuery]);
 
   useEffect(() => {
     if (open) searchInputRef.current?.focus();
@@ -87,7 +98,7 @@ export function SearchableSelect({
                 ref={searchInputRef}
                 type="text"
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => updateQuery(e.target.value)}
                 placeholder={searchPlaceholder}
                 className="w-full text-sm text-gray-900 focus:outline-none"
               />
@@ -100,7 +111,7 @@ export function SearchableSelect({
                     onClick={() => {
                       onChange(opt.value);
                       setOpen(false);
-                      setQuery('');
+                      updateQuery('');
                     }}
                     className={`w-full px-3 py-2 text-left text-sm transition-colors duration-100 hover:bg-blue-50 ${
                       opt.value === value ? 'bg-blue-50 font-semibold text-blue-700' : 'text-gray-700'

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import type { AxiosError } from 'axios';
 import { ChevronLeft, CheckCircle2, Info } from 'lucide-react';
+import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Button } from '@/components/ui/Button';
 import Reveal from '@/components/ui/Reveal';
 import { formatDate, formatTime } from '@/utils/formatDate';
@@ -147,6 +148,14 @@ export default function ManagerReturnSlipDetailPage() {
 
   return (
     <div className="p-6">
+      <Breadcrumb
+        items={[
+          { label: 'Thu hồi & hoàn kho' },
+          { label: 'Danh sách phiếu hoàn kho', href: '/manager/inventory/returns' },
+          { label: `#${report.reportId.slice(0, 8).toUpperCase()}` },
+        ]}
+        className="mb-3"
+      />
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex flex-wrap items-center gap-2.5">

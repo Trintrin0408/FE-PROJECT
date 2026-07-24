@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { AxiosError } from 'axios';
-import { ChevronLeft, ChevronRight, Plus, Search, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Button } from '@/components/ui/Button';
@@ -59,52 +59,6 @@ function draftItemFromCatalog(catalogItem: InventoryRow): DraftLineItem {
 const cellInputClassName =
   'w-full rounded-md border border-slate-200 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500';
 
-function ItemNameSearchInput({
-  catalogItems,
-  onPick,
-}: Readonly<{ catalogItems: InventoryRow[]; onPick: (item: InventoryRow) => void }>) {
-  const [value, setValue] = useState('');
-  const [isOpen, setIsOpen] = useState(false);
-  const suggestions = useMemo(() => {
-    const term = value.trim().toLowerCase();
-    if (!term) return [];
-    return catalogItems.filter((it) => (it.itemName ?? '').toLowerCase().includes(term)).slice(0, 6);
-  }, [value, catalogItems]);
-
-  return (
-    <div className="relative min-w-[180px]">
-      <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-      <input
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onFocus={() => setIsOpen(true)}
-        onBlur={() => setTimeout(() => setIsOpen(false), 150)}
-        placeholder="Tìm trong kho để đổi hạng mục..."
-        className={`${cellInputClassName} pl-7`}
-      />
-      {isOpen && suggestions.length > 0 && (
-        <ul className="absolute z-10 mt-1 w-64 rounded-md border border-slate-200 bg-white py-1 text-sm shadow-lg">
-          {suggestions.map((it) => (
-            <li key={it.itemId}>
-              <button
-                type="button"
-                onMouseDown={() => {
-                  onPick(it);
-                  setValue('');
-                }}
-                className="flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left hover:bg-blue-50"
-              >
-                <span className="truncate">{it.itemName}</span>
-                <span className="flex-shrink-0 text-xs text-slate-400">{formatCurrency(it.rentalPrice ?? 0)}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
 interface CreateQuotationWizardModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -142,8 +96,8 @@ export default function CreateQuotationWizardModal({
   const [saveError, setSaveError] = useState<string | null>(null);
 
   // Tải khách hàng + catalog thật (từ /inventory, xem giải thích ở đầu file) 1 lần khi mở modal —
-  // SearchableSelect/ItemNameSearchInput chỉ lọc client-side trên mảng đã tải, không hỗ trợ tìm kiếm
-  // bất đồng bộ (doc mục 4 gợi ý đổi component, chưa làm ở lần nối API này vì là component dùng chung).
+  // SearchableSelect chỉ lọc client-side trên mảng đã tải, không hỗ trợ tìm kiếm bất đồng bộ (doc mục 4
+  // gợi ý đổi component, chưa làm ở lần nối API này vì là component dùng chung).
   // Khi có `presetCustomer` (mở từ modal Tạo đơn hàng): bỏ qua GET /customers, khóa cứng khách hàng đã
   // chọn sẵn và nhảy thẳng vào Bước 2 — Bước 1 không còn ý nghĩa gì trong luồng này.
   useEffect(() => {
@@ -208,18 +162,20 @@ export default function CreateQuotationWizardModal({
     }
   };
 
-  const addCatalogItem = (catalogItem: InventoryRow) => setItems((prev) => [...prev, draftItemFromCatalog(catalogItem)]);
+  // Chọn trùng 1 hạng mục đã có trong bảng (cùng itemId) thì chỉ cộng dồn số lượng thay vì thêm dòng mới.
+  const addCatalogItem = (catalogItem: InventoryRow) =>
+    setItems((prev) => {
+      const existing = prev.find((it) => it.itemId === catalogItem.itemId);
+      if (existing) {
+        return prev.map((it) =>
+          it.id === existing.id ? { ...it, quantity: String((Number(it.quantity) || 0) + 1) } : it,
+        );
+      }
+      return [...prev, draftItemFromCatalog(catalogItem)];
+    });
   const updateItem = (id: string, patch: Partial<DraftLineItem>) =>
     setItems((prev) => prev.map((it) => (it.id === id ? { ...it, ...patch } : it)));
   const removeItem = (id: string) => setItems((prev) => prev.filter((it) => it.id !== id));
-  const pickCatalogForRow = (id: string, catalogItem: InventoryRow) =>
-    updateItem(id, {
-      itemId: catalogItem.itemId,
-      name: catalogItem.itemName ?? catalogItem.itemId,
-      category: catalogItem.typeName ?? 'Khác',
-      unit: catalogItem.unit ?? 'Cái',
-      unitPrice: String(catalogItem.rentalPrice ?? 0),
-    });
 
   const subtotal = items.reduce((sum, it) => sum + (Number(it.unitPrice) || 0) * (Number(it.quantity) || 0), 0);
   const totalDiscount = items.reduce((sum, it) => sum + (Number(it.discount) || 0) * (Number(it.quantity) || 0), 0);
@@ -379,9 +335,6 @@ export default function CreateQuotationWizardModal({
                         <tr key={item.id}>
                           <td className="px-3 py-2 align-top">
                             <p className="px-1 py-1.5 text-sm font-medium text-slate-800">{item.name}</p>
-                            <div className="mt-1">
-                              <ItemNameSearchInput catalogItems={catalogItems} onPick={(catalogItem) => pickCatalogForRow(item.id, catalogItem)} />
-                            </div>
                           </td>
                           <td className="px-3 py-2 align-top text-slate-600">{item.category}</td>
                           <td className="px-3 py-2 align-top text-slate-600">{item.unit}</td>

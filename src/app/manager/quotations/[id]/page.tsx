@@ -5,8 +5,10 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import type { AxiosError } from 'axios';
-import { Check, CheckCircle2, ChevronRight, Copy, FileSignature, Mail, MapPin, PackageCheck, Pencil, Phone, Printer, Trash2, X } from 'lucide-react';
+import { Check, CheckCircle2, Copy, FileSignature, Mail, MapPin, PackageCheck, Pencil, Phone, Printer, Trash2, X } from 'lucide-react';
+import { BackButton } from '@/components/ui/BackButton';
 import { Badge } from '@/components/ui/Badge';
+import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { formatCurrency } from '@/utils/formatCurrency';
@@ -181,12 +183,13 @@ export default function ManagerQuotationDetailPage() {
     }
   };
 
-  const handleApprove = async () => {
+  const handleApproveAndCreateOrder = async () => {
     if (!canApproveReject || isUpdatingStatus) return;
     setIsUpdatingStatus(true);
     try {
       await quotationApiService.updateQuotationStatus(detail.quotationId, { status: 'approved' });
       load();
+      setIsCreateOrderOpen(true);
     } finally {
       setIsUpdatingStatus(false);
     }
@@ -269,26 +272,37 @@ export default function ManagerQuotationDetailPage() {
   const updateEditItem = (quotationItemId: string, patch: Partial<EditableLineItem>) =>
     setEditItems((prev) => prev.map((it) => (it.quotationItemId === quotationItemId ? { ...it, ...patch } : it)));
   const removeEditItem = (quotationItemId: string) => setEditItems((prev) => prev.filter((it) => it.quotationItemId !== quotationItemId));
+  // Chọn trùng 1 hạng mục đã có trong bảng (cùng itemId) thì chỉ cộng dồn số lượng thay vì thêm dòng mới.
   const addEditItemFromCatalog = (catalogItem: InventoryRow) =>
-    setEditItems((prev) => [
-      ...prev,
-      {
-        // Dòng mới chưa tồn tại trên backend — quotationItemId tạm chỉ dùng làm React key/selector cục
-        // bộ, khi lưu chỉ gửi itemId/quantity/price/discount nên giá trị này không đi lên server.
-        quotationItemId: `new-${Date.now()}-${catalogItem.itemId}`,
-        itemId: catalogItem.itemId,
-        itemName: catalogItem.itemName ?? catalogItem.itemCode ?? catalogItem.itemId,
-        categoryName: catalogItem.categoryName ?? catalogItem.typeName ?? 'Khác',
-        unit: catalogItem.unit ?? 'Cái',
-        quantity: 1,
-        price: catalogItem.rentalPrice ?? 0,
-        discount: 0,
-        lineTotal: catalogItem.rentalPrice ?? 0,
-        quantityInput: '1',
-        priceInput: String(catalogItem.rentalPrice ?? 0),
-        discountInput: '0',
-      },
-    ]);
+    setEditItems((prev) => {
+      const existing = prev.find((it) => it.itemId === catalogItem.itemId);
+      if (existing) {
+        return prev.map((it) =>
+          it.quotationItemId === existing.quotationItemId
+            ? { ...it, quantityInput: String((Number(it.quantityInput) || 0) + 1) }
+            : it,
+        );
+      }
+      return [
+        ...prev,
+        {
+          // Dòng mới chưa tồn tại trên backend — quotationItemId tạm chỉ dùng làm React key/selector cục
+          // bộ, khi lưu chỉ gửi itemId/quantity/price/discount nên giá trị này không đi lên server.
+          quotationItemId: `new-${Date.now()}-${catalogItem.itemId}`,
+          itemId: catalogItem.itemId,
+          itemName: catalogItem.itemName ?? catalogItem.itemCode ?? catalogItem.itemId,
+          categoryName: catalogItem.categoryName ?? catalogItem.typeName ?? 'Khác',
+          unit: catalogItem.unit ?? 'Cái',
+          quantity: 1,
+          price: catalogItem.rentalPrice ?? 0,
+          discount: 0,
+          lineTotal: catalogItem.rentalPrice ?? 0,
+          quantityInput: '1',
+          priceInput: String(catalogItem.rentalPrice ?? 0),
+          discountInput: '0',
+        },
+      ];
+    });
 
   const editSubtotal = editItems.reduce((sum, it) => sum + (Number(it.priceInput) || 0) * (Number(it.quantityInput) || 0), 0);
   const editDiscountTotal = editItems.reduce((sum, it) => sum + (Number(it.discountInput) || 0), 0);
@@ -330,25 +344,26 @@ export default function ManagerQuotationDetailPage() {
 
   return (
     <div className="p-6 print:p-0">
-      <div className="flex items-center gap-1.5 text-sm text-slate-400 print:hidden">
-        <span>Báo giá</span>
-        <ChevronRight className="h-3.5 w-3.5" />
-        <Link href="/manager/quotations" className="hover:text-blue-600 hover:underline">
-          Danh sách báo giá
-        </Link>
-        <ChevronRight className="h-3.5 w-3.5" />
-        <span className="font-medium text-slate-600">{detail.quotationCode}</span>
-      </div>
+      <Breadcrumb
+        items={[
+          { label: 'Báo giá' },
+          { label: 'Danh sách báo giá', href: '/manager/quotations' },
+          { label: detail.quotationCode },
+        ]}
+      />
 
       <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold text-slate-900">Báo giá {detail.quotationCode}</h1>
-            <Badge variant={statusToBadgeVariant(detail.status)}>{STATUS_LABEL[detail.status]}</Badge>
+        <div className="flex items-start gap-3">
+          <BackButton href="/manager/quotations" />
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold text-slate-900">Báo giá {detail.quotationCode}</h1>
+              <Badge variant={statusToBadgeVariant(detail.status)}>{STATUS_LABEL[detail.status]}</Badge>
+            </div>
+            <p className="mt-1 text-xs font-medium text-slate-500">
+              Phiên bản: {detail.version} | Tạo bởi: {detail.createdBy.fullName} ({ROLE_LABEL[detail.createdBy.role] ?? detail.createdBy.role})
+            </p>
           </div>
-          <p className="mt-1 text-xs font-medium text-slate-500">
-            Phiên bản: {detail.version} | Tạo bởi: {detail.createdBy.fullName} ({ROLE_LABEL[detail.createdBy.role] ?? detail.createdBy.role})
-          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 print:hidden">
           {isEditingItems ? (
@@ -404,9 +419,9 @@ export default function ManagerQuotationDetailPage() {
               )}
               {canApproveReject && (
                 <>
-                  <Button className="bg-green-600 hover:bg-green-700" onClick={handleApprove} isLoading={isUpdatingStatus}>
+                  <Button className="bg-green-600 hover:bg-green-700" onClick={handleApproveAndCreateOrder} isLoading={isUpdatingStatus}>
                     <CheckCircle2 className="h-4 w-4" />
-                    Phê duyệt báo giá
+                    Duyệt và sinh đơn đặt
                   </Button>
                   <Button variant="secondary" className="border-red-100 bg-red-50 text-red-600 hover:bg-red-100" onClick={handleReject} disabled={isUpdatingStatus}>
                     <X className="h-4 w-4" />

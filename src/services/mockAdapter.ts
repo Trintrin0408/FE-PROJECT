@@ -31,13 +31,10 @@ import {
   createDepositForMockRoute,
   markDepositStatusForMockRoute,
   confirmSettlement,
-  getFieldChangeRequests,
-  reviewFieldChangeRequest,
   getAdminQuotations,
   type AdminCustomer,
   type AdminOrderRow,
   type MockApiMeta,
-  type FieldChangeRequest,
 } from '@/mocks/db';
 import type { QuotationListItem, QuotationListStatus } from '@/types/quotation';
 import type { ItemCategory } from '@/types/catalog';
@@ -52,7 +49,6 @@ import type {
 } from '@/types/customer';
 import type { Order, OrderStatus, OrderPaymentStatus } from '@/types/order';
 import type { PolicyType } from '@/types/policy';
-import type { ChangeRequest, ChangeRequestItem } from '@/types/changeRequest';
 
 // Customer/Order lấy THẲNG từ src/mocks/db/ (nguồn duy nhất, dùng chung với mọi trang admin/manager
 // đọc trực tiếp từ đó) thay vì có mảng MOCK_CUSTOMERS/MOCK_ORDERS riêng — xem DEMO_CHECKLIST.md Task
@@ -95,28 +91,6 @@ function mapOrderToApi(o: AdminOrderRow): Order {
     createdBy: { userId: 'mock-manager-1', fullName: 'Trưởng phòng vận hành', role: 'MANAGER' },
     createdAt: FIXED_TIMESTAMP,
     updatedAt: FIXED_TIMESTAMP,
-  };
-}
-
-// FieldChangeRequest (src/mocks/db/changeRequests.ts, dùng cho 2 trang /manager/field-ops/*) và
-// ChangeRequest (types/changeRequest.ts, shape backend UC 2.27) là 2 mô hình KHÁC NHAU — vocabulary
-// hoa/thường khác, items lưu theo tên thiết bị (addItem/removeItem/oldItem/newItem) thay vì
-// catalogItemId thật. Route dưới đây phục vụ changeRequestApiService (chỉ còn
-// SurveyPersonnelTab.tsx dùng — component mồ côi, chưa trang nào render, xem DEMO_CHECKLIST.md Task
-// 8) nên map best-effort, dùng tên thiết bị làm catalogItemId giả thay vì tra cứu catalog thật.
-function mapFieldChangeRequestToApi(cr: FieldChangeRequest): ChangeRequest {
-  const items: ChangeRequestItem[] = [];
-  if (cr.addItem) items.push({ catalogItemId: cr.addItem.name, quantity: cr.addItem.quantity, action: 'add' });
-  if (cr.removeItem) items.push({ catalogItemId: cr.removeItem.name, quantity: cr.removeItem.quantity, action: 'remove' });
-  if (cr.oldItem) items.push({ catalogItemId: cr.oldItem.name, quantity: cr.oldItem.quantity, action: 'remove' });
-  if (cr.newItem) items.push({ catalogItemId: cr.newItem.name, quantity: cr.newItem.quantity, action: 'add' });
-  return {
-    changeRequestId: cr.id,
-    orderId: cr.orderId,
-    type: cr.type.toLowerCase() as ChangeRequest['type'],
-    items,
-    status: cr.status.toLowerCase() as ChangeRequest['status'],
-    createdAt: cr.requestedAt,
   };
 }
 
@@ -602,30 +576,9 @@ function resolve(method: string, path: string, params: Record<string, unknown>, 
   }
 
   // ===== Change requests (UC 2.27) =====
-  // Trước Task 20, changeRequestApiService gọi thẳng src/app/api/v1/change-requests/* (route handler
-  // Next.js riêng, dữ liệu từ src/mocks/seed.ts) — cơ chế mock thứ 3 độc lập, không liên quan tới
-  // src/mocks/db/. Đã xóa cơ chế đó, gộp về đây cho đúng 1 cơ chế mock duy nhất (đi qua `api`/
-  // mockAdapter.ts như mọi service khác) — dữ liệu lấy từ src/mocks/db/changeRequests.ts (đã trỏ
-  // orderId thật từ db/orders.ts).
-  if (m === 'GET' && path === '/change-requests') {
-    const orderId = params.orderId as string | undefined;
-    const status = params.status as string | undefined;
-    let list = getFieldChangeRequests().map(mapFieldChangeRequestToApi);
-    if (orderId) list = list.filter((cr) => cr.orderId === orderId);
-    if (status) list = list.filter((cr) => cr.status === status);
-    const { data, meta } = paginate(list, params.page as number, params.limit as number);
-    return { status: 200, data: envelope(data, meta) };
-  }
-  {
-    const crApproveParams = matchPath('/change-requests/:id/approve', path);
-    if (m === 'PUT' && crApproveParams) {
-      const payload = (body as { status?: 'approved' | 'rejected' }) ?? {};
-      if (payload.status === 'approved' || payload.status === 'rejected') {
-        reviewFieldChangeRequest(crApproveParams.id, payload.status === 'approved' ? 'APPROVED' : 'REJECTED', 'Quản lý vận hành');
-      }
-      return { status: 200, data: envelope({ status: payload.status }, undefined, 'Cập nhật trạng thái yêu cầu thay đổi thành công (dữ liệu mô phỏng)') };
-    }
-  }
+  // Backend thật (D:\sep490-backend-api) đã có route GET /change-requests, POST
+  // /orders/:orderId/change-requests, PUT /change-requests/:id/approve (docs/more-require.md mục
+  // (an)) — không cần mock nữa, để rơi vào fallback chung bên dưới nếu NEXT_PUBLIC_MOCK_MODE=true.
 
   // ===== Schedule plans =====
   if (m === 'GET' && path === '/schedule-plans') {
@@ -786,30 +739,6 @@ function resolve(method: string, path: string, params: Record<string, unknown>, 
       const user = currentAuthUser();
       if (idx >= 0) MOCK_WAGES[idx] = { ...MOCK_WAGES[idx], status: 'CONFIRMED', confirmedBy: user?.userId ?? 'mock-manager-1', confirmedAt: FIXED_TIMESTAMP, updatedAt: FIXED_TIMESTAMP };
       return { status: 200, data: envelope(MOCK_WAGES[idx] ?? { wageId: wageConfirmParams.id, status: 'CONFIRMED' }, undefined, 'Xác nhận tiền công thành công (dữ liệu mô phỏng)') };
-    }
-  }
-
-  // ===== Order warnings =====
-  {
-    const orderWarningsParams = matchPath('/orders/:orderId/warnings', path);
-    if (m === 'GET' && orderWarningsParams) {
-      const list = MOCK_ORDER_WARNINGS.filter((w) => w.orderId === orderWarningsParams.orderId);
-      return { status: 200, data: envelope(list, { page: 1, limit: list.length || 1, totalCount: list.length }) };
-    }
-    if (m === 'POST' && orderWarningsParams) {
-      const payload = body as { content: string };
-      const created = { warningId: nextId('warning'), orderId: orderWarningsParams.orderId, content: payload.content, isResolved: false, createdAt: FIXED_TIMESTAMP };
-      MOCK_ORDER_WARNINGS.push(created);
-      return { status: 201, data: envelope(created, undefined, 'Tạo cảnh báo đơn hàng thành công (dữ liệu mô phỏng)') };
-    }
-  }
-  {
-    const warningResolveParams = matchPath('/warnings/:warningId/resolve', path);
-    if (m === 'PUT' && warningResolveParams) {
-      const idx = MOCK_ORDER_WARNINGS.findIndex((w) => w.warningId === warningResolveParams.warningId);
-      const user = currentAuthUser();
-      if (idx >= 0) MOCK_ORDER_WARNINGS[idx] = { ...MOCK_ORDER_WARNINGS[idx], isResolved: true, resolvedBy: user?.userId ?? 'mock-manager-1', resolvedAt: FIXED_TIMESTAMP };
-      return { status: 200, data: envelope(MOCK_ORDER_WARNINGS[idx] ?? { warningId: warningResolveParams.warningId, isResolved: true }, undefined, 'Xử lý cảnh báo thành công (dữ liệu mô phỏng)') };
     }
   }
 

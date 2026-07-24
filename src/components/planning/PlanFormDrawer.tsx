@@ -5,16 +5,18 @@ import { motion } from 'framer-motion';
 import { AlertTriangle, Check, Loader2, PlusCircle, X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { useDebounce } from '@/hooks/useDebounce';
 import { formatDate, formatTime } from '@/utils/formatDate';
 import type { OrderPlanGroup } from '@/utils/schedulePlanGroups';
 import { ROLE_LABEL, SCHEDULE_STATUS_BADGE, SCHEDULE_STATUS_LABEL } from '@/utils/schedulePlanGroups';
 import { schedulePlanApiService } from '@/services/schedulePlan.service';
 import { workTaskApiService } from '@/services/workTask.service';
 import { userApiService } from '@/services/user.service';
+import { orderApiService } from '@/services/order.service';
 import type { WorkTask } from '@/types/workTask';
 import type { AdminUser } from '@/types/user';
 
-export interface UnplannedOrderOption {
+export interface PlanOrderOption {
   orderId: string;
   orderCode: string;
   customerName: string;
@@ -37,7 +39,8 @@ interface DraftItem {
 interface PlanFormDrawerProps {
   isOpen: boolean;
   editingGroup: OrderPlanGroup | null;
-  unplannedOrders: UnplannedOrderOption[];
+  /** Đơn đặt đang hoạt động (chưa hoàn thành/hủy) có thể chọn để tạo kế hoạch — kể cả đơn đã có sẵn 1+ kế hoạch khác. */
+  selectableOrders: PlanOrderOption[];
   defaultOrderId?: string;
   onClose: () => void;
   onSaved: () => void;
@@ -72,12 +75,17 @@ function newDraftItem(defaultLocation: string): DraftItem {
 // LEADER/TECHNICAL — mục 8.3), tên việc tự do (đổi sang chọn task_id từ danh mục work_tasks thật + ô
 // mô tả ghi vào notes — mục 2/8.4), và luồng "đơn đặt ảo từ báo giá" (chưa làm được, chờ Backend đổi
 // schema thêm schedule_plans.quotation_id — xem docs/kehoachvaphancong_api.md mục 8.1/12).
-export default function PlanFormDrawer({ isOpen, editingGroup, unplannedOrders, defaultOrderId, onClose, onSaved }: Readonly<PlanFormDrawerProps>) {
-  const [orderId, setOrderId] = useState(() => editingGroup?.orderId ?? defaultOrderId ?? unplannedOrders[0]?.orderId ?? '');
+export default function PlanFormDrawer({ isOpen, editingGroup, selectableOrders, defaultOrderId, onClose, onSaved }: Readonly<PlanFormDrawerProps>) {
+  const [orderId, setOrderId] = useState(() => editingGroup?.orderId ?? defaultOrderId ?? selectableOrders[0]?.orderId ?? '');
   const [items, setItems] = useState<DraftItem[]>(() => {
-    const order = unplannedOrders.find((o) => o.orderId === (defaultOrderId ?? unplannedOrders[0]?.orderId));
+    const order = selectableOrders.find((o) => o.orderId === (defaultOrderId ?? selectableOrders[0]?.orderId));
     return editingGroup ? [] : [newDraftItem(order?.location ?? '')];
   });
+
+  const [orderSearchInput, setOrderSearchInput] = useState('');
+  const orderSearchDebounced = useDebounce(orderSearchInput, 300);
+  const [searchedOrders, setSearchedOrders] = useState<PlanOrderOption[]>([]);
+  const [searchingOrders, setSearchingOrders] = useState(false);
 
   const [workTasks, setWorkTasks] = useState<WorkTask[]>([]);
   const [leaders, setLeaders] = useState<AdminUser[]>([]);
@@ -123,8 +131,51 @@ export default function PlanFormDrawer({ isOpen, editingGroup, unplannedOrders, 
     };
   }, [isOpen]);
 
+  useEffect(() => {
+    if (editingGroup) return;
+    const term = orderSearchDebounced.trim();
+    if (!term) {
+      setSearchedOrders([]);
+      return;
+    }
+    let cancelled = false;
+    setSearchingOrders(true);
+    orderApiService
+      .getOrders({ search: term, limit: 20 })
+      .then((res) => {
+        if (cancelled) return;
+        const filtered = (res.data ?? []).filter((o) => o.orderStatus !== 'COMPLETED' && o.orderStatus !== 'CANCELLED');
+        setSearchedOrders(
+          filtered.map((o) => ({
+            orderId: o.orderId,
+            orderCode: o.orderCode,
+            customerName: o.customerName ?? '',
+            eventName: o.eventName ?? '',
+            eventDate: o.eventDate,
+            location: o.location ?? '',
+          })),
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setSearchedOrders([]);
+      })
+      .finally(() => {
+        if (!cancelled) setSearchingOrders(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [orderSearchDebounced, editingGroup]);
+
+  const combinedOrders = useMemo(() => {
+    const map = new Map<string, PlanOrderOption>();
+    for (const o of selectableOrders) map.set(o.orderId, o);
+    for (const o of searchedOrders) map.set(o.orderId, o);
+    return [...map.values()];
+  }, [selectableOrders, searchedOrders]);
+
   const allStaff = useMemo(() => [...leaders, ...technicians], [leaders, technicians]);
-  const orderInfo = editingGroup ?? unplannedOrders.find((o) => o.orderId === orderId);
+  const orderInfo = editingGroup ?? combinedOrders.find((o) => o.orderId === orderId);
 
   if (!isOpen) return null;
 
@@ -264,13 +315,20 @@ export default function PlanFormDrawer({ isOpen, editingGroup, unplannedOrders, 
                 label="Lựa chọn đơn đặt"
                 value={orderId}
                 onChange={setOrderId}
-                searchPlaceholder="Tìm theo mã đơn hoặc tên khách hàng..."
-                emptyText="Không còn đơn đặt nào chưa có kế hoạch."
-                options={unplannedOrders.map((o) => ({ value: o.orderId, label: `${o.orderCode} - ${o.customerName}` }))}
+                onQueryChange={setOrderSearchInput}
+                searchPlaceholder="Tìm theo mã đơn hoặc tên khách hàng (tìm trên toàn bộ dữ liệu)..."
+                emptyText={
+                  searchingOrders
+                    ? 'Đang tìm kiếm...'
+                    : selectableOrders.length === 0
+                      ? 'Không có đơn đặt nào đang hoạt động.'
+                      : 'Không tìm thấy đơn đặt phù hợp với từ khóa tìm kiếm.'
+                }
+                options={combinedOrders.map((o) => ({ value: o.orderId, label: `${o.orderCode} - ${o.customerName}` }))}
               />
             )}
-            {!editingGroup && unplannedOrders.length === 0 && (
-              <p className="text-xs italic text-amber-600">Không còn đơn đặt nào chưa có kế hoạch điều phối.</p>
+            {!editingGroup && selectableOrders.length === 0 && (
+              <p className="text-xs italic text-amber-600">Không có đơn đặt nào đang hoạt động (chưa hoàn thành/hủy) để lập kế hoạch.</p>
             )}
             <p className="text-[11px] italic text-slate-400">
               Chưa hỗ trợ lập lịch khảo sát khi báo giá chưa có đơn đặt thật — backend cần bổ sung cột

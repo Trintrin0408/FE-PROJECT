@@ -4,8 +4,10 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import type { AxiosError } from 'axios';
-import { Ban, Calendar, Check, ChevronLeft, Copy, Download, MapPin, Phone, Plus } from 'lucide-react';
+import { Ban, Calendar, Check, Copy, Download, MapPin, Phone, Plus } from 'lucide-react';
+import { BackButton } from '@/components/ui/BackButton';
 import { Badge, getStatusBadgeVariant } from '@/components/ui/Badge';
+import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
@@ -196,10 +198,16 @@ export default function DepositDetailView({ canManage, backHref }: Readonly<Depo
 
   return (
     <div className="p-6">
-      <Link href={backHref} className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-blue-600">
-        <ChevronLeft className="h-4 w-4" />
-        Quay lại danh sách
-      </Link>
+      <div className="mb-4 flex items-center gap-3">
+        <BackButton href={backHref} />
+        <Breadcrumb
+          items={[
+            { label: 'Đặt cọc' },
+            { label: 'Danh sách đặt cọc', href: backHref },
+            { label: order.orderCode },
+          ]}
+        />
+      </div>
 
       <Reveal className="rounded-2xl bg-[#0F172A] p-6 text-white">
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_auto]">

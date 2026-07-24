@@ -38,6 +38,5 @@ export * from './schedulePlans';
 export * from './payments';
 export * from './changeRequests';
 export * from './surveyReports';
-export * from './approachingEvents';
 
 // Entity modules còn lại sẽ export tại đây theo từng Task ở trên.

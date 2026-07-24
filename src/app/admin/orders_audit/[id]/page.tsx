@@ -4,8 +4,9 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Activity, AlertOctagon, Box, Calendar, Check, CheckCircle2, ChevronLeft, Clock, FileText, Lock, MapPin, PlayCircle, Users } from 'lucide-react';
+import { Activity, Box, Calendar, Check, CheckCircle2, ChevronLeft, Clock, FileText, Lock, MapPin, PlayCircle, Users } from 'lucide-react';
 import { Badge, getStatusBadgeVariant, type BadgeVariant } from '@/components/ui/Badge';
+import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
@@ -53,7 +54,7 @@ import type { SchedulePlan } from '@/types/schedulePlan';
 // thành số lượng hạng mục (`order.items.length`) vì `GET /orders/:id` chưa join category vào
 // `orderItems` (doc mục 8, chưa implement).
 
-type DetailTab = 'overview' | 'lifecycle' | 'items' | 'plans' | 'quotation' | 'dispute';
+type DetailTab = 'overview' | 'lifecycle' | 'items' | 'plans' | 'quotation';
 
 // Tab "Tiến độ sự kiện" đã ẩn khỏi thanh điều hướng theo yêu cầu — giữ nguyên khai báo trong DetailTab
 // + nhánh render ở dưới (activeTab === 'lifecycle') để khôi phục lại dễ dàng nếu cần, chỉ bỏ khỏi TABS.
@@ -62,7 +63,6 @@ const TABS: { id: DetailTab; label: string; icon: typeof Activity; doc?: string 
   { id: 'items', label: 'Thiết bị & Kho hàng', icon: Box, doc: 'docs/thietbikhohang_api.md' },
   { id: 'plans', label: 'Lịch trình & Kỹ thuật', icon: Calendar, doc: 'docs/lichtrinhkythuat_api.md' },
   { id: 'quotation', label: 'Báo giá & Hợp đồng', icon: FileText, doc: 'docs/baogiavahopdong_api.md' },
-  { id: 'dispute', label: 'Tranh chấp', icon: AlertOctagon },
 ];
 
 const LIFECYCLE_STEPS: { id: OrderStatus; label: string; desc: string }[] = [
@@ -264,6 +264,14 @@ export default function AdminOrderDetailPage() {
 
   return (
     <div className="p-6">
+      <Breadcrumb
+        items={[
+          { label: 'Đơn đặt' },
+          { label: 'Danh sách đơn đặt', href: '/admin/orders_audit' },
+          { label: order.orderCode },
+        ]}
+        className="mb-3"
+      />
       <div className="flex flex-col gap-4 border-b border-slate-100 pb-5 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-3">
           <button

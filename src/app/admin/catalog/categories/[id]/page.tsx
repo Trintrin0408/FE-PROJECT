@@ -10,6 +10,7 @@ import { Table, TableColumn } from '@/components/ui/Table';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Badge, getStatusBadgeVariant } from '@/components/ui/Badge';
+import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { CategoryFormModal, CategoryFormValues } from '@/components/catalog/CategoryFormModal';
 import Reveal from '@/components/ui/Reveal';
 import { usePermission } from '@/hooks/usePermission';
@@ -144,6 +145,14 @@ export default function Page() {
 
   return (
     <div className="p-6">
+      <Breadcrumb
+        items={[
+          { label: 'Danh mục kho' },
+          { label: 'Danh sách danh mục', href: '/admin/catalog/categories' },
+          { label: category.categoryName },
+        ]}
+        className="mb-3"
+      />
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link

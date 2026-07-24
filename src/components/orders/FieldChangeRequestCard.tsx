@@ -62,12 +62,6 @@ export default function FieldChangeRequestCard({
       <div className="mb-3 flex items-center gap-2">
         <AlertTriangle className="h-4 w-4 text-orange-500" />
         <h3 className="text-base font-semibold text-orange-800">Yêu cầu thay đổi từ hiện trường</h3>
-        <span
-          className="italic text-xs font-normal text-orange-500"
-          title="Backend không còn API cho ChangeRequest (đã xóa khỏi schema) — dữ liệu minh họa, xem docs/more-require.md"
-        >
-          (Dữ liệu minh họa)
-        </span>
       </div>
 
       <div className="space-y-4">

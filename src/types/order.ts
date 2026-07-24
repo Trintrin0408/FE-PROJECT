@@ -82,8 +82,10 @@ export interface OrderDetail extends Order {
   settlements?: OrderSettlementSummary[];
 }
 
-// Các shape rút gọn nhúng trong OrderDetail — xem type đầy đủ ở types/orderWarning.ts,
-// services/payment.service.ts (Deposit), services/settlement.service.ts (Settlement)
+// Các shape rút gọn nhúng trong OrderDetail — xem services/payment.service.ts (Deposit),
+// services/settlement.service.ts (Settlement). Không còn service riêng cho OrderWarning (endpoint
+// GET/POST /orders/{id}/warnings đã bị bỏ khỏi frontend — docs/more-require.md mục (an.2)), type này
+// chỉ còn phục vụ field nhúng sẵn trong OrderDetail.
 export interface OrderWarningSummary {
   warningId: string;
   orderId: string;
