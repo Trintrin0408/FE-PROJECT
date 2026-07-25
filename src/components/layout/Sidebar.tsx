@@ -68,14 +68,22 @@ const ADMIN_NAV_SECTIONS: NavSection[] = [
     title: 'QUẢN LÝ NGƯỜI DÙNG',
     items: [
       { label: 'Danh sách người dùng', href: '/admin/settings/users', icon: Users },
-
     ],
   },
   {
     title: 'THIẾT BỊ & TỒN KHO',
     items: [
-      { label: 'Danh mục thiết bị', href: '/admin/catalog', icon: Package },
-      { label: 'Tồn kho', href: '/admin/inventory/stock-status', icon: Warehouse },
+      {
+        label: 'Danh mục & Thiết bị',
+        href: '/admin/catalog',
+        icon: Package,
+        children: [
+          { label: 'Danh mục lớn', href: '/admin/catalog/categories' },
+          { label: 'Nhóm thiết bị', href: '/admin/catalog/types' },
+          { label: 'Danh sách thiết bị', href: '/admin/catalog' },
+          { label: 'Tồn kho', href: '/admin/inventory/stock-status' },
+        ],
+      },
     ],
   },
   {
@@ -104,6 +112,12 @@ const ADMIN_NAV_SECTIONS: NavSection[] = [
       // { label: 'Thống kê đơn hàng', href: '/admin/reports/orders', icon: BarChart3 },
       // { label: 'Báo cáo tồn kho', href: '/admin/reports/inventory', icon: Boxes },
       // { label: 'Nhật ký hệ thống', href: '/admin/settings/audit-log', icon: History },
+    ],
+  },
+    {
+    title: 'PROFILE',
+    items: [
+      { label: 'Hồ sơ cá nhân', href: '/admin/profile', icon: User },
     ],
   },
 ];

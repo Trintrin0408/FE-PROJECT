@@ -75,7 +75,7 @@ export default function Page() {
         </p>
       </div>
 
-      <Reveal className="mt-6 rounded-xl bg-white p-4 shadow-sm">
+      <Reveal className="mt-6 rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
         <div className="flex flex-wrap items-end gap-3">
           <div className="w-full sm:w-64">
             <Input

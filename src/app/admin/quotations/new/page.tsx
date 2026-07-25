@@ -255,7 +255,7 @@ function QuotationFormContent() {
         </div>
       </Reveal>
 
-      <Reveal delay={0.05} className="mt-6 rounded-xl border border-slate-200 bg-white p-6 shadow-xs">
+      <Reveal delay={0.05} className="mt-6 rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
         {step === 1 && (
           <div>
             <h2 className="text-base font-bold text-slate-900">Bước 1: Chọn khách hàng lập báo giá</h2>

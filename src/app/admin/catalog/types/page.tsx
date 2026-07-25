@@ -5,28 +5,30 @@ import { Search, Pencil, Plus, MoreHorizontal } from 'lucide-react';
 import { catalogApiService } from '@/services/catalog.service';
 import { Table, TableColumn } from '@/components/ui/Table';
 import { Pagination } from '@/components/ui/Pagination';
-import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
-import { CategoryFormModal, CategoryFormValues } from '@/components/catalog/CategoryFormModal';
+import { Select } from '@/components/ui/Select';
+import { ItemTypeFormModal, ItemTypeFormValues } from '@/components/catalog/ItemTypeFormModal';
 import Reveal from '@/components/ui/Reveal';
 import { usePagination } from '@/hooks/usePagination';
 import { useDebounce } from '@/hooks/useDebounce';
 import { usePermission } from '@/hooks/usePermission';
-import type { ItemCategory } from '@/types/catalog';
+import type { ItemType, ItemCategory } from '@/types/catalog';
 
 export default function Page() {
   const { can } = usePermission();
   const canManage = can('master-data:manage');
 
+  const [types, setTypes] = useState<ItemType[]>([]);
   const [categories, setCategories] = useState<ItemCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 400);
+  const [categoryFilter, setCategoryFilter] = useState<string>('');
 
   const { pagination, setPage, updatePagination } = usePagination(10);
 
-  const [formModal, setFormModal] = useState<{ mode: 'create' | 'edit'; category: ItemCategory | null } | null>(null);
+  const [formModal, setFormModal] = useState<{ mode: 'create' | 'edit'; type: ItemType | null } | null>(null);
   
   const [isSubmittingForm, setIsSubmittingForm] = useState(false);
   const [formError, setFormError] = useState('');
@@ -34,15 +36,26 @@ export default function Page() {
   const [refreshToken, setRefreshToken] = useState(0);
   const refetchData = () => setRefreshToken((t) => t + 1);
 
+  // Load categories once for filter and form
+  useEffect(() => {
+    catalogApiService.getCategories({ limit: 1000 })
+      .then((res) => {
+        setCategories(res.data);
+      })
+      .catch((err) => console.error('Failed to load categories', err));
+  }, []);
+
+  // Load types
   useEffect(() => {
     setIsLoading(true);
-    catalogApiService.getCategories({
+    catalogApiService.getTypes({
       page: pagination.currentPage,
       limit: pagination.limit,
       search: debouncedSearch || undefined,
+      categoryId: categoryFilter || undefined,
     })
       .then((res) => {
-        setCategories(res.data);
+        setTypes(res.data);
         const totalItems = res.meta?.totalItems ?? res.data.length ?? 0;
         const limit = res.meta?.limit ?? pagination.limit;
         updatePagination({
@@ -51,56 +64,55 @@ export default function Page() {
         });
       })
       .catch((err) => {
-        console.error('Failed to fetch categories', err);
+        console.error('Failed to fetch types', err);
       })
       .finally(() => setIsLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pagination.currentPage, pagination.limit, debouncedSearch, refreshToken]);
+  }, [pagination.currentPage, pagination.limit, debouncedSearch, categoryFilter, refreshToken]);
 
-  const handleCreateCategorySubmit = async (values: CategoryFormValues) => {
+  const handleCreateTypeSubmit = async (values: ItemTypeFormValues) => {
     setIsSubmittingForm(true);
     setFormError('');
     try {
-      await catalogApiService.createCategory(values);
+      await catalogApiService.createType(values);
       setFormModal(null);
       refetchData();
     } catch (err) {
-      setFormError(getErrorMessage(err, 'Tạo danh mục thất bại'));
+      setFormError(getErrorMessage(err, 'Tạo nhóm thiết bị thất bại'));
     } finally {
       setIsSubmittingForm(false);
     }
   };
 
-  const handleEditCategorySubmit = async (values: CategoryFormValues, category: ItemCategory) => {
+  const handleEditTypeSubmit = async (values: ItemTypeFormValues, type: ItemType) => {
     setIsSubmittingForm(true);
     setFormError('');
     try {
-      await catalogApiService.updateCategory(category.categoryId, values);
+      await catalogApiService.updateType(type.typeId, values);
       setFormModal(null);
       refetchData();
     } catch (err) {
-      setFormError(getErrorMessage(err, 'Cập nhật danh mục thất bại'));
+      setFormError(getErrorMessage(err, 'Cập nhật nhóm thiết bị thất bại'));
     } finally {
       setIsSubmittingForm(false);
     }
   };
 
-  const columns: TableColumn<ItemCategory>[] = [
+  const columns: TableColumn<ItemType>[] = [
     {
-      key: 'code',
-      label: 'Mã danh mục',
+      key: 'name',
+      label: 'Tên nhóm',
       render: (row) => (
-        <span className="inline-flex items-center rounded bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-600">
-          {row.categoryCode || 'N/A'}
-        </span>
+        <span className="font-medium text-slate-800">{row.typeName}</span>
       ),
     },
     {
-      key: 'name',
-      label: 'Tên danh mục',
-      render: (row) => (
-        <span className="font-medium text-slate-800">{row.categoryName}</span>
-      ),
+      key: 'category',
+      label: 'Thuộc danh mục',
+      render: (row) => {
+        const catName = row.categoryName || categories.find((c) => c.categoryId === row.categoryId)?.categoryName || '-';
+        return <span className="text-slate-600">{catName}</span>;
+      },
     },
     {
       key: 'description',
@@ -123,7 +135,7 @@ export default function Page() {
                 title="Chỉnh sửa"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setFormModal({ mode: 'edit', category: row });
+                  setFormModal({ mode: 'edit', type: row });
                 }}
                 className="inline-flex rounded-md p-1.5 text-slate-400 transition-colors hover:bg-amber-50 hover:text-amber-600"
               >
@@ -148,31 +160,51 @@ export default function Page() {
     <div className="p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Danh mục lớn</h1>
-          <p className="mt-1 text-sm text-slate-500">Quản lý các danh mục cấp cao của thiết bị và phụ kiện</p>
+          <h1 className="text-2xl font-semibold text-slate-900">Nhóm thiết bị</h1>
+          <p className="mt-1 text-sm text-slate-500">Quản lý các nhóm thiết bị thuộc từng danh mục lớn</p>
         </div>
         {canManage && (
-          <Button onClick={() => setFormModal({ mode: 'create', category: null })} className="bg-blue-600 hover:bg-blue-700 text-white rounded-md flex items-center gap-2 px-4 py-2">
+          <Button onClick={() => setFormModal({ mode: 'create', type: null })} className="bg-blue-600 hover:bg-blue-700 text-white rounded-md flex items-center gap-2 px-4 py-2">
             <Plus className="h-4 w-4" />
-            Thêm danh mục
+            Thêm nhóm thiết bị
           </Button>
         )}
       </div>
 
       <Reveal className="mt-6 rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-          <div className="relative w-64">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(1);
-              }}
-              placeholder="Tìm theo mã hoặc tên danh mục..."
-              className="w-full rounded-md border border-slate-200 bg-white py-2 pl-8 pr-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative w-64">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(1);
+                }}
+                placeholder="Tìm theo mã hoặc tên nhóm..."
+                className="w-full rounded-md border border-slate-200 bg-white py-2 pl-8 pr-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            
+            <div className="w-56">
+              <Select
+                value={categoryFilter}
+                onChange={(e) => {
+                  setCategoryFilter(e.target.value);
+                  setPage(1);
+                }}
+                options={[
+                  { value: '', label: 'Tất cả danh mục' },
+                  ...categories.map((c) => ({ value: c.categoryId, label: c.categoryName })),
+                ]}
+              />
+            </div>
+          </div>
+          
+          <div className="text-sm text-slate-500">
+            {pagination.totalItems} nhóm thiết bị
           </div>
         </div>
 
@@ -180,17 +212,21 @@ export default function Page() {
           {isLoading ? (
             <div className="flex justify-center items-center h-full py-10">Đang tải dữ liệu...</div>
           ) : (
-            <Table columns={columns} rows={categories} rowKey={(row) => row.categoryId} />
+            <Table columns={columns} rows={types} rowKey={(row) => row.typeId} />
           )}
         </div>
 
-        <Pagination pagination={pagination} onPageChange={setPage} />
+        <Pagination 
+          pagination={pagination} 
+          onPageChange={setPage} 
+        />
       </Reveal>
 
-      <CategoryFormModal
+      <ItemTypeFormModal
         isOpen={!!formModal}
         mode={formModal?.mode ?? 'create'}
-        category={formModal?.category}
+        type={formModal?.type}
+        categories={categories}
         isSubmitting={isSubmittingForm}
         errorMessage={formError}
         onClose={() => {
@@ -198,10 +234,10 @@ export default function Page() {
           setFormError('');
         }}
         onSubmit={(values) => {
-          if (formModal?.mode === 'edit' && formModal.category) {
-            handleEditCategorySubmit(values, formModal.category);
+          if (formModal?.mode === 'edit' && formModal.type) {
+            handleEditTypeSubmit(values, formModal.type);
           } else {
-            handleCreateCategorySubmit(values);
+            handleCreateTypeSubmit(values);
           }
         }}
       />

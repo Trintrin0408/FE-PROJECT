@@ -74,9 +74,11 @@ export default function Page() {
       })
       .then((res) => {
         setPolicies(res.data);
+        const totalItems = res.meta?.totalItems ?? res.data.length ?? 0;
+        const limit = res.meta?.limit ?? pagination.limit;
         updatePagination({
-          totalItems: res.meta.totalCount,
-          totalPages: Math.max(1, Math.ceil(res.meta.totalCount / res.meta.limit)),
+          totalItems,
+          totalPages: Math.max(1, Math.ceil(totalItems / limit)),
         });
       })
       .finally(() => setIsLoading(false));
@@ -203,7 +205,7 @@ export default function Page() {
         )}
       </div>
 
-      <Reveal className="mt-6 rounded-xl bg-white p-4 shadow-sm">
+      <Reveal className="mt-6 rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
         <div className="flex flex-wrap items-end gap-3">
           <div className="w-full sm:w-64">
             <Input

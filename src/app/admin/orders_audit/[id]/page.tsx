@@ -329,7 +329,7 @@ export default function AdminOrderDetailPage() {
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: '-40px' }}
         transition={{ duration: 0.25 }}
-        className="mt-5 rounded-xl border border-slate-200/80 bg-white p-5 shadow-xs"
+        className="mt-5 rounded-xl border border-slate-200 bg-white p-4 shadow-xs"
       >
         <p className="mb-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">Mốc tiến trình vận hành sự kiện</p>
         <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
@@ -385,7 +385,7 @@ export default function AdminOrderDetailPage() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '-40px' }}
               transition={{ duration: 0.25 }}
-              className="space-y-6 rounded-xl border border-slate-200/80 bg-white p-6 shadow-xs"
+              className="space-y-6 rounded-xl border border-slate-200 bg-white p-4 shadow-xs"
             >
               <div className="border-b border-slate-100 pb-3">
                 <h4 className="text-sm font-bold text-slate-950">Hồ sơ thông tin sự kiện</h4>
@@ -657,7 +657,7 @@ export default function AdminOrderDetailPage() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: '-40px' }}
               transition={{ duration: 0.25 }}
-              className="rounded-xl border border-dashed border-slate-200 bg-white p-8 text-center shadow-xs"
+              className="text-center rounded-xl border border-slate-200 bg-white p-4 shadow-xs"
             >
               <p className="text-sm font-medium text-slate-500">
                 Tab &quot;{TABS.find((t) => t.id === activeTab)?.label}&quot; chưa nối API thật.

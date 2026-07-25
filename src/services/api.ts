@@ -35,9 +35,9 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-    const isLoginRequest = error.config?.url === '/auth/login';
+    const isAuthRoute = error.config?.url?.startsWith('/auth/');
 
-    if (error.response?.status === 401 && !isLoginRequest) {
+    if (error.response?.status === 401 && !isAuthRoute) {
       if (globalThis.window !== undefined) {
         localStorage.removeItem('bnwems_token');
         localStorage.removeItem('bnwems_user');
@@ -56,8 +56,8 @@ api.interceptors.response.use(
       return api.request(config);
     }
 
-    // Log remaining 4xx/5xx in dev (excludes login — its errors are shown inline).
-    if (process.env.NODE_ENV !== 'production' && error.response && error.response.status >= 400 && !isLoginRequest) {
+    // Log remaining 4xx/5xx in dev (excludes auth routes like login/forgot-password — their errors are shown inline).
+    if (process.env.NODE_ENV !== 'production' && error.response && error.response.status >= 400 && !isAuthRoute) {
       console.error(
         `[API ${error.response.status}] ${error.config?.method?.toUpperCase()} ${error.config?.url}`,
         error.response.data,

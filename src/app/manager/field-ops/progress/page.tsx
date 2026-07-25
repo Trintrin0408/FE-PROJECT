@@ -153,7 +153,7 @@ export default function ManagerFieldProgressPage() {
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: '-40px' }}
         transition={{ duration: 0.25 }}
-        className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs"
+        className="mt-6 rounded-xl border border-slate-200 bg-white p-4 shadow-xs"
       >
         <div className="min-w-[240px] max-w-sm">
           <Input placeholder="Tìm theo mã đơn, khách hàng, tên lễ cưới..." icon={<Search className="h-4 w-4" />} value={search} onChange={(e) => setSearch(e.target.value)} />
@@ -193,7 +193,7 @@ function LegacyPlanQuickView({ plan, onClose, onEdit }: Readonly<{ plan: Schedul
         animate={{ x: 0 }}
         exit={{ x: '100%' }}
         transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-        className="fixed inset-y-0 right-0 z-50 flex w-full max-w-2xl flex-col justify-between border-l border-slate-200 bg-white shadow-2xl"
+        className="fixed inset-y-0 right-0 z-50 flex w-full max-w-2xl flex-col justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-xs"
       >
         <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 p-5">
           <div>

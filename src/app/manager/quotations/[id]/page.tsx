@@ -366,7 +366,7 @@ export default function ManagerQuotationDetailPage() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: '-40px' }}
             transition={{ duration: 0.25 }}
-            className="mx-auto max-w-4xl rounded-xl border border-slate-200 bg-white p-8 shadow-xs"
+            className="mx-auto max-w-4xl rounded-xl border border-slate-200 bg-white p-4 shadow-xs"
           >
             {/* Letterhead */}
             <div className="flex flex-wrap justify-between gap-6 border-b border-slate-100 pb-6">

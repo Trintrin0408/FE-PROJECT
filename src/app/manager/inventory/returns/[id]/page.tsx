@@ -105,7 +105,7 @@ export default function ManagerReturnSlipDetailPage() {
         </Link>
       </div>
 
-      <Reveal className="mt-6 grid grid-cols-1 gap-6 rounded-xl border border-slate-200 bg-white p-5 sm:grid-cols-2">
+      <Reveal className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
         <div>
           <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Đơn đặt cưới</p>
           <Link href={`/manager/orders/${slip.orderCode}`} className="mt-1 block font-semibold text-blue-600 hover:underline">

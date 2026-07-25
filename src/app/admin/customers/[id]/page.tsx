@@ -103,7 +103,7 @@ export default function AdminCustomerDetailPage() {
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: '-40px' }}
         transition={{ duration: 0.25 }}
-        className="mt-5 rounded-xl border border-slate-200 bg-white p-5 shadow-xs"
+        className="mt-5 rounded-xl border border-slate-200 bg-white p-4 shadow-xs"
       >
         <div className="flex flex-wrap items-center gap-x-8 gap-y-4">
           <div className="flex items-center gap-3">
@@ -152,7 +152,7 @@ export default function AdminCustomerDetailPage() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: '-40px' }}
             transition={{ duration: 0.25 }}
-            className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs"
+            className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs"
           >
             <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
               <User className="h-4 w-4 text-blue-600" />
@@ -197,7 +197,7 @@ export default function AdminCustomerDetailPage() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: '-40px' }}
             transition={{ duration: 0.25, delay: 0.05 }}
-            className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs"
+            className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs"
           >
             <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
               <ShoppingCart className="h-4 w-4 text-blue-600" />
@@ -330,7 +330,7 @@ export default function AdminCustomerDetailPage() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: '-40px' }}
             transition={{ duration: 0.25 }}
-            className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs"
+            className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs"
           >
             <h2 className="text-sm font-semibold text-slate-900">Hồ sơ nhanh</h2>
             <div className="mt-4 flex items-center gap-3">
@@ -368,7 +368,7 @@ export default function AdminCustomerDetailPage() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: '-40px' }}
             transition={{ duration: 0.25, delay: 0.05 }}
-            className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs"
+            className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs"
           >
             <h2 className="text-sm font-semibold text-slate-900">Tổng quan giao dịch</h2>
             <div className="mt-4 grid grid-cols-2 gap-3">
@@ -416,7 +416,7 @@ export default function AdminCustomerDetailPage() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: '-40px' }}
             transition={{ duration: 0.25, delay: 0.1 }}
-            className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs print:hidden"
+            className="print:hidden rounded-xl border border-slate-200 bg-white p-4 shadow-xs"
           >
             <h2 className="text-sm font-semibold text-slate-900">Công nợ & thanh toán</h2>
             <div className="mt-3">

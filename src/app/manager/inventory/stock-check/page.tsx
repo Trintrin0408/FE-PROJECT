@@ -143,7 +143,7 @@ export default function ManagerStockCheckPage() {
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: '-40px' }}
         transition={{ duration: 0.25 }}
-        className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs sm:p-6"
+        className="mt-6 sm:p-6 rounded-xl border border-slate-200 bg-white p-4 shadow-xs"
       >
         <h2 className="text-base font-bold text-slate-900">Danh sách tồn kho doanh nghiệp</h2>
 

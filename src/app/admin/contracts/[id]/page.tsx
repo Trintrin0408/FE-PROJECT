@@ -97,7 +97,7 @@ export default function AdminContractDetailPage() {
         )}
       </div>
 
-      <Reveal className="mx-auto mt-8 max-w-4xl rounded-xl border border-slate-200 bg-white p-6 font-serif text-slate-800 shadow-xs sm:p-10">
+      <Reveal className="mx-auto mt-8 max-w-4xl font-serif text-slate-800 sm:p-10 rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
         <div className="text-center">
           <p className="text-lg font-bold uppercase tracking-wide">Cộng hòa Xã hội Chủ nghĩa Việt Nam</p>
           <p className="mt-1 inline-block border-b border-slate-800 pb-1 text-sm font-semibold italic">Độc lập - Tự do - Hạnh phúc</p>

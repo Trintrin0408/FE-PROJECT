@@ -155,7 +155,7 @@ export default function Page() {
       <p className="mt-1 text-sm text-slate-500">Theo dõi và quản lý các khoản phải trả cho nhà cung cấp.</p>
 
       <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Reveal className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5">
+        <Reveal className="flex items-center gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-500">
             <FileText className="h-5 w-5" />
           </span>
@@ -165,7 +165,7 @@ export default function Page() {
             <p className="text-xs text-slate-400">{stats.totalCount} đơn</p>
           </div>
         </Reveal>
-        <Reveal delay={0.05} className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5">
+        <Reveal delay={0.05} className="flex items-center gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-amber-50 text-amber-500">
             <Clock className="h-5 w-5" />
           </span>
@@ -175,7 +175,7 @@ export default function Page() {
             <p className="text-xs text-slate-400">{stats.unpaidCount} đơn</p>
           </div>
         </Reveal>
-        <Reveal delay={0.1} className="flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5">
+        <Reveal delay={0.1} className="flex items-center gap-4 rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
           <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-500">
             <CheckCircle2 className="h-5 w-5" />
           </span>
@@ -187,7 +187,7 @@ export default function Page() {
         </Reveal>
       </div>
 
-      <Reveal className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
+      <Reveal className="mt-6 rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
         <div className="flex flex-wrap items-center gap-3">
           <div className="min-w-[260px] flex-1">
             <Input
@@ -237,7 +237,7 @@ export default function Page() {
         )}
       </Reveal>
 
-      <Reveal delay={0.05} className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
+      <Reveal delay={0.05} className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
         <div className="border-b border-slate-100 px-5 py-4">
           <p className="text-base font-bold text-slate-900">Sổ nợ chi tiết theo từng đơn hàng cụ thể</p>
           <p className="mt-0.5 text-sm text-slate-400">Tổng hợp đối soát gối đầu cuốn chiếu từng thương vụ thuê ngoài</p>
