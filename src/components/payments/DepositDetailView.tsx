@@ -17,7 +17,7 @@ import { formatCurrency } from '@/utils/formatCurrency';
 import { formatDate } from '@/utils/formatDate';
 import { orderApiService } from '@/services/order.service';
 import { paymentApiService } from '@/services/payment.service';
-import { DEPOSIT_STATUS_LABEL, PAYMENT_METHOD_OPTIONS, paymentMethodLabel } from '@/constants/deposit-status';
+import { DEPOSIT_STATUS_LABEL, paymentMethodLabel } from '@/constants/deposit-status';
 import { ORDER_PAYMENT_STATUS_LABEL } from '@/constants/order-status';
 import { COMPANY_BANK_ACCOUNT, buildVietQrImageUrl } from '@/constants/company-bank';
 import type { Order } from '@/types/order';
@@ -43,6 +43,14 @@ function getDepositTransferContent(depositCode: string, orderCode: string): stri
   return `${depositCode} CHUYEN KHOAN DAT COC ${orderCode}`;
 }
 
+function getTodayDateInputValue(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 interface DepositDetailViewProps {
   /** Manager: đầy đủ tạo/xác nhận/hủy. Admin: chỉ xem — backend cũng chặn 403 nếu cố ghi (xem
    * docs/datcoc_api.md mục 7, đã xác nhận qua curl). */
@@ -62,11 +70,12 @@ export default function DepositDetailView({ canManage, backHref }: Readonly<Depo
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [amount, setAmount] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [notes, setNotes] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+
+  const todayDateInputValue = getTodayDateInputValue();
 
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [cancelingId, setCancelingId] = useState<string | null>(null);
@@ -142,7 +151,6 @@ export default function DepositDetailView({ canManage, backHref }: Readonly<Depo
 
   const openCreateForm = () => {
     setAmount('');
-    setPaymentMethod('');
     setDueDate('');
     setNotes('');
     setCreateError(null);
@@ -160,7 +168,6 @@ export default function DepositDetailView({ canManage, backHref }: Readonly<Depo
     try {
       await paymentApiService.createOrderDeposit(orderId, {
         amount: amountNum,
-        paymentMethod: paymentMethod || undefined,
         dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
         notes: notes.trim() || undefined,
       });
@@ -428,14 +435,7 @@ export default function DepositDetailView({ canManage, backHref }: Readonly<Depo
       >
         <div className="space-y-4">
           <Input type="number" label="Số tiền cọc (đ)" required min={1} step={100_000} value={amount} onChange={(e) => setAmount(e.target.value)} />
-          <Select
-            label="Phương thức (nếu đã biết trước)"
-            placeholder="-- Chưa chọn --"
-            value={paymentMethod}
-            onChange={(e) => setPaymentMethod(e.target.value)}
-            options={PAYMENT_METHOD_OPTIONS}
-          />
-          <Input type="date" label="Hạn thanh toán" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+          <Input type="date" label="Hạn thanh toán" min={todayDateInputValue} value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
           <div className="flex flex-col gap-1">
             <label htmlFor="deposit-notes" className="text-sm font-medium text-gray-700">
               Ghi chú

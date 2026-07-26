@@ -1550,6 +1550,7 @@ function ManagerOrderDetailContent() {
         onClose={() => setIsCreatePlanOpen(false)}
         orderId={order.orderId}
         defaultLocation={order.location}
+        eventDate={order.eventDate}
         onCreated={handleSchedulePlanCreated}
       />
     </div>

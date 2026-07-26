@@ -4,12 +4,11 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import type { AxiosError } from 'axios';
 import { motion } from 'framer-motion';
-import { AlertCircle, Eye, Loader2, Mail, Pencil, Phone, Plus, Search, Trash2 } from 'lucide-react';
+import { AlertCircle, Eye, Loader2, Mail, Pencil, Phone, Plus, Search } from 'lucide-react';
 import { Table, TableColumn } from '@/components/ui/Table';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Avatar } from '@/components/ui/Avatar';
-import { Modal } from '@/components/ui/Modal';
 import { Pagination } from '@/components/ui/Pagination';
 import type { PaginationState } from '@/hooks/usePagination';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -48,10 +47,6 @@ export default function ManagerCustomersPage() {
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-
-  const [deletingCustomer, setDeletingCustomer] = useState<Customer | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const [reloadTick, setReloadTick] = useState(0);
 
@@ -114,21 +109,6 @@ export default function ManagerCustomersPage() {
       setFormError(extractErrorMessage(err, 'Không thể lưu hồ sơ khách hàng. Vui lòng thử lại.'));
     } finally {
       setIsSubmitting(false);
-    }
-  };
-
-  const handleDeleteConfirm = async () => {
-    if (!deletingCustomer) return;
-    setIsDeleting(true);
-    setDeleteError(null);
-    try {
-      await customerApiService.deleteCustomer(deletingCustomer.customerId);
-      setDeletingCustomer(null);
-      reload();
-    } catch (err) {
-      setDeleteError(extractErrorMessage(err, 'Không thể xóa khách hàng. Vui lòng thử lại.'));
-    } finally {
-      setIsDeleting(false);
     }
   };
 
@@ -220,19 +200,6 @@ export default function ManagerCustomersPage() {
           >
             <Pencil className="h-4 w-4" />
           </button>
-          <button
-            type="button"
-            onClick={() => {
-              setDeleteError(null);
-              setDeletingCustomer(row);
-            }}
-            disabled={row.totalBookings > 0}
-            aria-label="Xóa khách hàng"
-            title={row.totalBookings > 0 ? 'Không thể xóa khách hàng đã có đơn hàng' : 'Xóa khách hàng'}
-            className="inline-flex rounded-md p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
         </div>
       ),
     },
@@ -323,30 +290,6 @@ export default function ManagerCustomersPage() {
           {formError}
         </div>
       )}
-
-      <Modal
-        isOpen={Boolean(deletingCustomer)}
-        onClose={() => setDeletingCustomer(null)}
-        title="Xóa khách hàng"
-        subtitle={deletingCustomer ? `Bạn có chắc muốn xóa hồ sơ "${deletingCustomer.customerName}"? Hành động này không thể hoàn tác.` : undefined}
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setDeletingCustomer(null)} disabled={isDeleting}>
-              Hủy
-            </Button>
-            <Button variant="danger" onClick={handleDeleteConfirm} isLoading={isDeleting}>
-              Xóa khách hàng
-            </Button>
-          </>
-        }
-      >
-        {deleteError && (
-          <div className="flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
-            <AlertCircle className="h-4 w-4 flex-shrink-0" />
-            {deleteError}
-          </div>
-        )}
-      </Modal>
     </div>
   );
 }

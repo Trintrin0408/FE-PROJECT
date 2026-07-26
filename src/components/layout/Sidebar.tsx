@@ -4,7 +4,6 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-  Heart,
   LayoutGrid,
   Package,
   FileText,
@@ -261,8 +260,8 @@ export default function Sidebar() {
       }`}
     >
       <div className="flex items-center gap-3 border-b border-slate-800 p-6">
-        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-blue-600/15 text-blue-400 ring-1 ring-inset ring-blue-500/30">
-          <Heart className="h-5 w-5" />
+        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-blue-600/15 text-sm font-bold text-blue-400 ring-1 ring-inset ring-blue-500/30">
+          BN
         </div>
         {!isCollapsed && (
           <div className="min-w-0">

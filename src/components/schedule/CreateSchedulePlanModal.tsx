@@ -46,11 +46,48 @@ interface CreateSchedulePlanModalProps {
   onClose: () => void;
   orderId: string;
   defaultLocation?: string;
+  /** Ngày tổ chức sự kiện (ISO) — dùng để chặn khảo sát/lắp đặt lên lịch sau ngày diễn ra. */
+  eventDate?: string;
   /** `taskName` của loại việc vừa tạo — cho phép trang cha tự quyết định có cần chuyển mốc tiến trình đơn hay không. */
   onCreated: (taskName: string) => void;
 }
 
-export default function CreateSchedulePlanModal({ isOpen, onClose, orderId, defaultLocation, onCreated }: Readonly<CreateSchedulePlanModalProps>) {
+// datetime-local input cần định dạng "yyyy-MM-ddTHH:mm" theo giờ local (không phải ISO UTC).
+function toLocalInputValue(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+// Yêu cầu nghiệp vụ: khảo sát hiện trường & lắp đặt thiết bị phải diễn ra trước ngày tổ chức sự kiện.
+function isDateRestrictedTaskName(taskName: string | undefined): boolean {
+  if (!taskName) return false;
+  return /khảo sát|lắp đặt/i.test(taskName);
+}
+
+function getStartTimeError(startTime: string, eventDate: string | undefined, isRestricted: boolean): string | undefined {
+  if (!startTime) return undefined;
+  const start = new Date(startTime);
+  if (start.getTime() < Date.now()) return 'Không thể chọn thời gian trong quá khứ.';
+  if (isRestricted && eventDate && start.getTime() >= new Date(eventDate).getTime()) {
+    return 'Thời gian bắt đầu phải trước ngày diễn ra sự kiện.';
+  }
+  return undefined;
+}
+
+function getEndTimeError(startTime: string, endTime: string, eventDate: string | undefined, isRestricted: boolean): string | undefined {
+  if (!endTime) return undefined;
+  const end = new Date(endTime);
+  if (startTime && end.getTime() <= new Date(startTime).getTime()) {
+    return 'Thời gian kết thúc phải sau thời gian bắt đầu.';
+  }
+  if (end.getTime() < Date.now()) return 'Không thể chọn thời gian trong quá khứ.';
+  if (isRestricted && eventDate && end.getTime() >= new Date(eventDate).getTime()) {
+    return 'Thời gian kết thúc phải trước ngày diễn ra sự kiện.';
+  }
+  return undefined;
+}
+
+export default function CreateSchedulePlanModal({ isOpen, onClose, orderId, defaultLocation, eventDate, onCreated }: Readonly<CreateSchedulePlanModalProps>) {
   const [workTasks, setWorkTasks] = useState<WorkTask[]>([]);
   const [staff, setStaff] = useState<AdminUser[]>([]);
 
@@ -62,6 +99,7 @@ export default function CreateSchedulePlanModal({ isOpen, onClose, orderId, defa
   const [assignees, setAssignees] = useState<AssigneeDraft[]>([{ key: nextDraftKey(), userId: '', role: 'LEAD' }]);
 
   const [error, setError] = useState<string | null>(null);
+  const [attemptedSubmit, setAttemptedSubmit] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -73,6 +111,7 @@ export default function CreateSchedulePlanModal({ isOpen, onClose, orderId, defa
     setNotes('');
     setAssignees([{ key: nextDraftKey(), userId: '', role: 'LEAD' }]);
     setError(null);
+    setAttemptedSubmit(false);
     workTaskApiService.getWorkTasks({ isActive: true }).then((res) => setWorkTasks(res.data ?? []));
     userApiService
       .getUsers({ role: 'STAFF', limit: 100 })
@@ -82,11 +121,18 @@ export default function CreateSchedulePlanModal({ isOpen, onClose, orderId, defa
 
   const selectedUserIds = new Set(assignees.map((a) => a.userId).filter(Boolean));
 
-  // Backend trả VALIDATION_ERROR "endTime must be after startTime" — chặn sớm ngay khi nhập.
-  const timeError =
-    startTime && endTime && new Date(endTime) <= new Date(startTime)
-      ? 'Thời gian kết thúc phải sau thời gian bắt đầu.'
-      : undefined;
+  const selectedTaskName = workTasks.find((t) => t.taskId === taskId)?.taskName;
+  const isDateRestricted = isDateRestrictedTaskName(selectedTaskName);
+
+  const nowInputValue = toLocalInputValue(new Date());
+  const eventDateInputValue = eventDate ? toLocalInputValue(new Date(eventDate)) : undefined;
+
+  const taskIdError = attemptedSubmit && !taskId ? 'Vui lòng chọn loại việc.' : undefined;
+  const startTimeRequiredError = attemptedSubmit && !startTime ? 'Vui lòng nhập thời gian bắt đầu.' : undefined;
+  const startTimeError = startTimeRequiredError ?? getStartTimeError(startTime, eventDate, isDateRestricted);
+  const endTimeError = getEndTimeError(startTime, endTime, eventDate, isDateRestricted);
+  const assigneesError =
+    attemptedSubmit && assignees.filter((a) => a.userId).length === 0 ? 'Vui lòng chọn ít nhất 1 nhân sự phụ trách.' : undefined;
 
   const optionsForRow = (rowUserId: string) =>
     staff
@@ -94,10 +140,20 @@ export default function CreateSchedulePlanModal({ isOpen, onClose, orderId, defa
       .map((u) => ({ value: u.userId, label: `${u.fullName} (${u.username})` }));
 
   const addAssigneeRow = () => setAssignees((prev) => [...prev, { key: nextDraftKey(), userId: '', role: 'TECHNICAL' }]);
-  const removeAssigneeRow = (key: string) => setAssignees((prev) => prev.filter((a) => a.key !== key));
+  const removeAssigneeRow = (key: string) =>
+    setAssignees((prev) => {
+      const next = prev.filter((a) => a.key !== key);
+      // Nếu dòng bị xóa đang là Trưởng nhóm, tự đôn dòng đầu tiên còn lại lên Trưởng nhóm — luôn phải có 1 Trưởng nhóm.
+      if (next.length > 0 && !next.some((a) => a.role === 'LEAD')) {
+        next[0] = { ...next[0], role: 'LEAD' };
+      }
+      return next;
+    });
   const updateAssigneeRow = (key: string, userId: string) =>
     setAssignees((prev) => prev.map((a) => (a.key === key ? { ...a, userId } : a)));
-  // Backend chỉ cho tối đa 1 LEAD/kế hoạch — chọn LEAD ở 1 dòng tự đổi các dòng khác về TECHNICAL.
+  // Backend chỉ cho tối đa 1 LEAD/kế hoạch, và luôn phải có đúng 1 Trưởng nhóm — chọn LEAD ở 1 dòng
+  // tự đổi các dòng khác về TECHNICAL; nút chuyển dòng đang là LEAD về TECHNICAL bị vô hiệu hóa (JSX
+  // bên dưới) để tránh mất Trưởng nhóm — muốn đổi Trưởng nhóm thì bấm "Trưởng nhóm" ở dòng khác.
   const setAssigneeRowRole = (key: string, role: AssigneeRole) =>
     setAssignees((prev) =>
       prev.map((a) => {
@@ -107,19 +163,15 @@ export default function CreateSchedulePlanModal({ isOpen, onClose, orderId, defa
     );
 
   const handleSubmit = async () => {
+    setAttemptedSubmit(true);
     const filledAssignees = assignees.filter((a) => a.userId);
-    if (!taskId || !startTime) {
-      setError('Vui lòng chọn loại việc và thời gian bắt đầu.');
-      return;
-    }
-    if (timeError) {
-      setError(timeError);
-      return;
-    }
-    if (filledAssignees.length === 0) {
-      setError('Vui lòng chọn ít nhất 1 nhân sự phụ trách.');
-      return;
-    }
+    const hasBlockingError =
+      !taskId ||
+      !startTime ||
+      !!getStartTimeError(startTime, eventDate, isDateRestricted) ||
+      !!getEndTimeError(startTime, endTime, eventDate, isDateRestricted) ||
+      filledAssignees.length === 0;
+    if (hasBlockingError) return;
 
     setIsSubmitting(true);
     setError(null);
@@ -182,17 +234,29 @@ export default function CreateSchedulePlanModal({ isOpen, onClose, orderId, defa
           value={taskId}
           onChange={(e) => setTaskId(e.target.value)}
           options={workTasks.map((t) => ({ value: t.taskId, label: t.taskName }))}
+          error={taskIdError}
         />
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Input type="datetime-local" label="Thời gian bắt đầu" required value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+          <Input
+            type="datetime-local"
+            label="Thời gian bắt đầu"
+            required
+            value={startTime}
+            onChange={(e) => setStartTime(e.target.value)}
+            min={nowInputValue}
+            max={isDateRestricted ? eventDateInputValue : undefined}
+            error={startTimeError}
+            helpText={isDateRestricted ? 'Loại việc này phải diễn ra trước ngày tổ chức sự kiện.' : undefined}
+          />
           <Input
             type="datetime-local"
             label="Thời gian kết thúc (nếu có)"
             value={endTime}
             onChange={(e) => setEndTime(e.target.value)}
-            min={startTime || undefined}
-            error={timeError}
+            min={startTime || nowInputValue}
+            max={isDateRestricted ? eventDateInputValue : undefined}
+            error={endTimeError}
           />
         </div>
 
@@ -230,7 +294,9 @@ export default function CreateSchedulePlanModal({ isOpen, onClose, orderId, defa
                   <button
                     type="button"
                     onClick={() => setAssigneeRowRole(row.key, 'TECHNICAL')}
-                    className={`border-l border-slate-200 px-2.5 py-2 ${row.role === 'TECHNICAL' ? 'bg-blue-600 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}
+                    disabled={row.role === 'LEAD'}
+                    title={row.role === 'LEAD' ? 'Chọn nhân sự khác làm Trưởng nhóm để đổi vai trò này.' : undefined}
+                    className={`border-l border-slate-200 px-2.5 py-2 ${row.role === 'TECHNICAL' ? 'bg-blue-600 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'} disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white`}
                   >
                     Kỹ thuật viên
                   </button>
@@ -248,6 +314,7 @@ export default function CreateSchedulePlanModal({ isOpen, onClose, orderId, defa
               </div>
             ))}
           </div>
+          {assigneesError && <p className="mt-1 text-xs text-red-600">{assigneesError}</p>}
         </div>
 
         <div className="flex flex-col gap-1">

@@ -6,5 +6,5 @@ import DepositListView from '@/components/payments/DepositListView';
 // components/payments/DepositListView.tsx. Tách riêng khỏi màn "Thanh toán" (quyết toán cuối kỳ,
 // /manager/payments/settlements) theo yêu cầu người dùng — vẫn còn mock, ngoài phạm vi lần nối này.
 export default function Page() {
-  return <DepositListView detailBasePath="/manager/payments/deposits" quotationBasePath="/manager/quotations" />;
+  return <DepositListView detailBasePath="/manager/payments/deposits" />;
 }
