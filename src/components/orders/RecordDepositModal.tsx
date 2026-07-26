@@ -51,7 +51,7 @@ export default function RecordDepositModal({ isOpen, orderId, onClose, onSuccess
       });
       const depositId: string = createRes.data?.depositId;
       if (markReceived && depositId) {
-        await paymentApiService.updateDepositStatus(depositId, { status: 'SUCCESS' });
+        await paymentApiService.updateDepositStatus(depositId, { status: 'PAID' });
       }
       onSuccess();
       resetAndClose();

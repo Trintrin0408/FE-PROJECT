@@ -21,8 +21,9 @@ interface AssignStaffModalProps {
   onAssigned: (plan: SchedulePlan) => void;
 }
 
-// GET /users trả role raw enum (không hậu tố _STAFF) — xem docs/more-require.md.
-const STAFF_ROLES = new Set(['LEADER', 'TECHNICAL']);
+// GET /users trả role raw enum (không hậu tố _STAFF) — xem docs/more-require.md. Backend refactor
+// 2026-07-26 gộp LEADER/TECHNICAL thành 1 role STAFF chung (Leader/Technical giờ chỉ là vai trò gán
+// theo từng schedule_plan, không còn phân biệt được ở tài khoản).
 
 // Tạo 1 SchedulePlan mới (orderId+taskId+assignedTo+startTime) — không có endpoint sửa assignedTo
 // của plan đã tồn tại, nên "đổi người khảo sát" cũng tạo plan mới thay vì sửa tại chỗ.
@@ -45,7 +46,7 @@ export default function AssignStaffModal({ isOpen, mode, orderId, taskId, onClos
     userApiService
       .getUsers({ limit: 100 })
       .then((res) => {
-        const list: AdminUser[] = (res.data ?? []).filter((u: AdminUser) => STAFF_ROLES.has(u.role));
+        const list: AdminUser[] = (res.data ?? []).filter((u: AdminUser) => u.role === 'STAFF');
         setStaff(list);
       })
       .catch(() => setStaff([]));

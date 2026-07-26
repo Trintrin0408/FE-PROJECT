@@ -36,8 +36,8 @@ import type { Deposit } from '@/types/payment';
 // THẬT qua "Quick Link" công khai của img.vietqr.io (constants/company-bank.ts, không cần đăng ký/API
 // key) — quét được thật bằng app ngân hàng, chuyển đúng tài khoản/số tiền/nội dung. Tài khoản ngân
 // hàng công ty hiện hardcode ở FE (do người dùng cung cấp trực tiếp) vì backend chưa có bảng cấu hình
-// nào cho việc này — đã ghi yêu cầu bổ sung vào docs/api_can_them.md. Gắn theo hồ sơ cọc PENDING gần
-// nhất (hoặc hồ sơ mới nhất nếu không còn cái nào PENDING).
+// nào cho việc này — đã ghi yêu cầu bổ sung vào docs/api_can_them.md. Gắn theo hồ sơ cọc UNPAID gần
+// nhất (hoặc hồ sơ mới nhất nếu không còn cái nào UNPAID).
 
 function getDepositTransferContent(depositCode: string, orderCode: string): string {
   return `${depositCode} CHUYEN KHOAN DAT COC ${orderCode}`;
@@ -111,11 +111,11 @@ export default function DepositDetailView({ canManage, backHref }: Readonly<Depo
     );
   }
 
-  const totalReceived = deposits.filter((d) => d.status === 'SUCCESS').reduce((sum, d) => sum + d.amount, 0);
-  const hasPendingDeposit = deposits.some((d) => d.status === 'PENDING');
-  // QR minh họa gắn theo hồ sơ cọc còn đang chờ thanh toán (ưu tiên) — nếu không còn cái nào PENDING
+  const totalReceived = deposits.filter((d) => d.status === 'PAID').reduce((sum, d) => sum + d.amount, 0);
+  const hasPendingDeposit = deposits.some((d) => d.status === 'UNPAID');
+  // QR minh họa gắn theo hồ sơ cọc còn đang chờ thanh toán (ưu tiên) — nếu không còn cái nào UNPAID
   // (đã xác nhận/hủy hết) thì hiện theo hồ sơ mới nhất để vẫn có nội dung tham khảo.
-  const primaryDeposit = deposits.find((d) => d.status === 'PENDING') ?? deposits[0] ?? null;
+  const primaryDeposit = deposits.find((d) => d.status === 'UNPAID') ?? deposits[0] ?? null;
 
   const handleCopy = (depositId: string, content: string) => {
     navigator.clipboard?.writeText(content).catch(() => undefined);
@@ -177,7 +177,7 @@ export default function DepositDetailView({ canManage, backHref }: Readonly<Depo
   const handleConfirm = async (depositId: string) => {
     setIsUpdatingStatus(true);
     try {
-      await paymentApiService.updateDepositStatus(depositId, { status: 'SUCCESS' });
+      await paymentApiService.updateDepositStatus(depositId, { status: 'PAID' });
       setConfirmingId(null);
       load();
     } finally {
@@ -337,7 +337,7 @@ export default function DepositDetailView({ canManage, backHref }: Readonly<Depo
                     {copiedId === d.depositId && <p className="mt-1 text-xs text-emerald-600">Đã sao chép!</p>}
                   </div>
 
-                  {canManage && d.status === 'PENDING' && (
+                  {canManage && d.status === 'UNPAID' && (
                     <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-3">
                       <Button size="sm" onClick={() => setConfirmingId(d.depositId)}>
                         <Check className="h-4 w-4" />

@@ -69,8 +69,7 @@ const STATUS_LABEL: Record<QuotationDetailApi['status'], string> = {
 const ROLE_LABEL: Record<string, string> = {
   MANAGER: 'Quản lý',
   ADMIN: 'Quản trị viên',
-  LEADER: 'Leader Staff',
-  TECHNICAL: 'Technical Staff',
+  STAFF: 'Nhân viên',
 };
 
 interface EditableLineItem extends QuotationDetailItem {

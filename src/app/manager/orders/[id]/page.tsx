@@ -291,6 +291,27 @@ function ManagerOrderDetailContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ tải lại khi order thay đổi thật sự
   }, [order?.orderId, order?.quotationId, order?.customerId]);
 
+  // Tồn kho khả dụng theo từng hạng mục — tải ngay khi order sẵn sàng (không chỉ khi mở Picklist) để
+  // tab "Thiết bị & Kho hàng" hiện được cảnh báo thiếu hàng ngay trên bảng chính.
+  useEffect(() => {
+    if (!order || order.items.length === 0) return;
+    Promise.all(
+      order.items.map((item) =>
+        inventoryApiService
+          .getInventory({ itemId: item.itemId, limit: 1 })
+          .then((res) => [item.itemId, (res.data ?? [])[0]] as const)
+          .catch(() => [item.itemId, undefined] as const),
+      ),
+    ).then((pairs) => {
+      const next: Record<string, InventoryRow> = {};
+      pairs.forEach(([itemId, row]) => {
+        if (row) next[itemId] = row;
+      });
+      setPicklistInventory(next);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ tải lại khi danh sách hạng mục đổi
+  }, [order?.orderId, order?.items]);
+
   if (isLoading) {
     return (
       <div className="p-6">
@@ -339,13 +360,13 @@ function ManagerOrderDetailContent() {
   const isMilestone3Complete = order.orderStatus === 'IN_PROGRESS' || order.orderStatus === 'COMPLETED';
   const isMilestone4Complete = order.orderStatus === 'COMPLETED';
   const isReadyToClose = order.orderStatus === 'COMPLETED' && order.paymentStatus === 'PAID' && !order.closedAt;
-  const depositCollected = deposits.filter((d) => d.status === 'SUCCESS').reduce((sum, d) => sum + d.amount, 0);
+  const depositCollected = deposits.filter((d) => d.status === 'PAID').reduce((sum, d) => sum + d.amount, 0);
 
   const handleConfirmDeposit = async () => {
     if (!latestDeposit) return;
     setIsConfirmingDeposit(true);
     try {
-      await paymentApiService.updateDepositStatus(latestDeposit.depositId, { status: 'SUCCESS' });
+      await paymentApiService.updateDepositStatus(latestDeposit.depositId, { status: 'PAID' });
       // Yêu cầu người dùng (2026-07-22): xác nhận cọc thành công tự chuyển mốc tiến trình sang
       // "2. Đã xác nhận" — chỉ chuyển tiếp (không lùi lại) nên chỉ áp dụng khi đơn còn ở "1. Mới".
       if (order.orderStatus === 'NEW') {
@@ -392,7 +413,7 @@ function ManagerOrderDetailContent() {
     if (!settlement) return;
     setIsCompletingSettlement(true);
     try {
-      await settlementApiService.confirmSettlement(settlement.settlementId, { status: 'CONFIRMED' });
+      await settlementApiService.confirmSettlement(settlement.settlementId, { status: 'PAID' });
       await orderApiService.updateOrderStatus(order.orderId, { orderStatus: 'COMPLETED' });
       load();
     } finally {
@@ -413,20 +434,6 @@ function ManagerOrderDetailContent() {
 
   const handleOpenPicklist = () => {
     setIsPicklistOpen(true);
-    Promise.all(
-      order.items.map((item) =>
-        inventoryApiService
-          .getInventory({ itemId: item.itemId, limit: 1 })
-          .then((res) => [item.itemId, (res.data ?? [])[0]] as const)
-          .catch(() => [item.itemId, undefined] as const),
-      ),
-    ).then((pairs) => {
-      const next: Record<string, InventoryRow> = {};
-      pairs.forEach(([itemId, row]) => {
-        if (row) next[itemId] = row;
-      });
-      setPicklistInventory(next);
-    });
   };
 
   const handleCancelPlan = async (planId: string) => {
@@ -483,15 +490,24 @@ function ManagerOrderDetailContent() {
       });
       await orderApiService.updateOrderItems(order.orderId, { items: Array.from(mergedByItemId.values()) });
 
+      // Cập nhật state cục bộ ngay để hiện báo giá liên kết tức thì trên tab, không chờ load() lại toàn
+      // bộ dữ liệu đơn (customer/deposits/settlement/schedule/survey — mất vài giây) mới thấy kết quả.
+      // load() ở finally bên dưới vẫn chạy để đồng bộ đầy đủ (số lượng hạng mục, ...) nhưng không còn
+      // chặn việc hiển thị báo giá vừa liên kết.
+      if (quoRes.data) setQuotationDetail(quoRes.data);
+      setOrder((prev) => (prev ? { ...prev, quotationId: targetQuotationId } : prev));
       setSelectedLinkQuoteId('');
-      // Chờ load() cập nhật xong order.quotationId trước khi mở khóa nút — tránh cửa sổ đua (race) để
+    } catch {
+      setLinkQuoteError('Liên kết báo giá thất bại. Vui lòng thử lại.');
+    } finally {
+      // Luôn load() lại dù thành công hay lỗi nửa chừng — nếu updateOrderQuotation đã ghi thành công
+      // nhưng updateOrderItems lỗi sau đó, backend đã lưu liên kết rồi nhưng UI vẫn hiện "chưa liên kết"
+      // nếu không load() lại, khiến Manager tưởng phải bấm lại (thật ra chỉ cần F5 là thấy đã liên kết).
+      // Chờ load() xong (cập nhật order.quotationId) trước khi mở khóa nút — tránh cửa sổ đua (race) để
       // Manager bấm "Liên kết ngay" lần 2 với báo giá khác trước khi UI kịp chuyển sang trạng thái "đã
       // liên kết", vốn khiến backend chấp nhận đổi liên kết hàng loạt lần mà không cảnh báo gì (xem
       // gating theo order.quotationId thay vì quotationDetail bên dưới — đây là lớp phòng thủ thứ 2).
       await load();
-    } catch {
-      setLinkQuoteError('Liên kết báo giá thất bại. Vui lòng thử lại.');
-    } finally {
       setIsLinkingQuote(false);
     }
   };
@@ -768,13 +784,13 @@ function ManagerOrderDetailContent() {
                       <p className="font-semibold text-slate-700">Thu tiền tạm ứng đặt cọc</p>
                       {latestDeposit ? (
                         <p className="mt-0.5 text-slate-500">
-                          {formatCurrency(latestDeposit.amount)} · {latestDeposit.status === 'SUCCESS' ? 'Đã nhận' : 'Chờ xác nhận'}
+                          {formatCurrency(latestDeposit.amount)} · {latestDeposit.status === 'PAID' ? 'Đã nhận' : 'Chờ xác nhận'}
                         </p>
                       ) : (
                         <p className="mt-0.5 italic text-slate-400">Chưa có yêu cầu cọc cho đơn này.</p>
                       )}
                     </div>
-                    {latestDeposit && latestDeposit.status !== 'SUCCESS' && (
+                    {latestDeposit && latestDeposit.status !== 'PAID' && (
                       <Button size="sm" onClick={handleConfirmDeposit} isLoading={isConfirmingDeposit}>
                         Xác nhận đã nhận cọc
                       </Button>
@@ -910,7 +926,7 @@ function ManagerOrderDetailContent() {
                   <Button size="sm" variant="secondary" onClick={() => setIsSettlementModalOpen(true)}>
                     {settlement ? 'Điều chỉnh biên bản quyết toán' : 'Lập biên bản quyết toán'}
                   </Button>
-                  {settlement && settlement.status !== 'CONFIRMED' && order.orderStatus !== 'COMPLETED' && (
+                  {settlement && settlement.status !== 'PAID' && order.orderStatus !== 'COMPLETED' && (
                     <Button size="sm" onClick={handleConfirmSettlement} isLoading={isCompletingSettlement}>
                       <Check className="h-4 w-4" />
                       Xác nhận thu nốt & Quyết toán
@@ -954,9 +970,6 @@ function ManagerOrderDetailContent() {
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
                 <div>
                   <h4 className="text-sm font-bold text-slate-950">Quản lý phân bổ thiết bị & chuẩn bị kho</h4>
-                  <p className="text-xs text-slate-400">
-                    "Đã bàn giao"/"Người phụ trách" do Leader Staff ghi nhận qua mobile — web chỉ xem, không chỉnh trực tiếp.
-                  </p>
                 </div>
                 <Button size="sm" variant="secondary" onClick={handleOpenPicklist}>
                   <Package className="h-4 w-4" />
@@ -971,31 +984,56 @@ function ManagerOrderDetailContent() {
                       <th className="px-3 py-2.5">Hạng mục thiết bị/Dịch vụ</th>
                       <th className="px-3 py-2.5">Nguồn</th>
                       <th className="px-3 py-2.5 text-center">SL đặt</th>
-                      <th className="px-3 py-2.5 text-center">Đã bàn giao</th>
-                      <th className="px-3 py-2.5">Người phụ trách</th>
+                      <th className="px-3 py-2.5 text-center">Tồn kho khả dụng</th>
                       <th className="px-3 py-2.5 text-right">Giá tiền</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {order.items.map((item) => (
-                      <tr key={item.orderItemId}>
-                        <td className="px-3 py-3">
-                          <p className="font-semibold text-slate-900">{item.itemName}</p>
-                          <p className="text-xs text-slate-400">{item.unit}</p>
-                        </td>
-                        <td className="px-3 py-3">
-                          <Badge variant={item.source === 'INTERNAL' ? 'neutral' : 'info'}>{ORDER_ITEM_SOURCE_LABEL[item.source]}</Badge>
-                        </td>
-                        <td className="px-3 py-3 text-center font-bold text-slate-900">{item.quantity}</td>
-                        <td className="px-3 py-3 text-center text-slate-600">{item.preparedQty}/{item.quantity}</td>
-                        <td className="px-3 py-3 italic text-slate-400">Chưa cập nhật</td>
-                        <td className="px-3 py-3 text-right font-bold text-slate-900">{formatCurrency(item.subtotal ?? item.unitPrice * item.quantity)}</td>
-                      </tr>
-                    ))}
+                    {order.items.map((item) => {
+                      const inv = picklistInventory[item.itemId];
+                      const shortfall = inv ? Math.max(item.quantity - inv.quantityAvailable, 0) : 0;
+                      const isShort = item.source === 'INTERNAL' && shortfall > 0;
+                      return (
+                        <tr key={item.orderItemId}>
+                          <td className="px-3 py-3">
+                            <p className="font-semibold text-slate-900">{item.itemName}</p>
+                            <p className="text-xs text-slate-400">{item.unit}</p>
+                          </td>
+                          <td className="px-3 py-3">
+                            <Badge variant={item.source === 'INTERNAL' ? 'neutral' : 'info'}>{ORDER_ITEM_SOURCE_LABEL[item.source]}</Badge>
+                            {isShort && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  router.push(
+                                    `/manager/suppliers/purchase-orders?createFor=${order.orderId}&itemId=${item.itemId}&itemName=${encodeURIComponent(item.itemName ?? '')}&qty=${shortfall}`,
+                                  )
+                                }
+                                className="mt-1.5 flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-600 ring-1 ring-inset ring-red-200 hover:bg-red-100"
+                                title="Số lượng đặt vượt tồn kho khả dụng — tạo giao dịch thuê từ Nhà cung cấp cho phần thiếu"
+                              >
+                                Thiếu {shortfall} · Thuê từ NCC
+                              </button>
+                            )}
+                          </td>
+                          <td className="px-3 py-3 text-center font-bold text-slate-900">{item.quantity}</td>
+                          <td className="px-3 py-3 text-center">
+                            {inv ? (
+                              <span className={`font-bold ${inv.quantityAvailable < item.quantity ? 'text-red-600' : 'text-emerald-600'}`}>
+                                {inv.quantityAvailable}
+                              </span>
+                            ) : (
+                              <span className="text-slate-300">—</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-3 text-right font-bold text-slate-900">{formatCurrency(item.subtotal ?? item.unitPrice * item.quantity)}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                   <tfoot>
                     <tr className="border-t border-slate-200 bg-slate-50 text-sm font-bold text-slate-900">
-                      <td colSpan={5} className="px-3 py-3 text-right uppercase tracking-wide text-slate-500">
+                      <td colSpan={4} className="px-3 py-3 text-right uppercase tracking-wide text-slate-500">
                         Tổng cộng tài chính đơn hàng
                       </td>
                       <td className="px-3 py-3 text-right text-blue-600">{formatCurrency(order.totalAmount)}</td>
@@ -1004,7 +1042,7 @@ function ManagerOrderDetailContent() {
                 </table>
               </div>
               <p className="mt-2 text-[10px] italic text-slate-400">
-                "Người phụ trách" chưa có trong response `GET /orders/:id` (chỉ nhận qua `PATCH` từ Leader Staff, chưa đọc lại được) — xem docs/more-require.md mục (w).
+                Cột "Tồn kho khả dụng" là số hiện tại tại thời điểm xem — hệ thống chưa hỗ trợ khóa tồn kho theo ngày lắp đặt (Date-based Inventory Lock).
               </p>
 
               <div className="mt-4 flex justify-end">
@@ -1204,6 +1242,10 @@ function ManagerOrderDetailContent() {
                     ) : (
                       <p className="text-xs text-slate-400">Đang tải báo giá liên kết...</p>
                     )}
+                  </div>
+                ) : isLinkingQuote ? (
+                  <div className="mt-4 space-y-3">
+                    <p className="rounded-lg border border-dashed border-slate-200 p-3 text-xs text-slate-500">Đang liên kết báo giá vừa tạo...</p>
                   </div>
                 ) : (
                   <div className="mt-4 space-y-3">

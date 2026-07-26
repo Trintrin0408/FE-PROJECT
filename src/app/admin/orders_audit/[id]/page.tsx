@@ -203,13 +203,13 @@ export default function AdminOrderDetailPage() {
   const isMilestone3Complete = order.orderStatus === 'IN_PROGRESS' || order.orderStatus === 'COMPLETED';
   const isMilestone4Complete = order.orderStatus === 'COMPLETED';
   const isReadyToClose = order.orderStatus === 'COMPLETED' && order.paymentStatus === 'PAID' && !order.closedAt;
-  const depositCollected = deposits.filter((d) => d.status === 'SUCCESS').reduce((sum, d) => sum + d.amount, 0);
+  const depositCollected = deposits.filter((d) => d.status === 'PAID').reduce((sum, d) => sum + d.amount, 0);
 
   const handleConfirmDeposit = async () => {
     if (!latestDeposit) return;
     setIsConfirmingDeposit(true);
     try {
-      await paymentApiService.updateDepositStatus(latestDeposit.depositId, { status: 'SUCCESS' });
+      await paymentApiService.updateDepositStatus(latestDeposit.depositId, { status: 'PAID' });
       load();
     } finally {
       setIsConfirmingDeposit(false);
@@ -240,7 +240,7 @@ export default function AdminOrderDetailPage() {
     if (!settlement) return;
     setIsCompletingSettlement(true);
     try {
-      await settlementApiService.confirmSettlement(settlement.settlementId, { status: 'CONFIRMED' });
+      await settlementApiService.confirmSettlement(settlement.settlementId, { status: 'PAID' });
       await orderApiService.updateOrderStatus(order.orderId, { orderStatus: 'COMPLETED' });
       load();
     } finally {
@@ -502,13 +502,13 @@ export default function AdminOrderDetailPage() {
                       <p className="font-semibold text-slate-700">Thu tiền tạm ứng đặt cọc</p>
                       {latestDeposit ? (
                         <p className="mt-0.5 text-slate-500">
-                          {formatCurrency(latestDeposit.amount)} · {latestDeposit.status === 'SUCCESS' ? 'Đã nhận' : 'Chờ xác nhận'}
+                          {formatCurrency(latestDeposit.amount)} · {latestDeposit.status === 'PAID' ? 'Đã nhận' : 'Chờ xác nhận'}
                         </p>
                       ) : (
                         <p className="mt-0.5 italic text-slate-400">Chưa có yêu cầu cọc cho đơn này.</p>
                       )}
                     </div>
-                    {latestDeposit && latestDeposit.status !== 'SUCCESS' && (
+                    {latestDeposit && latestDeposit.status !== 'PAID' && (
                       <Button size="sm" onClick={handleConfirmDeposit} isLoading={isConfirmingDeposit}>
                         Xác nhận đã nhận cọc
                       </Button>
@@ -619,7 +619,7 @@ export default function AdminOrderDetailPage() {
                   <Button size="sm" variant="secondary" onClick={() => setIsSettlementModalOpen(true)}>
                     {settlement ? 'Điều chỉnh biên bản quyết toán' : 'Lập biên bản quyết toán'}
                   </Button>
-                  {settlement && settlement.status !== 'CONFIRMED' && order.orderStatus !== 'COMPLETED' && (
+                  {settlement && settlement.status !== 'PAID' && order.orderStatus !== 'COMPLETED' && (
                     <Button size="sm" onClick={handleConfirmSettlement} isLoading={isCompletingSettlement}>
                       <Check className="h-4 w-4" />
                       Xác nhận thu nốt & Quyết toán

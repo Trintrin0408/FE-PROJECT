@@ -42,11 +42,11 @@ const SUPPLIER_5 = ALL_SUPPLIERS.find((s) => s.supplierId === 'sup-5') ?? ALL_SU
 export const MOCK_USERS: AdminUser[] = [
   { userId: 'mock-admin-1', username: 'admin', fullName: 'Quản trị viên hệ thống', role: 'ADMIN', status: 'ACTIVE', createdAt: NOW, updatedAt: NOW },
   { userId: 'mock-manager-1', username: 'manager', fullName: 'Trưởng phòng vận hành', role: 'MANAGER', status: 'ACTIVE', createdAt: NOW, updatedAt: NOW },
-  { userId: 'mock-leader-1', username: 'leader.long', fullName: 'Vũ Hoàng Long', role: 'LEADER', status: 'ACTIVE', createdAt: NOW, updatedAt: NOW },
-  { userId: 'mock-leader-2', username: 'leader.huong', fullName: 'Nguyễn Thị Hương', role: 'LEADER', status: 'ACTIVE', createdAt: NOW, updatedAt: NOW },
-  { userId: 'mock-tech-1', username: 'tech.dung', fullName: 'Lê Minh Dũng', role: 'TECHNICAL', status: 'ACTIVE', createdAt: NOW, updatedAt: NOW },
-  { userId: 'mock-tech-2', username: 'tech.tuan', fullName: 'Trần Anh Tuấn', role: 'TECHNICAL', status: 'ACTIVE', createdAt: NOW, updatedAt: NOW },
-  { userId: 'mock-tech-3', username: 'tech.mai', fullName: 'Phạm Thị Mai', role: 'TECHNICAL', status: 'ACTIVE', createdAt: NOW, updatedAt: NOW },
+  { userId: 'mock-leader-1', username: 'leader.long', fullName: 'Vũ Hoàng Long', role: 'STAFF', status: 'ACTIVE', createdAt: NOW, updatedAt: NOW },
+  { userId: 'mock-leader-2', username: 'leader.huong', fullName: 'Nguyễn Thị Hương', role: 'STAFF', status: 'ACTIVE', createdAt: NOW, updatedAt: NOW },
+  { userId: 'mock-tech-1', username: 'tech.dung', fullName: 'Lê Minh Dũng', role: 'STAFF', status: 'ACTIVE', createdAt: NOW, updatedAt: NOW },
+  { userId: 'mock-tech-2', username: 'tech.tuan', fullName: 'Trần Anh Tuấn', role: 'STAFF', status: 'ACTIVE', createdAt: NOW, updatedAt: NOW },
+  { userId: 'mock-tech-3', username: 'tech.mai', fullName: 'Phạm Thị Mai', role: 'STAFF', status: 'ACTIVE', createdAt: NOW, updatedAt: NOW },
 ];
 
 export const MOCK_WORK_TASKS: WorkTask[] = [

@@ -20,16 +20,19 @@ import type { AdminUser } from '@/types/user';
 // field `assignedTo` (validate qua nhưng bị bỏ qua ở service, response luôn `assignees: []`) — phải
 // gọi thêm `POST /schedule-plans/:id/assignees` (`schedulePlanApiService.addAssignee`) riêng cho từng
 // người sau khi tạo plan thành công (xem đính chính ở đầu `types/schedulePlan.ts`).
+//
+// Backend refactor 2026-07-26 (commit 4157a7f): gộp LEADER/TECHNICAL thành 1 role STAFF chung — vai
+// trò LEAD/TECHNICAL không còn suy ra được từ tài khoản, giờ Manager phải tự chọn khi gán từng người
+// vào kế hoạch (PlanMemberRole). Backend chỉ cho tối đa 1 người vai trò LEAD/kế hoạch
+// (schedule.service.ts: assertAtMostOneLead / 409 LEAD_ALREADY_ASSIGNED) — form dưới tự đảm bảo
+// ràng buộc này trước khi submit.
 
-const STAFF_ROLES = new Set(['LEADER', 'TECHNICAL']);
-const ASSIGNEE_ROLE_LABEL: Record<string, string> = {
-  LEADER: 'Trưởng nhóm kỹ thuật',
-  TECHNICAL: 'Nhân viên kỹ thuật',
-};
+type AssigneeRole = 'LEAD' | 'TECHNICAL';
 
 interface AssigneeDraft {
   key: string;
   userId: string;
+  role: AssigneeRole;
 }
 
 let draftKeySeq = 0;
@@ -56,7 +59,7 @@ export default function CreateSchedulePlanModal({ isOpen, onClose, orderId, defa
   const [endTime, setEndTime] = useState('');
   const [location, setLocation] = useState('');
   const [notes, setNotes] = useState('');
-  const [assignees, setAssignees] = useState<AssigneeDraft[]>([{ key: nextDraftKey(), userId: '' }]);
+  const [assignees, setAssignees] = useState<AssigneeDraft[]>([{ key: nextDraftKey(), userId: '', role: 'LEAD' }]);
 
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -68,16 +71,15 @@ export default function CreateSchedulePlanModal({ isOpen, onClose, orderId, defa
     setEndTime('');
     setLocation(defaultLocation ?? '');
     setNotes('');
-    setAssignees([{ key: nextDraftKey(), userId: '' }]);
+    setAssignees([{ key: nextDraftKey(), userId: '', role: 'LEAD' }]);
     setError(null);
     workTaskApiService.getWorkTasks({ isActive: true }).then((res) => setWorkTasks(res.data ?? []));
     userApiService
-      .getUsers({ limit: 100 })
-      .then((res) => setStaff((res.data ?? []).filter((u: AdminUser) => STAFF_ROLES.has(u.role))));
+      .getUsers({ role: 'STAFF', limit: 100 })
+      .then((res) => setStaff(res.data ?? []));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, orderId]);
 
-  const staffById = new Map(staff.map((u) => [u.userId, u]));
   const selectedUserIds = new Set(assignees.map((a) => a.userId).filter(Boolean));
 
   // Backend trả VALIDATION_ERROR "endTime must be after startTime" — chặn sớm ngay khi nhập.
@@ -89,12 +91,20 @@ export default function CreateSchedulePlanModal({ isOpen, onClose, orderId, defa
   const optionsForRow = (rowUserId: string) =>
     staff
       .filter((u) => u.userId === rowUserId || !selectedUserIds.has(u.userId))
-      .map((u) => ({ value: u.userId, label: `${u.fullName} (${ASSIGNEE_ROLE_LABEL[u.role] ?? u.role})` }));
+      .map((u) => ({ value: u.userId, label: `${u.fullName} (${u.username})` }));
 
-  const addAssigneeRow = () => setAssignees((prev) => [...prev, { key: nextDraftKey(), userId: '' }]);
+  const addAssigneeRow = () => setAssignees((prev) => [...prev, { key: nextDraftKey(), userId: '', role: 'TECHNICAL' }]);
   const removeAssigneeRow = (key: string) => setAssignees((prev) => prev.filter((a) => a.key !== key));
   const updateAssigneeRow = (key: string, userId: string) =>
     setAssignees((prev) => prev.map((a) => (a.key === key ? { ...a, userId } : a)));
+  // Backend chỉ cho tối đa 1 LEAD/kế hoạch — chọn LEAD ở 1 dòng tự đổi các dòng khác về TECHNICAL.
+  const setAssigneeRowRole = (key: string, role: AssigneeRole) =>
+    setAssignees((prev) =>
+      prev.map((a) => {
+        if (a.key === key) return { ...a, role };
+        return role === 'LEAD' ? { ...a, role: 'TECHNICAL' } : a;
+      }),
+    );
 
   const handleSubmit = async () => {
     const filledAssignees = assignees.filter((a) => a.userId);
@@ -127,10 +137,7 @@ export default function CreateSchedulePlanModal({ isOpen, onClose, orderId, defa
 
       try {
         await Promise.all(
-          filledAssignees.map((a) => {
-            const role = staffById.get(a.userId)?.role === 'LEADER' ? 'LEAD' : 'TECHNICAL';
-            return schedulePlanApiService.addAssignee(planId, { userId: a.userId, role });
-          }),
+          filledAssignees.map((a) => schedulePlanApiService.addAssignee(planId, { userId: a.userId, role: a.role })),
         );
       } catch {
         setError('Đã tạo lịch trình nhưng gán nhân sự thất bại một phần — vui lòng mở lại kế hoạch vừa tạo và kiểm tra lại.');
@@ -211,6 +218,22 @@ export default function CreateSchedulePlanModal({ isOpen, onClose, orderId, defa
                     onChange={(e) => updateAssigneeRow(row.key, e.target.value)}
                     options={optionsForRow(row.userId)}
                   />
+                </div>
+                <div className="flex shrink-0 overflow-hidden rounded-lg border border-slate-200 text-xs font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => setAssigneeRowRole(row.key, 'LEAD')}
+                    className={`px-2.5 py-2 ${row.role === 'LEAD' ? 'bg-blue-600 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}
+                  >
+                    Trưởng nhóm
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAssigneeRowRole(row.key, 'TECHNICAL')}
+                    className={`border-l border-slate-200 px-2.5 py-2 ${row.role === 'TECHNICAL' ? 'bg-blue-600 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}
+                  >
+                    Kỹ thuật viên
+                  </button>
                 </div>
                 {assignees.length > 1 && (
                   <button

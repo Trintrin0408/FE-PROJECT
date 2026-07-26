@@ -506,10 +506,21 @@ export function getAllSupplierTransactions(): FlatSupplierTransaction[] {
   return supplierStore.getAll().flatMap((s) => s.transactions.map((t) => ({ ...t, supplierId: s.supplierId, supplierName: s.supplierName })));
 }
 
+export interface SupplierTransactionItemInput {
+  itemId?: string;
+  itemName: string;
+  quantity: number;
+  unitCost: number;
+}
+
 export interface SupplierTransactionFormValues {
   supplierId: string;
   title: string;
   customerLabel: string;
+  /** FK thật tới order (db/orders.ts) khi tạo từ luồng "thiếu hàng trên Đơn hàng → thuê NCC" — để
+   * trống thì giữ hành vi cũ (tự gán 1 order kế tiếp qua `nextOrderLinkCode()`), không phá luồng tạo
+   * thủ công cũ (Admin/Manager nhập tay sự kiện, không chọn đơn cụ thể). */
+  orderId?: string;
   executionDate: string;
   expectedDate: string;
   orderType: SupplierOrderType;
@@ -518,6 +529,8 @@ export interface SupplierTransactionFormValues {
   paidAmount: number;
   compensationAmount: number;
   supplierDeduction: number;
+  /** Danh sách hạng mục thuê/mua — để trống thì giữ hành vi cũ (1 dòng duy nhất suy từ title/value). */
+  items?: SupplierTransactionItemInput[];
 }
 
 function nextTransactionCode(executionDate: string): string {
@@ -538,19 +551,27 @@ function nextOrderLinkCode(): string {
   return orderLinkCodeAt(manualOrderLinkSeq);
 }
 
+function lineItemsFromFormValues(values: SupplierTransactionFormValues): SupplierTransactionLineItem[] {
+  if (values.items && values.items.length > 0) {
+    return values.items.map((it) => ({ name: it.itemName, quantity: it.quantity, unitPrice: it.unitCost }));
+  }
+  return [{ name: values.title, quantity: 1, unitPrice: values.value }];
+}
+
 export function createSupplierTransaction(values: SupplierTransactionFormValues): FlatSupplierTransaction {
   const requestCode = nextTransactionCode(values.executionDate);
+  const lineItems = lineItemsFromFormValues(values);
   const transaction: SupplierTransactionSummary = {
     requestCode,
     title: values.title,
     customerLabel: values.customerLabel,
-    orderLinkCode: nextOrderLinkCode(),
+    orderLinkCode: values.orderId || nextOrderLinkCode(),
     executionDate: values.executionDate,
     expectedDate: values.expectedDate,
     orderType: values.orderType,
     value: values.value,
     status: values.status,
-    lineItems: [{ name: values.title, quantity: 1, unitPrice: values.value }],
+    lineItems,
     paidAmount: values.paidAmount,
     compensationAmount: values.compensationAmount,
     supplierDeduction: values.supplierDeduction,
@@ -569,11 +590,15 @@ export function updateSupplierTransaction(supplierId: string, requestCode: strin
           ...t,
           title: values.title,
           customerLabel: values.customerLabel,
+          orderLinkCode: values.orderId || t.orderLinkCode,
           executionDate: values.executionDate,
           expectedDate: values.expectedDate,
           orderType: values.orderType,
           value: values.value,
           status: values.status,
+          // Chỉ ghi đè lineItems khi form có gửi items[] (luồng picker mới) — giữ nguyên lineItems gốc
+          // khi sửa qua form cũ (chỉ có title/value) để không mất breakdown nhiều dòng đã seed sẵn.
+          lineItems: values.items && values.items.length > 0 ? lineItemsFromFormValues(values) : t.lineItems,
           paidAmount: values.paidAmount,
           compensationAmount: values.compensationAmount,
           supplierDeduction: values.supplierDeduction,

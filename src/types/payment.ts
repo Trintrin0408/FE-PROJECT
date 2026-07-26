@@ -9,16 +9,17 @@
 // - `POST /orders/:id/deposits` giờ ĐÃ nhận `dueDate` (khác ghi nhận cũ của doc "không có cách set
 //   dueDate") — đã test tạo thật, `dueDate` lưu đúng giá trị gửi lên.
 // - `PUT /deposits/:id` CHỈ thật sự ghi được field `status` — `amount`/`evidenceId`/`notes` gửi kèm
-//   đều bị bỏ qua hoàn toàn (đã test riêng từng field, kể cả `notes` khi `status: 'SUCCESS'` — khác
-//   ghi nhận cũ của doc nói "notes chỉ lưu khi SUCCESS", nay xác nhận `notes` KHÔNG lưu ở bất kỳ
-//   status nào qua PUT). Khóa cứng 1 chiều: gọi PUT lần 2 lên deposit đã SUCCESS/CANCELLED/OVERDUE trả
-//   400 BAD_REQUEST. Backend tự set `approvedBy`/`approvedAt`/`paymentDate` khi chuyển SUCCESS, và tự
-//   đồng bộ `orders.paymentStatus` UNPAID→DEPOSITED — FE không cần gọi thêm API nào để đồng bộ.
+//   đều bị bỏ qua hoàn toàn (đã test riêng từng field). Khóa cứng 1 chiều: gọi PUT lần 2 lên deposit
+//   đã PAID/CANCELLED trả 400 BAD_REQUEST. Backend tự set `approvedBy`/`approvedAt`/`paymentDate` khi
+//   chuyển PAID, và tự đồng bộ `orders.paymentStatus` UNPAID→DEPOSITED — FE không cần gọi thêm API
+//   nào để đồng bộ.
 // - Role: `POST`/`PUT` đều trả 403 FORBIDDEN với token ADMIN — xác nhận backend đã chặn đúng theo
 //   CLAUDE.md mục 1 ("Admin không trực tiếp ghi nhận cọc"), không cần FE tự đoán, trang Admin chỉ nên
 //   hiển thị xem/audit (không có nút ghi nhận/xác nhận).
+// - Backend refactor 2026-07-26 (commit 4157a7f): rút gọn DepositStatus từ PENDING/SUCCESS/OVERDUE/
+//   CANCELLED xuống UNPAID/PAID/CANCELLED — `PUT /deposits/:id` giờ chỉ nhận `status: 'PAID'|'CANCELLED'`.
 
-export type DepositStatus = 'PENDING' | 'SUCCESS' | 'OVERDUE' | 'CANCELLED';
+export type DepositStatus = 'UNPAID' | 'PAID' | 'CANCELLED';
 
 // GET /api/v1/orders/:id/deposits
 export interface Deposit {
@@ -48,7 +49,7 @@ export interface CreateOrderDepositPayload {
   dueDate?: string; // ISO datetime — xác nhận hoạt động qua curl 2026-07-21
 }
 
-// PUT /api/v1/deposits/:id — khi status=SUCCESS, backend tự set approvedBy/approvedAt/paymentDate
+// PUT /api/v1/deposits/:id — khi status=PAID, backend tự set approvedBy/approvedAt/paymentDate
 // và cập nhật Order.paymentStatus = DEPOSITED. `notes` khai ở đây nhưng bị bỏ qua hoàn toàn ở mọi
 // status (xác nhận qua curl 2026-07-21) — chỉ `status` thật sự được ghi, giữ field `notes` trong type
 // để không phá interface hiện có nếu backend fix lại sau, nhưng FE không nên hiển thị UI ngụ ý field

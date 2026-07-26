@@ -101,7 +101,7 @@ export interface OrderDepositSummary {
   depositCode: string;
   orderId: string;
   amount: number;
-  status: 'PENDING' | 'SUCCESS' | 'OVERDUE' | 'CANCELLED';
+  status: 'UNPAID' | 'PAID' | 'CANCELLED';
   createdAt: string;
 }
 
@@ -109,7 +109,7 @@ export interface OrderSettlementSummary {
   settlementId: string;
   orderId: string;
   finalAmount: number;
-  status: 'DRAFT' | 'AGREED' | 'REQUESTED' | 'PAID' | 'CONFIRMED';
+  status: 'UNPAID' | 'PAID' | 'CANCELLED';
   createdAt: string;
 }
 

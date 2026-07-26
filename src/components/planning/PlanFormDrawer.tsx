@@ -67,6 +67,11 @@ function newDraftItem(defaultLocation: string): DraftItem {
   };
 }
 
+// Backend refactor 2026-07-26 (commit 4157a7f): gộp LEADER/TECHNICAL thành 1 role STAFF chung — không
+// còn `GET /users?role=LEADER|TECHNICAL` để tách sẵn 2 nhóm, chỉ còn `role=STAFF` chung. Vai trò
+// LEAD/TECHNICAL giờ là thuộc tính gán theo từng kế hoạch (PlanMemberRole), Manager tự chọn khi gán
+// (tối đa 1 LEAD/kế hoạch — schedule.service.ts: assertAtMostOneLead / 409 LEAD_ALREADY_ASSIGNED).
+//
 // Kết nối backend thật (2026-07-21) — xem docs/kehoachvaphancong_api.md mục 8. Mỗi hoạt động/công việc
 // nhập ở đây = 1 lần gọi tuần tự POST /schedule-plans + POST /schedule-plans/:id/assignees (backend
 // CHƯA có endpoint batch, xem mục 8.5 điểm 2 — lưu tuần tự, báo rõ nếu lỗi giữa chừng thay vì giả vờ
@@ -88,8 +93,7 @@ export default function PlanFormDrawer({ isOpen, editingGroup, selectableOrders,
   const [searchingOrders, setSearchingOrders] = useState(false);
 
   const [workTasks, setWorkTasks] = useState<WorkTask[]>([]);
-  const [leaders, setLeaders] = useState<AdminUser[]>([]);
-  const [technicians, setTechnicians] = useState<AdminUser[]>([]);
+  const [staff, setStaff] = useState<AdminUser[]>([]);
   const [loadingCatalog, setLoadingCatalog] = useState(true);
 
   const [submitting, setSubmitting] = useState(false);
@@ -100,27 +104,22 @@ export default function PlanFormDrawer({ isOpen, editingGroup, selectableOrders,
   const [rowBusyId, setRowBusyId] = useState<string | null>(null);
   const [assigneePickerRowId, setAssigneePickerRowId] = useState<string | null>(null);
   const [assigneePickUserId, setAssigneePickUserId] = useState('');
+  const [assigneePickRole, setAssigneePickRole] = useState<'LEAD' | 'TECHNICAL'>('TECHNICAL');
 
   useEffect(() => {
     if (!isOpen) return;
     let cancelled = false;
     setLoadingCatalog(true);
-    Promise.all([
-      workTaskApiService.getWorkTasks(),
-      userApiService.getUsers({ role: 'LEADER', limit: 100 }),
-      userApiService.getUsers({ role: 'TECHNICAL', limit: 100 }),
-    ])
-      .then(([tasksRes, leadersRes, techRes]) => {
+    Promise.all([workTaskApiService.getWorkTasks(), userApiService.getUsers({ role: 'STAFF', limit: 100 })])
+      .then(([tasksRes, staffRes]) => {
         if (cancelled) return;
         setWorkTasks(tasksRes.data ?? []);
-        setLeaders(leadersRes.data ?? []);
-        setTechnicians(techRes.data ?? []);
+        setStaff(staffRes.data ?? []);
       })
       .catch(() => {
         if (!cancelled) {
           setWorkTasks([]);
-          setLeaders([]);
-          setTechnicians([]);
+          setStaff([]);
         }
       })
       .finally(() => {
@@ -174,7 +173,6 @@ export default function PlanFormDrawer({ isOpen, editingGroup, selectableOrders,
     return [...map.values()];
   }, [selectableOrders, searchedOrders]);
 
-  const allStaff = useMemo(() => [...leaders, ...technicians], [leaders, technicians]);
   const orderInfo = editingGroup ?? combinedOrders.find((o) => o.orderId === orderId);
 
   if (!isOpen) return null;
@@ -266,12 +264,12 @@ export default function PlanFormDrawer({ isOpen, editingGroup, selectableOrders,
 
   const assignToRow = async (row: OrderPlanGroup['rows'][number]) => {
     if (!assigneePickUserId) return;
-    const isLeader = leaders.some((l) => l.userId === assigneePickUserId);
     setRowBusyId(row.planId);
     try {
-      await schedulePlanApiService.addAssignee(row.planId, { userId: assigneePickUserId, role: isLeader ? 'LEAD' : 'TECHNICAL' });
+      await schedulePlanApiService.addAssignee(row.planId, { userId: assigneePickUserId, role: assigneePickRole });
       setAssigneePickerRowId(null);
       setAssigneePickUserId('');
+      setAssigneePickRole('TECHNICAL');
       onSaved();
     } finally {
       setRowBusyId(null);
@@ -464,38 +462,67 @@ export default function PlanFormDrawer({ isOpen, editingGroup, selectableOrders,
                             )}
                             <button
                               type="button"
-                              onClick={() => setAssigneePickerRowId(assigneePickerRowId === row.planId ? null : row.planId)}
+                              onClick={() => {
+                                const opening = assigneePickerRowId !== row.planId;
+                                setAssigneePickerRowId(opening ? row.planId : null);
+                                if (opening) {
+                                  const rowHasLead = row.assignees?.some((a) => a.role === 'LEAD') ?? false;
+                                  setAssigneePickUserId('');
+                                  setAssigneePickRole(rowHasLead ? 'TECHNICAL' : 'LEAD');
+                                }
+                              }}
                               className="rounded-lg border border-slate-200 px-2 py-1 font-bold text-slate-600 hover:bg-white"
                             >
                               + Gán người
                             </button>
                           </div>
-                          {assigneePickerRowId === row.planId && (
-                            <div className="flex items-center gap-2 rounded-lg bg-white p-2">
-                              <select
-                                value={assigneePickUserId}
-                                onChange={(e) => setAssigneePickUserId(e.target.value)}
-                                className="flex-1 rounded-lg border border-slate-200 p-1.5 text-xs"
-                              >
-                                <option value="">Chọn người...</option>
-                                {allStaff
-                                  .filter((u) => !row.assignees?.some((a) => a.userId === u.userId))
-                                  .map((u) => (
-                                    <option key={u.userId} value={u.userId}>
-                                      {u.fullName} ({u.role === 'LEADER' ? 'Trưởng nhóm' : 'Kỹ thuật viên'})
-                                    </option>
-                                  ))}
-                              </select>
-                              <button
-                                type="button"
-                                disabled={!assigneePickUserId || busy}
-                                onClick={() => assignToRow(row)}
-                                className="rounded-lg bg-blue-600 px-2.5 py-1.5 font-bold text-white disabled:opacity-60"
-                              >
-                                <Check className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                          )}
+                          {assigneePickerRowId === row.planId && (() => {
+                            const rowHasLead = row.assignees?.some((a) => a.role === 'LEAD') ?? false;
+                            return (
+                              <div className="flex items-center gap-2 rounded-lg bg-white p-2">
+                                <select
+                                  value={assigneePickUserId}
+                                  onChange={(e) => setAssigneePickUserId(e.target.value)}
+                                  className="flex-1 rounded-lg border border-slate-200 p-1.5 text-xs"
+                                >
+                                  <option value="">Chọn người...</option>
+                                  {staff
+                                    .filter((u) => !row.assignees?.some((a) => a.userId === u.userId))
+                                    .map((u) => (
+                                      <option key={u.userId} value={u.userId}>
+                                        {u.fullName}
+                                      </option>
+                                    ))}
+                                </select>
+                                <div className="flex shrink-0 overflow-hidden rounded-lg border border-slate-200 text-[10px] font-bold">
+                                  <button
+                                    type="button"
+                                    disabled={rowHasLead}
+                                    onClick={() => setAssigneePickRole('LEAD')}
+                                    title={rowHasLead ? 'Kế hoạch này đã có người vai trò LEAD' : undefined}
+                                    className={`px-2 py-1.5 ${assigneePickRole === 'LEAD' ? 'bg-blue-600 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'} disabled:cursor-not-allowed disabled:opacity-40`}
+                                  >
+                                    LEAD
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setAssigneePickRole('TECHNICAL')}
+                                    className={`border-l border-slate-200 px-2 py-1.5 ${assigneePickRole === 'TECHNICAL' ? 'bg-blue-600 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}
+                                  >
+                                    KT
+                                  </button>
+                                </div>
+                                <button
+                                  type="button"
+                                  disabled={!assigneePickUserId || busy || (assigneePickRole === 'LEAD' && rowHasLead)}
+                                  onClick={() => assignToRow(row)}
+                                  className="rounded-lg bg-blue-600 px-2.5 py-1.5 font-bold text-white disabled:opacity-60"
+                                >
+                                  <Check className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            );
+                          })()}
                         </>
                       )}
                     </div>
@@ -590,11 +617,17 @@ export default function PlanFormDrawer({ isOpen, editingGroup, selectableOrders,
                         <label className="mb-1 block text-[10px] font-bold uppercase text-slate-400">Phụ trách chính (LEAD)</label>
                         <select
                           value={item.leadUserId}
-                          onChange={(e) => updateItem(item.localId, { leadUserId: e.target.value })}
+                          onChange={(e) => {
+                            const leadUserId = e.target.value;
+                            updateItem(item.localId, {
+                              leadUserId,
+                              technicalUserIds: item.technicalUserIds.filter((id) => id !== leadUserId),
+                            });
+                          }}
                           className="w-full rounded-lg border border-slate-200 bg-white p-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
                         >
                           <option value="">Chưa chọn</option>
-                          {leaders.map((u) => (
+                          {staff.map((u) => (
                             <option key={u.userId} value={u.userId}>
                               {u.fullName}
                             </option>
@@ -604,7 +637,7 @@ export default function PlanFormDrawer({ isOpen, editingGroup, selectableOrders,
                       <div>
                         <label className="mb-1 block text-[10px] font-bold uppercase text-slate-400">Kỹ thuật viên đồng hành</label>
                         <div className="flex flex-wrap gap-1.5">
-                          {technicians.map((u) => {
+                          {staff.filter((u) => u.userId !== item.leadUserId).map((u) => {
                             const checked = item.technicalUserIds.includes(u.userId);
                             return (
                               <button
@@ -625,7 +658,7 @@ export default function PlanFormDrawer({ isOpen, editingGroup, selectableOrders,
                               </button>
                             );
                           })}
-                          {technicians.length === 0 && <span className="text-[10px] italic text-slate-400">Không có kỹ thuật viên nào.</span>}
+                          {staff.length === 0 && <span className="text-[10px] italic text-slate-400">Không có nhân sự nào.</span>}
                         </div>
                       </div>
                     </div>

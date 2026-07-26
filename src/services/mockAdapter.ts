@@ -554,7 +554,7 @@ function resolve(method: string, path: string, params: Record<string, unknown>, 
     const depositIdParams = matchPath('/deposits/:depositId', path);
     if (m === 'PUT' && depositIdParams) {
       const payload = (body as { status?: string }) ?? {};
-      markDepositStatusForMockRoute(depositIdParams.depositId, payload.status === 'SUCCESS' ? 'RECEIVED' : 'PENDING');
+      markDepositStatusForMockRoute(depositIdParams.depositId, payload.status === 'PAID' ? 'RECEIVED' : 'PENDING');
       return { status: 200, data: envelope({ depositId: depositIdParams.depositId, ...(body as object) }, undefined, 'Cập nhật trạng thái cọc thành công (dữ liệu mô phỏng)') };
     }
   }
