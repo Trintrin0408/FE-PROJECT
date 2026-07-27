@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Search, Pencil, Plus, RotateCw, Power } from 'lucide-react';
+import { Search, Pencil, Plus, RotateCw, Power, Eye } from 'lucide-react';
 import { policyApiService } from '@/services/policy.service';
 import { Table, TableColumn } from '@/components/ui/Table';
 import { Pagination } from '@/components/ui/Pagination';
@@ -54,7 +54,7 @@ export default function Page() {
 
   const { pagination, setPage, updatePagination } = usePagination(10);
 
-  const [formModal, setFormModal] = useState<{ mode: 'create' | 'edit'; policy: BusinessPolicy | null } | null>(null);
+  const [formModal, setFormModal] = useState<{ mode: 'create' | 'edit' | 'view'; policy: BusinessPolicy | null } | null>(null);
   const [isSubmittingForm, setIsSubmittingForm] = useState(false);
   const [formError, setFormError] = useState('');
 
@@ -164,29 +164,41 @@ export default function Page() {
     {
       key: 'actions',
       label: 'Thao tác',
-      render: (row) =>
-        canManage && (
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              aria-label="Chỉnh sửa"
-              title="Chỉnh sửa"
-              onClick={() => setFormModal({ mode: 'edit', policy: row })}
-              className="inline-flex rounded-md p-1.5 text-slate-400 hover:bg-amber-50 hover:text-amber-600"
-            >
-              <Pencil className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              aria-label={row.isActive ? 'Ngừng áp dụng' : 'Kích hoạt lại'}
-              title={row.isActive ? 'Ngừng áp dụng' : 'Kích hoạt lại'}
-              onClick={() => handleToggleActive(row)}
-              className={`inline-flex rounded-md p-1.5 text-slate-400 hover:bg-slate-100 ${row.isActive ? 'hover:text-red-600' : 'hover:text-emerald-600'}`}
-            >
-              <Power className="h-4 w-4" />
-            </button>
-          </div>
-        ),
+      render: (row) => (
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            aria-label="Xem chi tiết"
+            title="Xem chi tiết"
+            onClick={() => setFormModal({ mode: 'view', policy: row })}
+            className="inline-flex rounded-md p-1.5 text-slate-400 hover:bg-blue-50 hover:text-blue-600"
+          >
+            <Eye className="h-4 w-4" />
+          </button>
+          {canManage && (
+            <>
+              <button
+                type="button"
+                aria-label="Chỉnh sửa"
+                title="Chỉnh sửa"
+                onClick={() => setFormModal({ mode: 'edit', policy: row })}
+                className="inline-flex rounded-md p-1.5 text-slate-400 hover:bg-amber-50 hover:text-amber-600"
+              >
+                <Pencil className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                aria-label={row.isActive ? 'Ngừng áp dụng' : 'Kích hoạt lại'}
+                title={row.isActive ? 'Ngừng áp dụng' : 'Kích hoạt lại'}
+                onClick={() => handleToggleActive(row)}
+                className={`inline-flex rounded-md p-1.5 text-slate-400 hover:bg-slate-100 ${row.isActive ? 'hover:text-red-600' : 'hover:text-emerald-600'}`}
+              >
+                <Power className="h-4 w-4" />
+              </button>
+            </>
+          )}
+        </div>
+      ),
     },
   ];
 
