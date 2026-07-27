@@ -25,6 +25,5 @@ export const ROLE_OPTIONS = [
 export const USER_ROLE_OPTIONS = [
   { value: 'ADMIN', label: 'Admin' },
   { value: 'MANAGER', label: 'Manager' },
-  { value: 'LEADER', label: 'Leader Staff' },
-  { value: 'TECHNICAL', label: 'Technical Staff' },
+  { value: 'STAFF', label: 'Nhân viên' },
 ];

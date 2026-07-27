@@ -19,8 +19,7 @@ import { USER_ROLE_OPTIONS } from '@/constants/roles';
 const ROLE_BADGE: Record<string, 'default' | 'primary' | 'success' | 'warning' | 'info'> = {
   ADMIN: 'warning',
   MANAGER: 'primary',
-  LEADER: 'info',
-  TECHNICAL: 'success',
+  STAFF: 'info',
 };
 
 const STATUS_META: Record<string, { label: string; variant: 'success' | 'secondary' | 'warning' | 'danger' }> = {
@@ -57,7 +56,7 @@ export default function AdminUsersPage() {
       const res = await userApiService.getUsers({
         page,
         limit,
-        search: search || undefined,
+        search: search.trim() || undefined,
         role: roleTab === 'all' ? undefined : roleTab,
       });
       if (res.success && res.data) {
@@ -114,7 +113,7 @@ export default function AdminUsersPage() {
       setIsFormOpen(false);
       loadUsers();
     } catch (err: any) {
-      setFormError(err.response?.data?.message || 'Có lỗi xảy ra khi lưu thông tin');
+      setFormError(err.response?.data?.error?.message || err.response?.data?.message || 'Có lỗi xảy ra khi lưu thông tin');
     } finally {
       setIsSubmitting(false);
     }
@@ -136,8 +135,7 @@ export default function AdminUsersPage() {
     { value: 'all', label: 'Tất cả' },
     { value: 'ADMIN', label: 'Quản trị viên' },
     { value: 'MANAGER', label: 'Quản lý' },
-    { value: 'LEADER', label: 'Trưởng nhóm' },
-    { value: 'TECHNICAL', label: 'Kỹ thuật viên' },
+    { value: 'STAFF', label: 'Nhân viên' },
   ];
 
   const columns: TableColumn<AdminUser>[] = [
@@ -152,12 +150,12 @@ export default function AdminUsersPage() {
       render: (row) => (
         <div className="flex items-center gap-2.5">
           <span className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white ${randomAvatarColor()}`}>
-            {row.fullName
-              .split(' ')
-              .slice(-2)
-              .map((p) => p[0])
-              .join('')
-              .toUpperCase()}
+            {(() => {
+              const parts = row.fullName.trim().split(/\s+/);
+              if (!parts.length || !parts[0]) return 'U';
+              if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+              return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+            })()}
           </span>
           <div className="min-w-0">
             <p className="truncate font-medium text-slate-800">{row.fullName}</p>

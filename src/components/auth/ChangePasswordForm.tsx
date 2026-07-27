@@ -94,14 +94,14 @@ export function ChangePasswordForm() {
         <PasswordField label="Mật khẩu hiện tại" value={currentPassword} onChange={setCurrentPassword} />
         <PasswordField
           label="Mật khẩu mới"
-          helpText="Tối thiểu 8 ký tự."
-          minLength={8}
+          helpText="Tối thiểu 6 ký tự."
+          minLength={6}
           value={newPassword}
           onChange={setNewPassword}
         />
         <PasswordField
           label="Nhập lại mật khẩu mới"
-          minLength={8}
+          minLength={6}
           value={confirmPassword}
           onChange={setConfirmPassword}
         />

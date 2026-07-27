@@ -138,6 +138,7 @@ export function UserFormModal({
           />
           <Input
             label="Email"
+            required
             type="email"
             value={values.email}
             onChange={(e) => setValues((v) => ({ ...v, email: e.target.value }))}

@@ -181,6 +181,12 @@ const MANAGER_NAV_SECTIONS: NavSection[] = [
       { label: 'Công & lương', href: '/manager/wages', icon: Wallet },
     ],
   },
+  {
+    title: 'PROFILE',
+    items: [
+      { label: 'Hồ sơ cá nhân', href: '/manager/profile', icon: User },
+    ],
+  },
 ];
 
 const BADGE_CLASSES: Record<'amber' | 'red', string> = {

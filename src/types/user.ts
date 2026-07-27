@@ -4,7 +4,7 @@
 // Nguồn: D:\bnwems-backend-api prisma/schema.prisma (enum Role/UserStatus), user.validator.ts,
 // user.service.ts.
 
-export type UserRole = 'ADMIN' | 'MANAGER' | 'LEADER' | 'TECHNICAL';
+export type UserRole = 'ADMIN' | 'MANAGER' | 'STAFF';
 export type UserStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
 
 // GET /api/v1/users — KHÔNG có email/phone/bio/avatarUrl (chỉ có ở GET /auth/profile)
