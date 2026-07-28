@@ -8,7 +8,10 @@ import type {
   UpdateSupplierItemPayload,
   UpdateSupplierStatusPayload,
   ListSupplierTransactionsQuery,
-  SupplierTransactionListResult
+  SupplierTransactionListResult,
+  CreateSupplierTransactionPayload,
+  UpdateSupplierTransactionPayload,
+  SupplierTransaction
 } from '@/types/supplier';
 
 export const supplierApiService = {
@@ -75,6 +78,30 @@ export const supplierApiService = {
   /** GET /api/v1/supplier-transactions */
   async getSupplierTransactions(params?: ListSupplierTransactionsQuery): Promise<SupplierTransactionListResult> {
     const response = await api.get('/supplier-transactions', { params });
+    return response.data;
+  },
+
+  /** POST /api/v1/supplier-transactions */
+  async createSupplierTransaction(payload: CreateSupplierTransactionPayload): Promise<SupplierTransaction> {
+    const response = await api.post('/supplier-transactions', payload);
+    return response.data;
+  },
+
+  /** GET /api/v1/supplier-transactions/:id */
+  async getTransactionById(id: string): Promise<SupplierTransaction> {
+    const response = await api.get(`/supplier-transactions/${id}`);
+    return response.data;
+  },
+
+  /** PUT /api/v1/supplier-transactions/:id */
+  async updateSupplierTransaction(id: string, payload: UpdateSupplierTransactionPayload): Promise<SupplierTransaction> {
+    const response = await api.put(`/supplier-transactions/${id}`, payload);
+    return response.data;
+  },
+
+  /** DELETE /api/v1/supplier-transactions/:id */
+  async deleteSupplierTransaction(id: string) {
+    const response = await api.delete(`/supplier-transactions/${id}`);
     return response.data;
   },
 };

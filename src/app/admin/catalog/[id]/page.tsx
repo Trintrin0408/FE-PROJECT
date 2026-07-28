@@ -151,14 +151,15 @@ export default function ItemDetailPage() {
               <thead className="bg-slate-50/50">
                 <tr>
                   <th className="px-5 py-4 font-semibold text-slate-500">Tên nhà cung cấp</th>
-                  <th className="px-5 py-4 text-right font-semibold text-slate-500">Giá nhập/thuê</th>
+                  <th className="px-5 py-4 text-right font-semibold text-slate-500">Giá thuê</th>
+                  <th className="px-5 py-4 text-right font-semibold text-slate-500">Giá mua</th>
                   <th className="px-5 py-4 text-center font-semibold text-slate-500">Trạng thái</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
                 {suppliers.length === 0 ? (
                   <tr>
-                    <td colSpan={3} className="px-5 py-8 text-center text-slate-500">
+                    <td colSpan={4} className="px-5 py-8 text-center text-slate-500">
                       Chưa có nhà cung cấp nào cung cấp mặt hàng này.
                     </td>
                   </tr>
@@ -171,7 +172,10 @@ export default function ItemDetailPage() {
                       <div className="text-xs text-slate-500 font-mono mt-0.5">{supplier.supplierCode}</div>
                     </td>
                     <td className="px-5 py-4 text-right font-medium text-slate-900">
-                      {(supplier.suppliedPrice || 0).toLocaleString('vi-VN')} ₫
+                      {(supplier.rentalPrice || 0).toLocaleString('vi-VN')} ₫
+                    </td>
+                    <td className="px-5 py-4 text-right font-medium text-slate-900">
+                      {(supplier.purchasePrice || 0).toLocaleString('vi-VN')} ₫
                     </td>
                     <td className="px-5 py-4 text-center">
                       <Badge variant={supplier.isActive ? 'success' : 'neutral'} className={`px-3 py-1 font-medium ${supplier.isActive ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-600'}`}>

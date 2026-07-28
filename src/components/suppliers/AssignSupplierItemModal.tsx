@@ -23,14 +23,16 @@ export default function AssignSupplierItemModal({
   const [isLoadingItems, setIsLoadingItems] = useState(false);
   
   const [selectedItemId, setSelectedItemId] = useState('');
-  const [suppliedPrice, setSuppliedPrice] = useState('');
+  const [rentalPrice, setRentalPrice] = useState('');
+  const [purchasePrice, setPurchasePrice] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       fetchItems();
       setSelectedItemId('');
-      setSuppliedPrice('');
+      setRentalPrice('');
+      setPurchasePrice('');
     }
   }, [isOpen]);
 
@@ -54,8 +56,12 @@ export default function AssignSupplierItemModal({
       toast.error('Vui lòng chọn một mặt hàng');
       return;
     }
-    if (!suppliedPrice || Number(suppliedPrice) < 0) {
-      toast.error('Vui lòng nhập giá cung cấp hợp lệ');
+    if (!rentalPrice || Number(rentalPrice) < 0) {
+      toast.error('Vui lòng nhập giá thuê hợp lệ');
+      return;
+    }
+    if (!purchasePrice || Number(purchasePrice) < 0) {
+      toast.error('Vui lòng nhập giá mua hợp lệ');
       return;
     }
 
@@ -63,7 +69,8 @@ export default function AssignSupplierItemModal({
       setIsSubmitting(true);
       await supplierApiService.assignSupplierItem(supplierId, {
         itemId: selectedItemId,
-        suppliedPrice: Number(suppliedPrice),
+        rentalPrice: Number(rentalPrice),
+        purchasePrice: Number(purchasePrice),
         isActive: true,
       });
       toast.success('Đã gán mặt hàng thành công');
@@ -103,15 +110,32 @@ export default function AssignSupplierItemModal({
 
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1">
-            Giá nhập/thuê (VNĐ) <span className="text-red-500">*</span>
+            Giá thuê (VNĐ) <span className="text-red-500">*</span>
           </label>
           <input
             type="number"
             min="0"
             step="1000"
             className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            value={suppliedPrice}
-            onChange={(e) => setSuppliedPrice(e.target.value)}
+            value={rentalPrice}
+            onChange={(e) => setRentalPrice(e.target.value)}
+            placeholder="VD: 50000"
+            disabled={isSubmitting}
+            required
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">
+            Giá mua (VNĐ) <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="number"
+            min="0"
+            step="1000"
+            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            value={purchasePrice}
+            onChange={(e) => setPurchasePrice(e.target.value)}
             placeholder="VD: 250000"
             disabled={isSubmitting}
             required

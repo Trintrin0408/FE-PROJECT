@@ -155,7 +155,8 @@ export interface ItemSupplierDetails {
   phone: string | null;
   email: string | null;
   address: string | null;
-  suppliedPrice: number;
+  rentalPrice: number;
+  purchasePrice: number | null;
   isActive: boolean;
   minQuantity: number | null;
   supplierItemCode: string | null;

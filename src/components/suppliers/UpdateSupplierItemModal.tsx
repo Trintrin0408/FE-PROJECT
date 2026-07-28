@@ -20,13 +20,15 @@ export default function UpdateSupplierItemModal({
   item,
   onSuccess,
 }: UpdateSupplierItemModalProps) {
-  const [suppliedPrice, setSuppliedPrice] = useState('');
+  const [rentalPrice, setRentalPrice] = useState('');
+  const [purchasePrice, setPurchasePrice] = useState('');
   const [isActive, setIsActive] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (isOpen && item) {
-      setSuppliedPrice(item.suppliedPrice.toString());
+      setRentalPrice(item.rentalPrice.toString());
+      setPurchasePrice((item.purchasePrice || 0).toString());
       setIsActive(item.isActive);
     }
   }, [isOpen, item]);
@@ -35,15 +37,20 @@ export default function UpdateSupplierItemModal({
     e.preventDefault();
     if (!item) return;
 
-    if (!suppliedPrice || Number(suppliedPrice) < 0) {
-      toast.error('Vui lòng nhập giá cung cấp hợp lệ');
+    if (!rentalPrice || Number(rentalPrice) < 0) {
+      toast.error('Vui lòng nhập giá thuê hợp lệ');
+      return;
+    }
+    if (!purchasePrice || Number(purchasePrice) < 0) {
+      toast.error('Vui lòng nhập giá mua hợp lệ');
       return;
     }
 
     try {
       setIsSubmitting(true);
       await supplierApiService.updateSupplierItem(supplierId, item.itemId, {
-        suppliedPrice: Number(suppliedPrice),
+        rentalPrice: Number(rentalPrice),
+        purchasePrice: Number(purchasePrice),
         isActive,
       });
       toast.success('Cập nhật mặt hàng thành công');
@@ -74,20 +81,37 @@ export default function UpdateSupplierItemModal({
           />
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">
-            Giá nhập/thuê mới (VNĐ) <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="number"
-            min="0"
-            step="1000"
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            value={suppliedPrice}
-            onChange={(e) => setSuppliedPrice(e.target.value)}
-            required
-            disabled={isSubmitting}
-          />
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Giá thuê mới (VNĐ) <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="1000"
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              value={rentalPrice}
+              onChange={(e) => setRentalPrice(e.target.value)}
+              required
+              disabled={isSubmitting}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Giá mua mới (VNĐ) <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="1000"
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              value={purchasePrice}
+              onChange={(e) => setPurchasePrice(e.target.value)}
+              required
+              disabled={isSubmitting}
+            />
+          </div>
         </div>
 
         <div className="flex items-center gap-2 pt-2">

@@ -2,7 +2,7 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Edit, Power, Building2, User, Phone, Mail, MapPin, DollarSign, ClipboardList, FileText, ChevronRight, ChevronLeft, Trash2 } from 'lucide-react';
+import { ArrowLeft, Edit, Eye, Power, Building2, User, Phone, Mail, MapPin, DollarSign, ClipboardList, FileText, ChevronRight, ChevronLeft, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { supplierApiService } from '@/services/supplier.service';
@@ -12,6 +12,9 @@ import toast from 'react-hot-toast';
 import AssignSupplierItemModal from '@/components/suppliers/AssignSupplierItemModal';
 import UpdateSupplierItemModal from '@/components/suppliers/UpdateSupplierItemModal';
 import { SupplierFormModal, type SupplierFormValues } from '@/components/suppliers/SupplierFormModal';
+import OrderQuickViewModal from '@/components/orders/OrderQuickViewModal';
+import CreateSupplierTransactionModal from '@/components/suppliers/CreateSupplierTransactionModal';
+import UpdateSupplierTransactionModal from '@/components/suppliers/UpdateSupplierTransactionModal';
 
 export default function SupplierDetailPage() {
   const router = useRouter();
@@ -27,7 +30,13 @@ export default function SupplierDetailPage() {
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [isSupplierFormOpen, setIsSupplierFormOpen] = useState(false);
+  const [isCreateTxModalOpen, setIsCreateTxModalOpen] = useState(false);
+  const [isUpdateTxModalOpen, setIsUpdateTxModalOpen] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState<SupplierTransaction | null>(null);
+  const [txModalMode, setTxModalMode] = useState<'edit' | 'view'>('edit');
   const [selectedItem, setSelectedItem] = useState<SupplierItem | null>(null);
+  const [activeTab, setActiveTab] = useState<'info' | 'transactions'>('info');
+  const [viewOrderId, setViewOrderId] = useState<string | null>(null);
 
   const handleUpdateSupplier = async (values: SupplierFormValues) => {
     try {
@@ -67,13 +76,13 @@ export default function SupplierDetailPage() {
   const handleToggleStatus = async () => {
     if (!supplier) return;
     if (supplier.status === 'ACTIVE' && (supplier.debtBalance || 0) > 0) {
-      toast.error('Không thể ngừng hoạt động nhà cung cấp đang có công nợ');
+      toast.error('Không thể ngừng hợp tác nhà cung cấp đang có công nợ');
       return;
     }
     const newStatus = supplier.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
     try {
       await supplierApiService.updateSupplierStatus(id, { status: newStatus });
-      toast.success(`Đã ${newStatus === 'ACTIVE' ? 'kích hoạt' : 'ngừng hoạt động'} nhà cung cấp`);
+      toast.success(`Đã ${newStatus === 'ACTIVE' ? 'kích hoạt' : 'ngừng hợp tác'} nhà cung cấp`);
       fetchSupplierData();
     } catch (error) {
       toast.error('Lỗi khi cập nhật trạng thái');
@@ -88,6 +97,17 @@ export default function SupplierDetailPage() {
       fetchSupplierData();
     } catch (error) {
       toast.error('Lỗi khi xóa hạng mục');
+    }
+  };
+
+  const handleRemoveTransaction = async (txId: string) => {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa giao dịch này?')) return;
+    try {
+      await supplierApiService.deleteSupplierTransaction(txId);
+      toast.success('Đã xóa giao dịch');
+      fetchSupplierData();
+    } catch (error) {
+      toast.error('Lỗi khi xóa giao dịch');
     }
   };
 
@@ -139,7 +159,7 @@ export default function SupplierDetailPage() {
                 {supplier.supplierCode}
               </span>
               <Badge variant={supplier.status === 'ACTIVE' ? 'success' : 'neutral'}>
-                {supplier.status === 'ACTIVE' ? 'Đang hoạt động' : 'Ngừng hoạt động'}
+                {supplier.status === 'ACTIVE' ? 'Đang hợp tác' : 'Ngừng hợp tác'}
               </Badge>
             </div>
             <div className="mt-3 flex items-center gap-2 text-sm text-slate-500 font-medium">
@@ -155,7 +175,7 @@ export default function SupplierDetailPage() {
             className={`bg-white shadow-sm h-10 ${supplier.status === 'ACTIVE' ? 'text-red-600 hover:bg-red-50 border-red-200 ring-1 ring-inset ring-slate-200' : 'text-emerald-600 hover:bg-emerald-50 border-emerald-200 ring-1 ring-inset ring-slate-200'}`}
           >
             <Power className="h-4 w-4 mr-2" />
-            {supplier.status === 'ACTIVE' ? 'Ngừng hoạt động' : 'Kích hoạt lại'}
+            {supplier.status === 'ACTIVE' ? 'Ngừng hợp tác' : 'Hợp tác lại'}
           </Button>
         </div>
       </div>
@@ -203,8 +223,34 @@ export default function SupplierDetailPage() {
         </div>
       </div>
 
-      {/* Main Grid: Info & Items */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      {/* Tabs */}
+      <div className="border-b border-slate-200 mt-6 mb-6">
+        <nav className="-mb-px flex space-x-8">
+          <button
+            onClick={() => setActiveTab('info')}
+            className={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium transition-colors ${
+              activeTab === 'info'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700'
+            }`}
+          >
+            Thông tin chung & Hạng mục
+          </button>
+          <button
+            onClick={() => setActiveTab('transactions')}
+            className={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium transition-colors ${
+              activeTab === 'transactions'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700'
+            }`}
+          >
+            Danh sách các giao dịch
+          </button>
+        </nav>
+      </div>
+
+      {activeTab === 'info' && (
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Left Column: Info */}
         <div className="rounded-xl border border-slate-200 bg-white shadow-sm lg:col-span-1 h-full">
           <div className="border-b border-slate-100 p-5 flex items-center justify-between">
@@ -269,6 +315,7 @@ export default function SupplierDetailPage() {
                 <tr>
                   <th className="px-5 py-4 font-semibold text-slate-500">Hạng mục</th>
                   <th className="px-5 py-4 font-semibold text-slate-500 text-right">Giá thuê</th>
+                  <th className="px-5 py-4 font-semibold text-slate-500 text-right">Giá mua</th>
                   <th className="px-5 py-4 text-center font-semibold text-slate-500">Trạng thái</th>
                   <th className="px-5 py-4 text-right font-semibold text-slate-500">Thao tác</th>
                 </tr>
@@ -276,7 +323,7 @@ export default function SupplierDetailPage() {
               <tbody className="divide-y divide-slate-100">
                 {items.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-5 py-8 text-center text-slate-500">
+                    <td colSpan={5} className="px-5 py-8 text-center text-slate-500">
                       Nhà cung cấp này chưa được gán hạng mục nào.
                     </td>
                   </tr>
@@ -288,7 +335,10 @@ export default function SupplierDetailPage() {
                       </div>
                     </td>
                     <td className="px-5 py-4 text-slate-600 text-right font-medium">
-                      <span className="text-slate-900">{(item.suppliedPrice || 0).toLocaleString('vi-VN')} ₫</span>
+                      <span className="text-slate-900">{(item.rentalPrice || 0).toLocaleString('vi-VN')} ₫</span>
+                    </td>
+                    <td className="px-5 py-4 text-slate-600 text-right font-medium">
+                      <span className="text-slate-900">{item.purchasePrice != null ? `${item.purchasePrice.toLocaleString('vi-VN')} ₫` : '—'}</span>
                     </td>
                     <td className="px-5 py-4 text-center">
                       <Badge variant={item.isActive ? 'success' : 'neutral'} className={`px-3 py-1 font-medium ${item.isActive ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-600'}`}>
@@ -320,28 +370,32 @@ export default function SupplierDetailPage() {
           </div>
         </div>
       </div>
+      )}
 
-      {/* Orders Table Row */}
+      {activeTab === 'transactions' && (
       <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-100 p-5 flex items-center justify-between">
-          <h3 className="text-lg font-bold text-slate-900">Giao dịch gần đây</h3>
+          <h3 className="text-lg font-bold text-slate-900">Danh sách các giao dịch</h3>
+          <Button size="sm" onClick={() => setIsCreateTxModalOpen(true)}>+ Tạo giao dịch</Button>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50/50 border-b border-slate-100">
               <tr>
                 <th className="px-6 py-4 font-semibold text-slate-500">Mã giao dịch</th>
+                <th className="px-6 py-4 font-semibold text-slate-500 text-center">Loại giao dịch</th>
                 <th className="px-6 py-4 font-semibold text-slate-500 text-center">Đơn liên quan</th>
                 <th className="px-6 py-4 font-semibold text-slate-500 text-center">Ngày tạo</th>
                 <th className="px-6 py-4 font-semibold text-slate-500 text-center">Tổng tiền</th>
                 <th className="px-6 py-4 text-center font-semibold text-slate-500">Thanh toán</th>
                 <th className="px-6 py-4 text-center font-semibold text-slate-500">Trạng thái</th>
+                <th className="px-6 py-4 text-center font-semibold text-slate-500">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {transactions.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-5 py-8 text-center text-slate-500">
+                  <td colSpan={8} className="px-5 py-8 text-center text-slate-500">
                     Chưa có giao dịch nào
                   </td>
                 </tr>
@@ -349,9 +403,18 @@ export default function SupplierDetailPage() {
                 <tr key={tx.transactionId} className="hover:bg-slate-50/50 transition-colors">
                   <td className="px-6 py-5 text-slate-600 font-medium">{tx.transactionCode}</td>
                   <td className="px-6 py-5 text-center">
-                    <Link href={`/admin/orders/${tx.orderId}`} className="text-blue-600 hover:underline font-medium">
-                      {tx.orderCode || '—'}
-                    </Link>
+                    <Badge variant="neutral" className="px-2.5 py-1">
+                      {tx.transactionType === 'RENTAL' ? 'Thuê ngoài' : tx.transactionType === 'PURCHASE' ? 'Mua hàng' : tx.transactionType}
+                    </Badge>
+                  </td>
+                  <td className="px-6 py-5 text-center">
+                    {tx.orderId ? (
+                      <button onClick={() => setViewOrderId(tx.orderId)} className="text-blue-600 hover:underline font-medium">
+                        {tx.orderCode || '—'}
+                      </button>
+                    ) : (
+                      <span className="text-slate-500 italic text-sm">Nhập kho</span>
+                    )}
                   </td>
                   <td className="px-6 py-5 text-slate-600 text-center font-medium">{formatDate(tx.createdAt)}</td>
                   <td className="px-6 py-5 font-bold text-slate-900 text-center">{(tx.estimatedCost || 0).toLocaleString('vi-VN')} ₫</td>
@@ -371,12 +434,52 @@ export default function SupplierDetailPage() {
                       {tx.status}
                     </Badge>
                   </td>
+                  <td className="px-6 py-5 text-center">
+                    <div className="flex justify-center gap-2">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedTransaction(tx);
+                          setTxModalMode('view');
+                          setIsUpdateTxModalOpen(true);
+                        }}
+                        title="Xem chi tiết"
+                        className="px-2 py-1 h-auto text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedTransaction(tx);
+                          setTxModalMode('edit');
+                          setIsUpdateTxModalOpen(true);
+                        }}
+                        title="Cập nhật"
+                        className="px-2 py-1 h-auto text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => handleRemoveTransaction(tx.transactionId)}
+                        title="Xóa"
+                        className="px-2 py-1 h-auto text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
+      )}
 
       <AssignSupplierItemModal 
         isOpen={isAssignModalOpen}
@@ -400,6 +503,33 @@ export default function SupplierDetailPage() {
         onClose={() => setIsSupplierFormOpen(false)}
         onSubmit={handleUpdateSupplier}
       />
+
+      <CreateSupplierTransactionModal
+        isOpen={isCreateTxModalOpen}
+        onClose={() => setIsCreateTxModalOpen(false)}
+        supplierId={id}
+        onSuccess={fetchSupplierData}
+      />
+
+      {isUpdateTxModalOpen && (
+        <UpdateSupplierTransactionModal
+          isOpen={isUpdateTxModalOpen}
+          onClose={() => setIsUpdateTxModalOpen(false)}
+          supplierId={id}
+          transaction={selectedTransaction}
+          onSuccess={fetchSupplierData}
+          mode={txModalMode}
+        />
+      )}
+
+      {/* Quick View Modal */}
+      {viewOrderId && (
+        <OrderQuickViewModal
+          isOpen={!!viewOrderId}
+          onClose={() => setViewOrderId(null)}
+          orderId={viewOrderId}
+        />
+      )}
     </div>
   );
 }

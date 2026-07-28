@@ -55,7 +55,6 @@ export interface SupplierItem {
   typeId: string;
   rentalPrice: number;
   purchasePrice: number | null;
-  suppliedPrice: number;
   isActive: boolean;
   minQuantity: number | null;
   supplierItemCode: string | null;
@@ -93,14 +92,39 @@ export interface SupplierTransactionListResult {
 
 export interface AssignSupplierItemPayload {
   itemId: string;
-  suppliedPrice: number;
+  rentalPrice: number;
+  purchasePrice: number;
   isActive?: boolean;
   minQuantity?: number | null;
   supplierItemCode?: string | null;
 }
 
+export interface TransactionItemInput {
+  itemId: string;
+  quantity: number;
+  unitCost?: number;
+  notes?: string;
+  itemName?: string;
+}
+
+export interface CreateSupplierTransactionPayload {
+  supplierId: string;
+  orderId?: string;
+  transactionType: 'PURCHASE' | 'RENTAL';
+  serviceTitle: string;
+  depositAmount?: number;
+  items: TransactionItemInput[];
+}
+
+export interface UpdateSupplierTransactionPayload {
+  serviceTitle?: string;
+  depositAmount?: number;
+  items?: TransactionItemInput[];
+}
+
 export interface UpdateSupplierItemPayload {
-  suppliedPrice?: number;
+  rentalPrice?: number;
+  purchasePrice?: number;
   isActive?: boolean;
   minQuantity?: number | null;
   supplierItemCode?: string | null;

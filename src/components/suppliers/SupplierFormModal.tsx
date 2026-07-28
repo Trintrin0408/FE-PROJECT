@@ -35,11 +35,7 @@ interface SupplierFormModalProps {
   onSubmit: (values: SupplierFormValues) => void;
 }
 
-/** Modal Thêm/Sửa đối tác — dùng chung cho /admin/suppliers và /manager/suppliers (trước đây khai
- * báo inline riêng trong mỗi page.tsx, gần như trùng lặp hoàn toàn — xem docs/supplier_api.md mục
- * 1.3/5/7). Bộ trường theo đúng payload đã xác nhận ở AddSupplierModal.tsx (có `contactPerson`,
- * không có `email`), chỉ khác là vẫn ghi qua mock CRUD (`createAdminSupplier`/`updateAdminSupplier`)
- * thay vì `supplierApiService` vì `GET/PUT /suppliers` chưa có route mock lẫn backend thật. */
+/** Modal Thêm/Sửa đối tác — dùng chung cho /admin/suppliers và /manager/suppliers */
 export function SupplierFormModal({ isOpen, mode, supplier, onClose, onSubmit }: Readonly<SupplierFormModalProps>) {
   const [values, setValues] = useState<SupplierFormValues>(EMPTY_FORM);
   const [error, setError] = useState('');
