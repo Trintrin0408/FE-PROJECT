@@ -16,6 +16,12 @@ export const userApiService = {
     return response.data;
   },
 
+  /** GET /api/v1/users/{id} */
+  async getUserById(id: string) {
+    const response = await api.get(`/users/${id}`);
+    return response.data;
+  },
+
   /** POST /api/v1/users */
   async createUser(payload: CreateUserPayload) {
     const response = await api.post('/users', payload);

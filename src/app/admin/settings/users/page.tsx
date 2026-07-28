@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Mail, Pencil, Phone, Plus, Search, Trash2 } from 'lucide-react';
+import { Eye, Mail, Pencil, Phone, Plus, Search, Trash2 } from 'lucide-react';
 import { Table, TableColumn } from '@/components/ui/Table';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -11,21 +11,22 @@ import { Pagination } from '@/components/ui/Pagination';
 import type { PaginationState } from '@/hooks/usePagination';
 import { useDebounce } from '@/hooks/useDebounce';
 import UserFormModal, { UserFormValues } from '@/components/users/UserFormModal';
+import UserDetailModal from '@/components/users/UserDetailModal';
 import { userApiService } from '@/services/user.service';
 import type { AdminUser, UserRole } from '@/types/user';
 import { USER_ROLE_OPTIONS } from '@/constants/roles';
 
 // Mapping role colors matching employee mock style
-const ROLE_BADGE: Record<string, 'default' | 'primary' | 'success' | 'warning' | 'info'> = {
+const ROLE_BADGE: Record<string, 'neutral' | 'info' | 'success' | 'warning' | 'error'> = {
   ADMIN: 'warning',
-  MANAGER: 'primary',
-  STAFF: 'info',
+  MANAGER: 'info',
+  STAFF: 'neutral',
 };
 
-const STATUS_META: Record<string, { label: string; variant: 'success' | 'secondary' | 'warning' | 'danger' }> = {
+const STATUS_META: Record<string, { label: string; variant: 'success' | 'neutral' | 'warning' | 'error' }> = {
   ACTIVE: { label: 'Đang hoạt động', variant: 'success' },
-  INACTIVE: { label: 'Vô hiệu hóa', variant: 'secondary' },
-  SUSPENDED: { label: 'Đình chỉ', variant: 'danger' },
+  INACTIVE: { label: 'Vô hiệu hóa', variant: 'neutral' },
+  SUSPENDED: { label: 'Đình chỉ', variant: 'error' },
 };
 
 function randomAvatarColor(): string {
@@ -49,6 +50,7 @@ export default function AdminUsersPage() {
   const [formError, setFormError] = useState<string>();
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
   const [deactivatingUser, setDeactivatingUser] = useState<AdminUser | null>(null);
+  const [viewingUser, setViewingUser] = useState<AdminUser | null>(null);
 
   const loadUsers = async () => {
     setIsLoading(true);
@@ -210,6 +212,14 @@ export default function AdminUsersPage() {
         <div className="flex items-center gap-1">
           <button
             type="button"
+            onClick={() => setViewingUser(row)}
+            title="Xem chi tiết"
+            className="inline-flex rounded-md p-1.5 text-slate-400 hover:bg-blue-50 hover:text-blue-600"
+          >
+            <Eye className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
             onClick={() => openEditModal(row)}
             title="Sửa tài khoản"
             className="inline-flex rounded-md p-1.5 text-slate-400 hover:bg-amber-50 hover:text-amber-600"
@@ -317,6 +327,12 @@ export default function AdminUsersPage() {
       >
         <div />
       </Modal>
+
+      <UserDetailModal
+        isOpen={Boolean(viewingUser)}
+        onClose={() => setViewingUser(null)}
+        user={viewingUser}
+      />
     </div>
   );
 }

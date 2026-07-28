@@ -129,4 +129,10 @@ export const catalogApiService = {
     const response = await api.patch(`/catalog/items/${id}/status`, payload);
     return response.data;
   },
+
+  /** GET /api/v1/catalog/items/{id}/suppliers */
+  async getItemSuppliers(itemId: string) {
+    const response = await api.get(`/catalog/items/${itemId}/suppliers`);
+    return response.data;
+  },
 };

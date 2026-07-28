@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Search, Eye, Pencil, Trash2, Plus, Calculator, ImageIcon } from 'lucide-react';
 import { Table, TableColumn } from '@/components/ui/Table';
 import { Pagination } from '@/components/ui/Pagination';
@@ -8,7 +9,6 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
 import { CatalogItemFormModal, CatalogItemFormValues } from '@/components/catalog/CatalogItemFormModal';
-import { CatalogItemDetailModal } from '@/components/catalog/CatalogItemDetailModal';
 import Reveal from '@/components/ui/Reveal';
 import { catalogApiService } from '@/services/catalog.service';
 import { usePagination } from '@/hooks/usePagination';
@@ -31,6 +31,7 @@ const STATUS_OPTIONS = [
 export default function Page() {
   const { can } = usePermission();
   const canManage = can('master-data:manage');
+  const router = useRouter();
 
   const [items, setItems] = useState<Item[]>([]);
   const [types, setTypes] = useState<ItemType[]>([]);
@@ -54,8 +55,6 @@ export default function Page() {
 
   const [formModal, setFormModal] = useState<{ mode: 'create' | 'edit'; item: Item | null } | null>(null);
   const [formError, setFormError] = useState('');
-
-  const [detailItem, setDetailItem] = useState<Item | null>(null);
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -213,7 +212,7 @@ export default function Page() {
       render: (row) => (
         <button
           type="button"
-          onClick={() => setDetailItem(row)}
+          onClick={() => router.push(`/admin/catalog/${row.itemId}`)}
           className="text-left font-medium text-slate-900 hover:text-blue-600"
         >
           {row.itemName}
@@ -250,7 +249,7 @@ export default function Page() {
             type="button"
             aria-label="Xem chi tiết"
             title="Xem chi tiết"
-            onClick={() => setDetailItem(row)}
+            onClick={() => router.push(`/admin/catalog/${row.itemId}`)}
             className="inline-flex rounded-md p-1.5 border border-slate-200 text-slate-400 hover:bg-slate-50 hover:text-blue-600"
           >
             <Eye className="h-4 w-4" />
@@ -261,7 +260,7 @@ export default function Page() {
                 type="button"
                 aria-label="Chỉnh sửa"
                 title="Chỉnh sửa"
-                onClick={() => setFormModal({ mode: 'edit', item: row })}
+                onClick={() => router.push(`/admin/catalog/${row.itemId}`)}
                 className="inline-flex rounded-md p-1.5 border border-slate-200 text-slate-400 hover:bg-amber-50 hover:text-amber-600"
               >
                 <Pencil className="h-4 w-4" />
@@ -390,7 +389,6 @@ export default function Page() {
         }}
       />
 
-      <CatalogItemDetailModal isOpen={!!detailItem} item={detailItem} onClose={() => setDetailItem(null)} />
     </div>
   );
 }

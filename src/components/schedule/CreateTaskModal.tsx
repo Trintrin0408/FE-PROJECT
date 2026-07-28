@@ -22,7 +22,7 @@ interface CreateTaskModalProps {
   onCreated: () => void;
 }
 
-const STAFF_ROLES = new Set(['LEADER', 'TECHNICAL']);
+const STAFF_ROLES = new Set(['MANAGER', 'STAFF']);
 
 // Tạo 1 SchedulePlan mới — thay thế "Tạo công việc" (WorkTask instance) cũ. Chọn đơn hàng + loại
 // việc (danh mục WorkTask tĩnh) + nhân sự phụ trách + thời gian trong 1 bước duy nhất (không còn

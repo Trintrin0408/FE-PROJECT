@@ -4,9 +4,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Bell, HelpCircle, Search, UserCircle, KeyRound, LogOut } from 'lucide-react';
+import { Bell, HelpCircle, UserCircle, KeyRound, LogOut } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
-import { Input } from '@/components/ui/Input';
+
 import { getApproachingEvents, type ApproachingEvent } from '@/mocks/db/approachingEvents';
 import { getFieldChangeRequests, reviewFieldChangeRequest, CHANGE_REQUEST_TYPE_META } from '@/mocks/db/changeRequests';
 
@@ -72,14 +72,7 @@ export default function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-slate-100 bg-white px-6 shadow-xs">
-      <div className="w-64">
-        <Input
-          placeholder="Tìm kiếm hệ thống..."
-          icon={<Search className="h-4 w-4" />}
-          className="!rounded-full !py-1.5 !text-xs border-slate-200 bg-slate-50 shadow-none transition-colors duration-150 focus:bg-white"
-        />
-      </div>
+    <header className="sticky top-0 z-20 flex h-14 items-center justify-end border-b border-slate-100 bg-white px-6 shadow-xs">
       <div className="flex items-center gap-1">
         <div ref={notifRef} className="relative">
           <button

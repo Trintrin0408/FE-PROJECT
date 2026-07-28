@@ -44,6 +44,34 @@ export function CatalogItemDetailModal({ isOpen, onClose, item }: Readonly<Catal
         <DetailRow label="Trạng thái" value={<Badge variant={getStatusBadgeVariant(item.status)}>{STATUS_LABEL[item.status] ?? item.status}</Badge>} />
         <DetailRow label="Ngày tạo" value={formatDate(item.createdAt)} />
       </div>
+
+      <div className="mt-6">
+        <h3 className="mb-3 text-xs font-bold uppercase tracking-wide text-slate-500">Đối tác cung cấp (Minh họa)</h3>
+        <div className="overflow-hidden rounded-lg border border-slate-200">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-slate-50">
+              <tr>
+                <th className="px-3 py-2 font-medium text-slate-500">Tên nhà cung cấp</th>
+                <th className="px-3 py-2 text-right font-medium text-slate-500">Giá nhập/thuê</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 bg-white">
+              {/* Đây là dữ liệu giả (Mock) hiển thị tạm cho đến khi Backend làm xong bảng supplier_items */}
+              <tr>
+                <td className="px-3 py-2 text-slate-900">Công ty TNHH Kỹ thuật Điện Toàn Phát</td>
+                <td className="px-3 py-2 text-right font-medium text-slate-900">250.000 ₫</td>
+              </tr>
+              <tr>
+                <td className="px-3 py-2 text-slate-900">Studio Ánh Sáng Sự Kiện Nam Việt</td>
+                <td className="px-3 py-2 text-right font-medium text-slate-900">270.000 ₫</td>
+              </tr>
+            </tbody>
+          </table>
+          <div className="bg-slate-50 px-3 py-2 text-center text-xs italic text-slate-400">
+            Dữ liệu thực tế sẽ được tải từ bảng supplier_items sau khi hoàn thiện API.
+          </div>
+        </div>
+      </div>
     </Modal>
   );
 }

@@ -1,16 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import type { Supplier } from '@/types/supplier';
+import { supplierApiService } from '@/services/supplier.service';
 
 export interface SupplierFormValues {
   supplierCode: string;
   supplierName: string;
   contactPerson?: string;
   phone?: string;
+  email?: string;
   address?: string;
   serviceType: string;
 }
@@ -20,6 +22,7 @@ const EMPTY_FORM: SupplierFormValues = {
   supplierName: '',
   contactPerson: '',
   phone: '',
+  email: '',
   address: '',
   serviceType: '',
 };
@@ -40,36 +43,46 @@ interface SupplierFormModalProps {
 export function SupplierFormModal({ isOpen, mode, supplier, onClose, onSubmit }: Readonly<SupplierFormModalProps>) {
   const [values, setValues] = useState<SupplierFormValues>(EMPTY_FORM);
   const [error, setError] = useState('');
-  const [wasOpen, setWasOpen] = useState(isOpen);
+  const [isLoadingCode, setIsLoadingCode] = useState(false);
 
-  if (isOpen !== wasOpen) {
-    setWasOpen(isOpen);
+  useEffect(() => {
     if (isOpen) {
       setError('');
-      setValues(
-        mode === 'edit' && supplier
-          ? {
-              supplierCode: supplier.supplierCode,
-              supplierName: supplier.supplierName,
-              contactPerson: supplier.contactPerson ?? '',
-              phone: supplier.phone ?? '',
-              address: supplier.address ?? '',
-              serviceType: supplier.serviceType,
-            }
-          : EMPTY_FORM,
-      );
+      if (mode === 'edit' && supplier) {
+        setValues({
+          supplierCode: supplier.supplierCode,
+          supplierName: supplier.supplierName,
+          contactPerson: supplier.contactPerson ?? '',
+          phone: supplier.phone ?? '',
+          email: supplier.email ?? '',
+          address: supplier.address ?? '',
+          serviceType: supplier.serviceType,
+        });
+      } else {
+        setValues(EMPTY_FORM);
+        if (mode === 'create') {
+          setIsLoadingCode(true);
+          supplierApiService.getNextSupplierCode()
+            .then(code => {
+              setValues(v => ({ ...v, supplierCode: code }));
+            })
+            .catch(err => console.error('Failed to get next supplier code:', err))
+            .finally(() => setIsLoadingCode(false));
+        }
+      }
     }
-  }
+  }, [isOpen, mode, supplier]);
 
   const handleSubmit = () => {
-    if (!values.supplierCode.trim() || !values.supplierName.trim() || !values.serviceType.trim()) {
-      setError('Vui lòng nhập đủ mã, tên và phân loại đối tác');
+    if (!String(values.supplierCode || '').trim() || !values.supplierName.trim() || !values.serviceType.trim()) {
+      setError('Vui lòng nhập đủ mã, tên và chuyên cung cấp của đối tác');
       return;
     }
     const cleanValues = {
       ...values,
       contactPerson: values.contactPerson?.trim() || undefined,
       phone: values.phone?.trim() || undefined,
+      email: values.email?.trim() || undefined,
       address: values.address?.trim() || undefined,
     };
     onSubmit(cleanValues);
@@ -94,10 +107,10 @@ export function SupplierFormModal({ isOpen, mode, supplier, onClose, onSubmit }:
           <Input
             label="Mã đối tác"
             required
-            disabled={mode === 'edit'}
-            value={values.supplierCode}
+            disabled={true}
+            value={isLoadingCode ? 'Đang tải...' : values.supplierCode}
             onChange={(e) => setValues((v) => ({ ...v, supplierCode: e.target.value }))}
-            placeholder="VD: SUP_ABC"
+            placeholder="VD: SUP-XXX"
           />
           <Input
             label="Tên nhà cung cấp"
@@ -108,18 +121,16 @@ export function SupplierFormModal({ isOpen, mode, supplier, onClose, onSubmit }:
           />
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Input
-            label="Người liên hệ"
-            value={values.contactPerson}
-            onChange={(e) => setValues((v) => ({ ...v, contactPerson: e.target.value }))}
-            placeholder="Họ và tên"
-          />
+          <Input label="Người liên hệ" value={values.contactPerson} onChange={(e) => setValues((v) => ({ ...v, contactPerson: e.target.value }))} placeholder="Họ và tên" />
           <Input label="Số điện thoại" value={values.phone} onChange={(e) => setValues((v) => ({ ...v, phone: e.target.value }))} placeholder="09xx xxx xxx" />
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <Input label="Email" type="email" value={values.email} onChange={(e) => setValues((v) => ({ ...v, email: e.target.value }))} placeholder="email@example.com" />
           <Input label="Địa chỉ" value={values.address} onChange={(e) => setValues((v) => ({ ...v, address: e.target.value }))} placeholder="Quận/huyện, tỉnh/thành" />
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Input
-            label="Phân loại"
+            label="Chuyên cung cấp"
             required
             value={values.serviceType}
             onChange={(e) => setValues((v) => ({ ...v, serviceType: e.target.value }))}

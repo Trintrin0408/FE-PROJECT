@@ -1,12 +1,12 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
-import { Truck, Search, Eye, Pencil, Lock, LockOpen, MapPin, Phone, Plus } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Truck, Search, Eye, MapPin, Phone, Plus } from 'lucide-react';
 import { Table, TableColumn } from '@/components/ui/Table';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
-import { SupplierDetailModal } from '@/components/suppliers/SupplierDetailModal';
 import { SupplierFormModal } from '@/components/suppliers/SupplierFormModal';
 import Reveal from '@/components/ui/Reveal';
 import { formatCurrency } from '@/utils/formatCurrency';
@@ -40,9 +40,9 @@ export default function Page() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('');
 
   const { pagination, setPage, updatePagination } = usePagination(10);
+  const router = useRouter();
 
   const [formModal, setFormModal] = useState<{ mode: 'create' | 'edit'; supplier: Supplier | null } | null>(null);
-  const [detailSupplier, setDetailSupplier] = useState<Supplier | null>(null);
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -68,21 +68,7 @@ export default function Page() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { fetchData(); }, [pagination.currentPage, pagination.limit, debouncedSearch, statusFilter]);
 
-  const handleToggleStatus = async (supplier: Supplier) => {
-    const message =
-      supplier.status === 'ACTIVE'
-        ? `Khóa đối tác "${supplier.supplierName}"? Đối tác sẽ không được chọn cho giao dịch mới.`
-        : `Mở khóa đối tác "${supplier.supplierName}"?`;
-    if (!window.confirm(message)) return;
-    try {
-      await supplierApiService.updateSupplier(supplier.supplierId, {
-        status: supplier.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE',
-      });
-      fetchData();
-    } catch (error) {
-      alert(getErrorMessage(error, 'Lỗi khi cập nhật trạng thái'));
-    }
-  };
+
 
   const handleSubmitForm = async (values: any) => {
     try {
@@ -115,7 +101,7 @@ export default function Page() {
     },
     {
       key: 'address',
-      label: 'Địa Chỉ & Phân Loại',
+      label: 'Địa Chỉ & Chuyên Cung Cấp',
       render: (s) => (
         <div>
           <p className="flex items-center gap-1.5 text-sm text-slate-600">
@@ -154,32 +140,10 @@ export default function Page() {
             type="button"
             aria-label="Xem chi tiết"
             title="Xem chi tiết"
-            onClick={() => setDetailSupplier(s)}
+            onClick={() => router.push(`/admin/suppliers/${s.supplierId}`)}
             className="inline-flex rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-blue-600"
           >
             <Eye className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            aria-label="Chỉnh sửa"
-            title="Chỉnh sửa"
-            onClick={() => setFormModal({ mode: 'edit', supplier: s })}
-            className="inline-flex rounded-md p-1.5 text-slate-400 hover:bg-amber-50 hover:text-amber-600"
-          >
-            <Pencil className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            aria-label={s.status === 'ACTIVE' ? 'Khóa đối tác' : 'Mở khóa đối tác'}
-            title={s.status === 'ACTIVE' ? 'Khóa đối tác' : 'Mở khóa đối tác'}
-            onClick={() => handleToggleStatus(s)}
-            className={
-              s.status === 'ACTIVE'
-                ? 'inline-flex rounded-md p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600'
-                : 'inline-flex rounded-md p-1.5 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600'
-            }
-          >
-            {s.status === 'ACTIVE' ? <Lock className="h-4 w-4" /> : <LockOpen className="h-4 w-4" />}
           </button>
         </div>
       ),
@@ -247,7 +211,6 @@ export default function Page() {
         onSubmit={handleSubmitForm}
       />
 
-      <SupplierDetailModal supplier={detailSupplier} onClose={() => setDetailSupplier(null)} />
     </div>
   );
 }

@@ -22,7 +22,7 @@ interface AssignStaffModalProps {
 }
 
 // GET /users trả role raw enum (không hậu tố _STAFF) — xem docs/more-require.md.
-const STAFF_ROLES = new Set(['LEADER', 'TECHNICAL']);
+const STAFF_ROLES = new Set(['MANAGER', 'STAFF']);
 
 // Tạo 1 SchedulePlan mới (orderId+taskId+assignedTo+startTime) — không có endpoint sửa assignedTo
 // của plan đã tồn tại, nên "đổi người khảo sát" cũng tạo plan mới thay vì sửa tại chỗ.

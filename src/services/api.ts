@@ -1,20 +1,12 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
-import mockAdapter from './mockAdapter';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001/api/v1';
-
-// Chế độ demo không cần backend thật (CLAUDE.md mục 0) — mặc định BẬT trừ khi set
-// NEXT_PUBLIC_MOCK_MODE=false trong .env.local. Khi bật, mọi request đi qua mockAdapter
-// (src/services/mockAdapter.ts) thay vì gọi network thật — xem file đó để biết route nào có mock.
-const MOCK_MODE = process.env.NEXT_PUBLIC_MOCK_MODE !== 'false';
-
 const api: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
   },
-  ...(MOCK_MODE ? { adapter: mockAdapter } : {}),
 });
 
 // Request interceptor — attach JWT token from localStorage

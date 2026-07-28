@@ -14,6 +14,8 @@ export interface AdminUser {
   fullName: string;
   role: UserRole;
   status: UserStatus;
+  email?: string | null;
+  phone?: string | null;
   createdAt: string;
   updatedAt: string;
 }

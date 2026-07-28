@@ -12,7 +12,6 @@ import Reveal from '@/components/ui/Reveal';
 import { formatCurrency } from '@/utils/formatCurrency';
 import {
   AdminSupplier,
-  AdminSupplierFormValues,
   createAdminSupplier,
   getAdminSuppliers,
   toggleAdminSupplierStatus,
@@ -56,7 +55,14 @@ export default function Page() {
     refresh();
   };
 
-  const handleSubmitForm = (values: AdminSupplierFormValues) => {
+  const handleSubmitForm = (rawValues: any) => {
+    // Map SupplierFormValues to AdminSupplierFormValues by falling back undefined to empty strings
+    const values = {
+      ...rawValues,
+      contactPerson: rawValues.contactPerson ?? '',
+      phone: rawValues.phone ?? '',
+      address: rawValues.address ?? '',
+    };
     if (formModal?.mode === 'edit' && formModal.supplier) {
       updateAdminSupplier(formModal.supplier.supplierId, values);
     } else {

@@ -99,8 +99,8 @@ export default function PlanFormDrawer({ isOpen, editingGroup, unplannedOrders, 
     setLoadingCatalog(true);
     Promise.all([
       workTaskApiService.getWorkTasks(),
-      userApiService.getUsers({ role: 'LEADER', limit: 100 }),
-      userApiService.getUsers({ role: 'TECHNICAL', limit: 100 }),
+      userApiService.getUsers({ role: 'MANAGER', limit: 100 }),
+      userApiService.getUsers({ role: 'STAFF', limit: 100 }),
     ])
       .then(([tasksRes, leadersRes, techRes]) => {
         if (cancelled) return;
@@ -424,7 +424,7 @@ export default function PlanFormDrawer({ isOpen, editingGroup, unplannedOrders, 
                                   .filter((u) => !row.assignees?.some((a) => a.userId === u.userId))
                                   .map((u) => (
                                     <option key={u.userId} value={u.userId}>
-                                      {u.fullName} ({u.role === 'LEADER' ? 'Trưởng nhóm' : 'Kỹ thuật viên'})
+                                      {u.fullName} ({u.role === 'MANAGER' ? 'Trưởng nhóm' : 'Kỹ thuật viên'})
                                     </option>
                                   ))}
                               </select>

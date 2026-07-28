@@ -21,7 +21,7 @@ import type { AdminUser } from '@/types/user';
 // gọi thêm `POST /schedule-plans/:id/assignees` (`schedulePlanApiService.addAssignee`) riêng cho từng
 // người sau khi tạo plan thành công (xem đính chính ở đầu `types/schedulePlan.ts`).
 
-const STAFF_ROLES = new Set(['LEADER', 'TECHNICAL']);
+const STAFF_ROLES = new Set(['MANAGER', 'STAFF']);
 const ASSIGNEE_ROLE_LABEL: Record<string, string> = {
   LEADER: 'Trưởng nhóm kỹ thuật',
   TECHNICAL: 'Nhân viên kỹ thuật',
@@ -116,7 +116,7 @@ export default function CreateSchedulePlanModal({ isOpen, onClose, orderId, defa
       try {
         await Promise.all(
           filledAssignees.map((a) => {
-            const role = staffById.get(a.userId)?.role === 'LEADER' ? 'LEAD' : 'TECHNICAL';
+            const role = staffById.get(a.userId)?.role === 'MANAGER' ? 'LEAD' : 'TECHNICAL';
             return schedulePlanApiService.addAssignee(planId, { userId: a.userId, role });
           }),
         );
