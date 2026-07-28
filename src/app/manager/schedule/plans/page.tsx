@@ -19,6 +19,8 @@ import type { SchedulePlan } from '@/types/schedulePlan';
 import type { Order } from '@/types/order';
 import {
   OrderPlanGroup,
+  SCHEDULE_STATUS_BADGE,
+  SCHEDULE_STATUS_LABEL,
   distinctAssigneeCount,
   getEarliestRowLead,
   getGroupMinMaxRange,
@@ -134,6 +136,9 @@ export default function ManagerPlanningPage() {
   }, [groups, timelineDays]);
 
   const [selectedGroupDetail, setSelectedGroupDetail] = useState<OrderPlanGroup | null>(null);
+  // Mã kế hoạch (plan_code) của thẻ công việc cụ thể vừa nhấn — để Drawer chi tiết ưu tiên hiển thị
+  // đúng công việc đó thay vì chỉ hiện chung theo mã đơn (theo yêu cầu người dùng 2026-07-29).
+  const [focusPlanId, setFocusPlanId] = useState<string | null>(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<OrderPlanGroup | null>(null);
   const [deletingGroup, setDeletingGroup] = useState<OrderPlanGroup | null>(null);
@@ -204,11 +209,14 @@ export default function ManagerPlanningPage() {
     setSelectedDate(toDateStr(now));
   };
 
-  const groupHasRowOnDate = (g: OrderPlanGroup, dateStr: string) =>
-    toDateStr(new Date(g.eventDate)) === dateStr || g.rows.some((r) => toDateStr(new Date(r.startTime)) === dateStr);
+  // Cả lịch tháng lẫn "Lịch ngày" đều phải xem theo TỪNG công việc (schedule-plan row) có thật — mã đơn
+  // chỉ là thông tin đính kèm — theo yêu cầu người dùng (2026-07-28/29). KHÔNG dùng orders.event_date
+  // để suy ra có việc ngày đó nữa: 1 đơn có eventDate trùng ngày X nhưng chưa có schedule_plan row nào
+  // bắt đầu đúng ngày X (VD việc bắt đầu tối hôm trước, kéo dài qua đêm) thì KHÔNG tính là có việc ngày X.
+  const getDayRows = (dateStr: string): { group: OrderPlanGroup; row: SchedulePlan }[] =>
+    groups.flatMap((g) => g.rows.filter((r) => toDateStr(new Date(r.startTime)) === dateStr).map((row) => ({ group: g, row })));
 
-  const dayGroups = (dateStr: string) => groups.filter((g) => groupHasRowOnDate(g, dateStr));
-  const selectedDayGroups = dayGroups(selectedDate);
+  const selectedDayItems = [...getDayRows(selectedDate)].sort((a, b) => a.row.startTime.localeCompare(b.row.startTime));
 
   const openCreateForm = () => {
     setEditingGroup(null);
@@ -402,7 +410,7 @@ export default function ManagerPlanningPage() {
                 if (dayNum === null) return <div key={`empty-${cellIdx}`} className="aspect-square rounded-xl border border-slate-100/30 bg-slate-50/10" />;
 
                 const dayString = `${calendarYear}-${String(calendarMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
-                const groupsOnDay = dayGroups(dayString);
+                const rowsOnDay = getDayRows(dayString);
                 const isSelected = selectedDate === dayString;
 
                 return (
@@ -415,23 +423,23 @@ export default function ManagerPlanningPage() {
                   >
                     <div className="flex items-center justify-between">
                       <span className={`text-[11px] font-bold ${isSelected ? 'rounded-md bg-blue-100/80 px-1.5 py-0.5 text-blue-700' : 'text-slate-700'}`}>{dayNum}</span>
-                      {groupsOnDay.length > 0 && !isSelected && <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />}
+                      {rowsOnDay.length > 0 && !isSelected && <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />}
                     </div>
                     <div className="mt-1 space-y-1 overflow-hidden">
-                      {groupsOnDay.slice(0, 2).map((g) => {
-                        const info = getGroupStatusInfo(g.rows);
+                      {rowsOnDay.slice(0, 2).map(({ group: g, row: r }) => {
                         return (
                           <div
-                            key={g.orderId}
+                            key={r.planId}
                             onClick={(e) => {
                               e.stopPropagation();
                               setSelectedDate(dayString);
+                              setFocusPlanId(r.planId);
                               setSelectedGroupDetail(g);
                             }}
-                            title={`${g.eventName} @ ${g.location}`}
-                            className={`truncate rounded-md px-1 py-0.5 text-[9px] font-bold leading-tight ${info.badgeClass}`}
+                            title={`${r.taskName ?? r.planCode} — Đơn ${g.orderCode} @ ${r.location || g.location}`}
+                            className={`truncate rounded-md px-1 py-0.5 text-[9px] font-bold leading-tight ${SCHEDULE_STATUS_BADGE[r.status]}`}
                           >
-                            {g.orderCode}
+                            {r.planCode}
                           </div>
                         );
                       })}
@@ -465,11 +473,11 @@ export default function ManagerPlanningPage() {
                 </div>
                 <h3 className="text-sm font-extrabold tracking-tight text-slate-800">Lịch ngày {formatDate(selectedDate)}</h3>
               </div>
-              <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-bold text-blue-700">{selectedDayGroups.length} sự kiện</span>
+              <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-bold text-blue-700">{selectedDayItems.length} công việc</span>
             </div>
 
             <div className="max-h-[580px] flex-1 space-y-3.5 overflow-y-auto pr-1">
-              {selectedDayGroups.length === 0 ? (
+              {selectedDayItems.length === 0 ? (
                 <div className="my-auto flex h-full flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/30 p-8 py-16 text-center">
                   <div className="mb-3 rounded-full bg-slate-100 p-3 text-slate-400">
                     <CalendarIcon className="h-6 w-6" />
@@ -478,18 +486,20 @@ export default function ManagerPlanningPage() {
                   <p className="max-w-[220px] text-[11px] leading-relaxed text-slate-400">Chưa có kế hoạch thi công, lắp đặt hoặc trang trí nào vào ngày này.</p>
                 </div>
               ) : (
-                selectedDayGroups.map((g) => {
-                  const info = getGroupStatusInfo(g.rows);
-                  const dayRows = g.rows.filter((r) => toDateStr(new Date(r.startTime)) === selectedDate);
-                  const start = dayRows[0] ? formatTime(dayRows[0].startTime) : '—';
-                  const lastRow = dayRows.at(-1);
-                  const end = lastRow?.endTime ? formatTime(lastRow.endTime) : '—';
-                  const lead = getEarliestRowLead(dayRows.length > 0 ? dayRows : g.rows);
-                  const staffCount = distinctAssigneeCount(dayRows.length > 0 ? dayRows : g.rows);
+                selectedDayItems.map(({ group: g, row: r }) => {
+                  const start = formatTime(r.startTime);
+                  const end = r.endTime ? formatTime(r.endTime) : '—';
+                  const lead = getEarliestRowLead([r]);
+                  const staffCount = distinctAssigneeCount([r]);
+                  const statusLabel = SCHEDULE_STATUS_LABEL[r.status];
+                  const statusBadgeClass = SCHEDULE_STATUS_BADGE[r.status];
                   return (
                     <div
-                      key={g.orderId}
-                      onClick={() => setSelectedGroupDetail(g)}
+                      key={r.planId}
+                      onClick={() => {
+                        setFocusPlanId(r.planId);
+                        setSelectedGroupDetail(g);
+                      }}
                       className="group relative flex cursor-pointer flex-col items-start gap-4 rounded-2xl border border-slate-150 p-4 shadow-2xs transition-all hover:border-blue-400 hover:shadow-xs md:flex-row"
                     >
                       <div className="flex min-w-[70px] flex-col items-start justify-center border-b border-slate-100 pb-2 md:border-b-0 md:border-r md:pb-0 md:pr-4">
@@ -499,17 +509,21 @@ export default function ManagerPlanningPage() {
                       </div>
                       <div className="w-full flex-1 space-y-2.5">
                         <div className="flex flex-wrap items-center justify-between gap-2">
-                          <span className="rounded-md border border-blue-100 bg-blue-50 px-2 py-0.5 font-mono text-[10px] font-extrabold text-blue-700">{g.orderCode}</span>
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-600">
-                            <span className={`h-2 w-2 rounded-full ${info.dotColorClass}`} />
-                            {info.label}
+                          <span className="rounded-md border border-blue-100 bg-blue-50 px-2 py-0.5 font-mono text-[10px] font-extrabold text-blue-700">
+                            {r.planCode}
                           </span>
+                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${statusBadgeClass}`}>{statusLabel}</span>
                         </div>
-                        <h4 className="text-xs font-bold leading-snug text-slate-900 transition-colors group-hover:text-blue-600">{g.eventName}</h4>
+                        <h4 className="text-xs font-bold leading-snug text-slate-900 transition-colors group-hover:text-blue-600">
+                          {r.taskName ?? g.eventName}
+                        </h4>
+                        <p className="text-[10px] text-slate-400">
+                          Thuộc đơn <span className="font-mono font-semibold text-slate-500">{g.orderCode}</span> — {g.eventName}
+                        </p>
                         <div className="space-y-1.5 text-[10px] text-slate-500">
-                          <p className="flex items-center gap-1.5" title={g.location}>
+                          <p className="flex items-center gap-1.5" title={r.location || g.location}>
                             <MapPin className="h-3.5 w-3.5 flex-shrink-0 text-slate-400" />
-                            <span className="truncate">{g.location}</span>
+                            <span className="truncate">{r.location || g.location}</span>
                           </p>
                           <p className="flex items-center gap-1.5">
                             <Users className="h-3.5 w-3.5 flex-shrink-0 text-slate-400" />
@@ -606,7 +620,10 @@ export default function ManagerPlanningPage() {
                       <div className="relative grid py-3" style={{ gridTemplateColumns: `repeat(${TIMELINE_DAY_COUNT}, minmax(0, 1fr))` }}>
                         <button
                           type="button"
-                          onClick={() => setSelectedGroupDetail(group)}
+                          onClick={() => {
+                            setFocusPlanId(null);
+                            setSelectedGroupDetail(group);
+                          }}
                           title={`${group.eventName} — nhấp để xem chi tiết`}
                           className={`truncate rounded-full px-2.5 py-1.5 text-center text-[11px] font-bold transition-opacity hover:opacity-80 ${info.badgeClass}`}
                           style={{ gridColumn: `${startCol} / ${endCol + 1}` }}
@@ -638,6 +655,7 @@ export default function ManagerPlanningPage() {
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-400">
                   <th className="px-4 py-3.5">Mã đơn đặt</th>
+                  <th className="px-4 py-3.5">Mã kế hoạch</th>
                   <th className="px-4 py-3.5">Khách hàng / Sự kiện</th>
                   <th className="px-4 py-3.5">Ngày thi công</th>
                   <th className="px-4 py-3.5">Địa điểm</th>
@@ -656,6 +674,22 @@ export default function ManagerPlanningPage() {
                       <tr key={g.orderId} className="transition-colors hover:bg-slate-50/60">
                         <td className="px-4 py-3">
                           <span className="rounded bg-slate-100 px-2 py-1 font-mono font-medium text-slate-800">{g.orderCode}</span>
+                        </td>
+                        <td className="max-w-[220px] px-4 py-3">
+                          <div className="flex flex-wrap gap-1">
+                            {g.rows.slice(0, 3).map((r) => (
+                              <span
+                                key={r.planId}
+                                title={r.planCode}
+                                className="rounded bg-blue-50 px-1.5 py-0.5 font-mono text-[10px] font-semibold text-blue-700"
+                              >
+                                {r.planCode}
+                              </span>
+                            ))}
+                            {g.rows.length > 3 && (
+                              <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">+{g.rows.length - 3}</span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-4 py-3">
                           <p className="font-semibold text-slate-900">{g.customerName}</p>
@@ -676,7 +710,10 @@ export default function ManagerPlanningPage() {
                           <div className="flex justify-end gap-1.5">
                             <button
                               type="button"
-                              onClick={() => setSelectedGroupDetail(g)}
+                              onClick={() => {
+                                setFocusPlanId(null);
+                                setSelectedGroupDetail(g);
+                              }}
                               className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1 font-medium text-slate-700 hover:bg-slate-50"
                             >
                               <Eye className="h-3.5 w-3.5" />
@@ -705,7 +742,7 @@ export default function ManagerPlanningPage() {
                   })
                 ) : (
                   <tr>
-                    <td colSpan={8} className="px-4 py-12 text-center">
+                    <td colSpan={9} className="px-4 py-12 text-center">
                       <Clock className="mx-auto h-6 w-6 text-slate-300" />
                       <p className="mt-2 text-sm font-medium text-slate-500">Không tìm thấy kế hoạch điều phối nào</p>
                       <p className="text-xs text-slate-400">Thử thay đổi bộ lọc hoặc thêm mới kế hoạch.</p>
@@ -723,7 +760,11 @@ export default function ManagerPlanningPage() {
         {selectedGroupDetail && (
           <PlanDetailDrawer
             group={groupByOrderId.get(selectedGroupDetail.orderId) ?? selectedGroupDetail}
-            onClose={() => setSelectedGroupDetail(null)}
+            focusPlanId={focusPlanId}
+            onClose={() => {
+              setSelectedGroupDetail(null);
+              setFocusPlanId(null);
+            }}
             onEdit={(group) => openEditForm(group)}
           />
         )}

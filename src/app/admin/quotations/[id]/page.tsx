@@ -146,7 +146,9 @@ export default function AdminQuotationDetailPage() {
   }
 
   const canDelete = detail.status !== 'approved';
-  const canApproveReject = detail.status === 'draft';
+  // Đã liên kết đơn đặt (kể cả khi báo giá còn Bản nháp, do đơn có thể liên kết trực tiếp qua tab Báo
+  // giá & Hợp đồng) thì "Duyệt và sinh đơn đặt" không còn ý nghĩa — đơn đã tồn tại rồi.
+  const canApproveReject = detail.status === 'draft' && !detail.linkedOrderId;
   const canCreateOrder = detail.status === 'approved' && !detail.linkedOrderId;
 
   const handleApproveAndCreateOrder = async () => {

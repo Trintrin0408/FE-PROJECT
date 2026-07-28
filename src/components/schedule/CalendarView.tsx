@@ -1,6 +1,7 @@
 'use client';
 
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { VN_TIME_ZONE } from '@/utils/formatDate';
 import type { SchedulePlan } from '@/types/schedulePlan';
 
 const WEEKDAY_LABELS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
@@ -58,7 +59,7 @@ export default function CalendarView({
   schedules,
 }: Readonly<CalendarViewProps>) {
   const monthGrid = getMonthGrid(viewDate);
-  const monthLabel = viewDate.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' });
+  const monthLabel = viewDate.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric', timeZone: VN_TIME_ZONE });
 
   const schedulesByDay = new Map<string, SchedulePlan[]>();
   for (const s of schedules) {

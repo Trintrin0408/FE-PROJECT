@@ -151,10 +151,13 @@ export default function ManagerQuotationDetailPage() {
   }
 
   const canDelete = detail.status !== 'approved';
-  const canApproveReject = detail.status === 'draft';
+  // Một đơn đặt có thể liên kết báo giá trực tiếp (nút "Liên kết" ở tab Báo giá & Hợp đồng của đơn) mà
+  // không cần đi qua luồng Duyệt → sinh đơn — kể cả khi báo giá còn ở trạng thái Bản nháp. Một khi đã
+  // có linkedOrderId thì "Duyệt và sinh đơn đặt" không còn ý nghĩa (đơn đã tồn tại rồi), thay vào đó
+  // thao tác đúng là Xuất thiết bị cho đơn đã liên kết.
+  const canApproveReject = detail.status === 'draft' && !detail.linkedOrderId;
   const canCreateOrder = detail.status === 'approved' && !detail.linkedOrderId;
-  // Nút "Xuất thiết bị" — docs/xuatthietbi_tubaogia_api.md mục 5.1: chỉ khi Đã duyệt + đã có đơn liên kết.
-  const canExportEquipment = detail.status === 'approved' && !!detail.linkedOrderId;
+  const canExportEquipment = !!detail.linkedOrderId;
 
   const handleExportEquipment = async () => {
     if (!detail.linkedOrderId || isExporting) return;

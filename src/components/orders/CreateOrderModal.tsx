@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { orderApiService } from '@/services/order.service';
 import { EVENT_TYPES } from '@/constants/order-event-type';
+import { VN_TIME_ZONE } from '@/utils/formatDate';
 import type { Customer } from '@/types/customer';
 
 // Nối API thật theo docs/taodondatlichtiecmoi_api.md mục 3 (Hướng A) — wire vào nút "Khởi tạo đơn đặt
@@ -97,7 +98,7 @@ export default function CreateOrderModal({ isOpen, customers, onClose, onCreated
     const next: Record<string, string> = {};
     if (!customerId) next.customerId = 'Vui lòng chọn khách hàng';
 
-    const todayStr = new Date().toLocaleDateString('en-CA');
+    const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: VN_TIME_ZONE });
     if (!eventDate) {
       next.eventDate = 'Vui lòng chọn ngày tổ chức';
     } else if (eventDate <= todayStr) {
