@@ -177,7 +177,7 @@ export default function Page() {
         <span className="inline-flex items-center gap-1.5 text-sm font-medium">
           <span className={`h-2 w-2 rounded-full ${s.status === 'ACTIVE' ? 'bg-green-500' : 'bg-slate-400'}`} />
           <span className={s.status === 'ACTIVE' ? 'text-green-600' : 'text-slate-500'}>
-            {s.status === 'ACTIVE' ? 'Đang hoạt động' : 'Ngừng hoạt động'}
+            {s.status === 'ACTIVE' ? 'Đang hợp tác' : 'Ngừng hợp tác'}
           </span>
         </span>
       ),
@@ -262,8 +262,8 @@ export default function Page() {
               onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
               options={[
                 { value: '', label: 'Tất cả trạng thái' },
-                { value: 'ACTIVE', label: 'Đang hoạt động' },
-                { value: 'INACTIVE', label: 'Ngừng hoạt động' },
+                { value: 'ACTIVE', label: 'Đang hợp tác' },
+                { value: 'INACTIVE', label: 'Ngừng hợp tác' },
               ]}
             />
           </div>

@@ -126,7 +126,7 @@ export default function SupplierDetailView({ backHref }: Readonly<SupplierDetail
             </p>
           </div>
         </div>
-        <Badge variant={getStatusBadgeVariant(supplier.status)}>{supplier.status === 'ACTIVE' ? 'Đang hoạt động' : 'Ngừng hoạt động'}</Badge>
+        <Badge variant={getStatusBadgeVariant(supplier.status)}>{supplier.status === 'ACTIVE' ? 'Đang hợp tác' : 'Ngừng hợp tác'}</Badge>
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-12">
