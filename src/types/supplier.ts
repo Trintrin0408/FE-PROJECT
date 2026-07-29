@@ -77,6 +77,8 @@ export interface SupplierTransaction {
   status: string;
   createdAt: string;
   updatedAt: string;
+  updatedBy?: string;
+  updater?: { fullName: string };
 }
 
 export interface SupplierTransactionListResult {

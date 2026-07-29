@@ -425,13 +425,13 @@ export default function SupplierDetailPage() {
                       </span>
                     ) : (
                       <span className="inline-flex items-center rounded-full bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-600">
-                        {tx.paymentStatus}
+                        {tx.paymentStatus === 'UNPAID' ? 'Chưa thanh toán' : tx.paymentStatus === 'DEPOSITED' ? 'Đã đặt cọc' : tx.paymentStatus}
                       </span>
                     )}
                   </td>
                   <td className="px-6 py-5 text-center">
-                    <Badge variant={tx.status === 'COMPLETED' ? 'success' : tx.status === 'CANCELLED' ? 'error' : 'info'} className="px-3 py-1 font-medium">
-                      {tx.status}
+                    <Badge variant={tx.status === 'COMPLETED' ? 'success' : tx.status === 'CANCELLED' ? 'error' : tx.status === 'RECEIVED' ? 'success' : tx.status === 'PENDING' ? 'neutral' : 'info'} className="px-3 py-1 font-medium">
+                      {tx.status === 'PENDING' ? 'Chờ duyệt' : tx.status === 'APPROVED' ? 'Đã duyệt' : tx.status === 'RECEIVED' ? 'Đã nhận' : tx.status === 'COMPLETED' ? 'Hoàn thành' : tx.status === 'CANCELLED' ? 'Đã hủy' : tx.status}
                     </Badge>
                   </td>
                   <td className="px-6 py-5 text-center">

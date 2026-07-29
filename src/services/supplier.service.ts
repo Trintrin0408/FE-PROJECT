@@ -104,4 +104,16 @@ export const supplierApiService = {
     const response = await api.delete(`/supplier-transactions/${id}`);
     return response.data;
   },
+
+  /** PATCH /api/v1/supplier-transactions/:id/status */
+  async updateTransactionStatus(id: string, status: string): Promise<SupplierTransaction> {
+    const response = await api.patch(`/supplier-transactions/${id}/status`, { status });
+    return response.data;
+  },
+
+  /** PATCH /api/v1/supplier-transactions/:id/payment-status */
+  async updateTransactionPaymentStatus(id: string, paymentStatus: string): Promise<SupplierTransaction> {
+    const response = await api.patch(`/supplier-transactions/${id}/payment-status`, { paymentStatus });
+    return response.data;
+  }
 };

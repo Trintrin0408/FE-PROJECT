@@ -34,6 +34,8 @@ export default function UpdateSupplierTransactionModal({
   const [transactionType, setTransactionType] = useState<'RENTAL' | 'PURCHASE'>('RENTAL');
   const [serviceTitle, setServiceTitle] = useState('');
   const [depositAmount, setDepositAmount] = useState<number>(0);
+  const [status, setStatus] = useState<string>('PENDING');
+  const [paymentStatus, setPaymentStatus] = useState<string>('UNPAID');
   
   const [items, setItems] = useState<TransactionItemInput[]>([
     { itemId: '', quantity: 1, unitCost: 0, notes: '' }
@@ -48,6 +50,8 @@ export default function UpdateSupplierTransactionModal({
         setTransactionType(transaction.transactionType || 'RENTAL');
         setServiceTitle(transaction.serviceTitle || '');
         setDepositAmount(transaction.depositAmount || 0);
+        setStatus(transaction.status || 'PENDING');
+        setPaymentStatus(transaction.paymentStatus || 'UNPAID');
         
         // Fetch full details to get items
         supplierApiService.getTransactionById(transaction.transactionId)
@@ -72,6 +76,8 @@ export default function UpdateSupplierTransactionModal({
         setTransactionType('RENTAL');
         setServiceTitle('');
         setDepositAmount(0);
+        setStatus('PENDING');
+        setPaymentStatus('UNPAID');
         setItems([{ itemId: '', quantity: 1, unitCost: 0, notes: '' }]);
       }
       
@@ -136,13 +142,22 @@ export default function UpdateSupplierTransactionModal({
 
     try {
       setIsSubmitting(true);
-      const payload = {
-        serviceTitle: serviceTitle.trim(),
-        depositAmount,
-        items: validItems
-      };
+      const isOriginalPending = !transaction || transaction.status === 'PENDING';
 
-      await supplierApiService.updateSupplierTransaction(transaction!.transactionId, payload);
+      if (isOriginalPending) {
+        const payload = {
+          serviceTitle: serviceTitle.trim(),
+          depositAmount,
+          items: validItems
+        };
+        await supplierApiService.updateSupplierTransaction(transaction!.transactionId, payload);
+      }
+
+      if (transaction) {
+        await supplierApiService.updateTransactionStatus(transaction.transactionId, status);
+        await supplierApiService.updateTransactionPaymentStatus(transaction.transactionId, paymentStatus);
+      }
+
       toast.success('Đã cập nhật giao dịch thành công');
       onSuccess();
       onClose();
@@ -161,15 +176,22 @@ export default function UpdateSupplierTransactionModal({
       title={mode === 'view' ? "Chi tiết giao dịch" : "Cập nhật giao dịch"}
       size="xl"
       footer={
-        <div className="flex justify-end gap-3 w-full">
-          <Button variant="secondary" onClick={onClose} disabled={isSubmitting}>
-            Đóng
-          </Button>
-          {mode === 'edit' && (
-            <Button onClick={handleSubmit} disabled={isSubmitting}>
-              {isSubmitting ? 'Đang lưu...' : 'Lưu thay đổi'}
+        <div className="flex justify-between items-center w-full">
+          <div className="text-sm text-slate-500">
+            {transaction?.updater?.fullName ? (
+              <span>Người cập nhật cuối: <span className="font-medium text-slate-700">{transaction.updater.fullName}</span></span>
+            ) : null}
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button variant="secondary" onClick={onClose} disabled={isSubmitting}>
+              Đóng
             </Button>
-          )}
+            {mode === 'edit' && (
+              <Button onClick={handleSubmit} disabled={isSubmitting}>
+                {isSubmitting ? 'Đang lưu...' : 'Lưu thay đổi'}
+              </Button>
+            )}
+          </div>
         </div>
       }
     >
@@ -200,6 +222,42 @@ export default function UpdateSupplierTransactionModal({
             </select>
           </div>
 
+          {mode === 'edit' && (
+            <>
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-slate-700">Trạng thái giao dịch</label>
+                <select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value)}
+                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-500 focus:outline-none"
+                >
+                  <option value="PENDING">Chờ duyệt</option>
+                  <option value="APPROVED">Đã duyệt</option>
+                  <option value="RECEIVED">Đã nhận</option>
+                  <option value="COMPLETED">Hoàn thành</option>
+                  <option value="CANCELLED">Đã hủy</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-slate-700">Trạng thái thanh toán</label>
+                <select
+                  value={paymentStatus}
+                  onChange={(e) => setPaymentStatus(e.target.value)}
+                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-500 focus:outline-none"
+                >
+                  <option value="UNPAID">Chưa thanh toán</option>
+                  <option value="DEPOSITED">Đã đặt cọc</option>
+                  <option value="PAID">Đã thanh toán</option>
+                </select>
+              </div>
+              {status === 'APPROVED' && (!transaction || transaction.status === 'PENDING') && (
+                <div className="md:col-span-2 text-sm text-orange-600 font-medium">
+                  Lưu ý: Sau khi chuyển sang Đã duyệt và lưu lại, bạn sẽ không thể sửa chi tiết hạng mục hoặc xóa giao dịch này nữa.
+                </div>
+              )}
+            </>
+          )}
+
           <div className="space-y-1 md:col-span-2">
             <label className="text-sm font-medium text-slate-700">Tiêu đề dịch vụ {mode === 'edit' && <span className="text-red-500">*</span>}</label>
             <Input
@@ -207,7 +265,7 @@ export default function UpdateSupplierTransactionModal({
               onChange={(e) => setServiceTitle(e.target.value)}
               placeholder="Vd: Thuê âm thanh ánh sáng cho sự kiện..."
               required
-              disabled={mode === 'view'}
+              disabled={mode === 'view' || (transaction?.status && transaction.status !== 'PENDING')}
             />
           </div>
 
@@ -219,7 +277,7 @@ export default function UpdateSupplierTransactionModal({
               value={depositAmount || ''}
               onChange={(e) => setDepositAmount(Number(e.target.value))}
               placeholder="0"
-              disabled={mode === 'view'}
+              disabled={mode === 'view' || (transaction?.status && transaction.status !== 'PENDING')}
             />
           </div>
         </div>
@@ -244,7 +302,7 @@ export default function UpdateSupplierTransactionModal({
                     onChange={(e) => handleItemChange(index, 'itemId', e.target.value)}
                     className="w-full rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none disabled:bg-slate-50 disabled:text-slate-500"
                     required
-                    disabled={mode === 'view'}
+                    disabled={mode === 'view' || (transaction?.status && transaction.status !== 'PENDING')}
                   >
                     <option value="">
                       {(!item.itemId && item.itemName) ? `${item.itemName} (Hạng mục đã bị xoá)` : '-- Chọn hạng mục --'}
@@ -267,7 +325,7 @@ export default function UpdateSupplierTransactionModal({
                     min="1"
                     value={item.quantity?.toString() ?? '1'}
                     onChange={(e) => handleItemChange(index, 'quantity', e.target.value === '' ? '' : Number(e.target.value))}
-                    disabled={mode === 'view'}
+                    disabled={mode === 'view' || (transaction?.status && transaction.status !== 'PENDING')}
                   />
                 </div>
                 
@@ -278,7 +336,7 @@ export default function UpdateSupplierTransactionModal({
                     min="0"
                     value={item.unitCost?.toString() ?? '0'}
                     onChange={(e) => handleItemChange(index, 'unitCost', e.target.value === '' ? '' : Number(e.target.value))}
-                    disabled={mode === 'view'}
+                    disabled={mode === 'view' || (transaction?.status && transaction.status !== 'PENDING')}
                   />
                 </div>
 
@@ -287,7 +345,7 @@ export default function UpdateSupplierTransactionModal({
                     <button
                       type="button"
                       onClick={() => handleRemoveItem(index)}
-                      disabled={items.length === 1}
+                      disabled={items.length === 1 || (transaction?.status && transaction.status !== 'PENDING')}
                       className="p-1.5 text-red-500 hover:bg-red-50 rounded-md disabled:opacity-50"
                     >
                       <Trash2 className="h-5 w-5" />
