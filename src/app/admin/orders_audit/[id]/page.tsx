@@ -4,8 +4,9 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Activity, AlertOctagon, Box, Calendar, Check, CheckCircle2, ChevronLeft, Clock, FileText, Lock, MapPin, PlayCircle, Users } from 'lucide-react';
+import { Activity, Box, Calendar, Check, CheckCircle2, ChevronLeft, Clock, FileText, Lock, MapPin, PlayCircle, Users } from 'lucide-react';
 import { Badge, getStatusBadgeVariant, type BadgeVariant } from '@/components/ui/Badge';
+import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
@@ -53,7 +54,7 @@ import type { SchedulePlan } from '@/types/schedulePlan';
 // thành số lượng hạng mục (`order.items.length`) vì `GET /orders/:id` chưa join category vào
 // `orderItems` (doc mục 8, chưa implement).
 
-type DetailTab = 'overview' | 'lifecycle' | 'items' | 'plans' | 'quotation' | 'dispute';
+type DetailTab = 'overview' | 'lifecycle' | 'items' | 'plans' | 'quotation';
 
 // Tab "Tiến độ sự kiện" đã ẩn khỏi thanh điều hướng theo yêu cầu — giữ nguyên khai báo trong DetailTab
 // + nhánh render ở dưới (activeTab === 'lifecycle') để khôi phục lại dễ dàng nếu cần, chỉ bỏ khỏi TABS.
@@ -62,13 +63,12 @@ const TABS: { id: DetailTab; label: string; icon: typeof Activity; doc?: string 
   { id: 'items', label: 'Thiết bị & Kho hàng', icon: Box, doc: 'docs/thietbikhohang_api.md' },
   { id: 'plans', label: 'Lịch trình & Kỹ thuật', icon: Calendar, doc: 'docs/lichtrinhkythuat_api.md' },
   { id: 'quotation', label: 'Báo giá & Hợp đồng', icon: FileText, doc: 'docs/baogiavahopdong_api.md' },
-  { id: 'dispute', label: 'Tranh chấp', icon: AlertOctagon },
 ];
 
 const LIFECYCLE_STEPS: { id: OrderStatus; label: string; desc: string }[] = [
   { id: 'NEW', label: `1. ${ORDER_STATUS_LABEL.NEW}`, desc: 'Lập đơn & hợp đồng' },
-  { id: 'CONFIRMED', label: `2. ${ORDER_STATUS_LABEL.CONFIRMED}`, desc: 'Xác nhận đặt cọc' },
-  { id: 'IN_PROGRESS', label: `3. ${ORDER_STATUS_LABEL.IN_PROGRESS}`, desc: 'Vận hành & live show' },
+  { id: 'CONFIRMED', label: `2. ${ORDER_STATUS_LABEL.CONFIRMED}`, desc: 'Xác nhận cọc' },
+  { id: 'IN_PROGRESS', label: `3. ${ORDER_STATUS_LABEL.IN_PROGRESS}`, desc: 'Lên kế hoạch và thực hiện' },
   { id: 'COMPLETED', label: `4. ${ORDER_STATUS_LABEL.COMPLETED}`, desc: 'Quyết toán & nghiệm thu' },
 ];
 const LIFECYCLE_ORDER: OrderStatus[] = ['NEW', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED'];
@@ -203,13 +203,13 @@ export default function AdminOrderDetailPage() {
   const isMilestone3Complete = order.orderStatus === 'IN_PROGRESS' || order.orderStatus === 'COMPLETED';
   const isMilestone4Complete = order.orderStatus === 'COMPLETED';
   const isReadyToClose = order.orderStatus === 'COMPLETED' && order.paymentStatus === 'PAID' && !order.closedAt;
-  const depositCollected = deposits.filter((d) => d.status === 'SUCCESS').reduce((sum, d) => sum + d.amount, 0);
+  const depositCollected = deposits.filter((d) => d.status === 'PAID').reduce((sum, d) => sum + d.amount, 0);
 
   const handleConfirmDeposit = async () => {
     if (!latestDeposit) return;
     setIsConfirmingDeposit(true);
     try {
-      await paymentApiService.updateDepositStatus(latestDeposit.depositId, { status: 'SUCCESS' });
+      await paymentApiService.updateDepositStatus(latestDeposit.depositId, { status: 'PAID' });
       load();
     } finally {
       setIsConfirmingDeposit(false);
@@ -240,7 +240,7 @@ export default function AdminOrderDetailPage() {
     if (!settlement) return;
     setIsCompletingSettlement(true);
     try {
-      await settlementApiService.confirmSettlement(settlement.settlementId, { status: 'CONFIRMED' });
+      await settlementApiService.confirmSettlement(settlement.settlementId, { status: 'PAID' });
       await orderApiService.updateOrderStatus(order.orderId, { orderStatus: 'COMPLETED' });
       load();
     } finally {
@@ -264,6 +264,14 @@ export default function AdminOrderDetailPage() {
 
   return (
     <div className="p-6">
+      <Breadcrumb
+        items={[
+          { label: 'Đơn đặt' },
+          { label: 'Danh sách đơn đặt', href: '/admin/orders_audit' },
+          { label: order.orderCode },
+        ]}
+        className="mb-3"
+      />
       <div className="flex flex-col gap-4 border-b border-slate-100 pb-5 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-3">
           <button
@@ -436,13 +444,6 @@ export default function AdminOrderDetailPage() {
                   </p>
                 </div>
               </div>
-
-              <div>
-                <h5 className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-900">Phân công khảo sát báo giá</h5>
-                <p className="rounded-lg border border-dashed border-slate-200 p-3 text-xs italic text-slate-500">
-                  Chưa nối API thật — backend chưa seed danh mục công việc &quot;Khảo sát hiện trường&quot; (`work_tasks`), cần trước khi dùng được luồng phân công qua `schedule_plans` (xem docs/more-require.md mục (f)).
-                </p>
-              </div>
             </motion.div>
           )}
 
@@ -501,13 +502,13 @@ export default function AdminOrderDetailPage() {
                       <p className="font-semibold text-slate-700">Thu tiền tạm ứng đặt cọc</p>
                       {latestDeposit ? (
                         <p className="mt-0.5 text-slate-500">
-                          {formatCurrency(latestDeposit.amount)} · {latestDeposit.status === 'SUCCESS' ? 'Đã nhận' : 'Chờ xác nhận'}
+                          {formatCurrency(latestDeposit.amount)} · {latestDeposit.status === 'PAID' ? 'Đã nhận' : 'Chờ xác nhận'}
                         </p>
                       ) : (
                         <p className="mt-0.5 italic text-slate-400">Chưa có yêu cầu cọc cho đơn này.</p>
                       )}
                     </div>
-                    {latestDeposit && latestDeposit.status !== 'SUCCESS' && (
+                    {latestDeposit && latestDeposit.status !== 'PAID' && (
                       <Button size="sm" onClick={handleConfirmDeposit} isLoading={isConfirmingDeposit}>
                         Xác nhận đã nhận cọc
                       </Button>
@@ -618,7 +619,7 @@ export default function AdminOrderDetailPage() {
                   <Button size="sm" variant="secondary" onClick={() => setIsSettlementModalOpen(true)}>
                     {settlement ? 'Điều chỉnh biên bản quyết toán' : 'Lập biên bản quyết toán'}
                   </Button>
-                  {settlement && settlement.status !== 'CONFIRMED' && order.orderStatus !== 'COMPLETED' && (
+                  {settlement && settlement.status !== 'PAID' && order.orderStatus !== 'COMPLETED' && (
                     <Button size="sm" onClick={handleConfirmSettlement} isLoading={isCompletingSettlement}>
                       <Check className="h-4 w-4" />
                       Xác nhận thu nốt & Quyết toán

@@ -1,14 +1,13 @@
 import type { DepositStatus } from '@/types/payment';
 
-// Nhãn hiển thị cho Deposit.status thật (4 giá trị, khác 2 giá trị RECEIVED/PENDING của mock cũ
-// src/mocks/db/payments.ts — file mock đó vẫn giữ nguyên vì màn "Thanh toán"/Settlement khác dùng
-// chung, chỉ màn "Đặt cọc" đổi sang dùng file này). Màu theo CLAUDE.md mục 3 (xanh lá=thành công,
-// vàng=chờ xử lý, đỏ=quá hạn/hủy, xám=không hoạt động) — ánh xạ variant ở getStatusBadgeVariant
-// (components/ui/Badge.tsx) đã có sẵn SUCCESS/PENDING/CANCELLED, chỉ thiếu OVERDUE (đã bổ sung).
+// Nhãn hiển thị cho Deposit.status thật (3 giá trị kể từ backend refactor 2026-07-26, khác 2 giá trị
+// RECEIVED/PENDING của mock cũ src/mocks/db/payments.ts — file mock đó vẫn giữ nguyên vì màn
+// "Thanh toán"/Settlement khác dùng chung, chỉ màn "Đặt cọc" đổi sang dùng file này). Màu theo
+// CLAUDE.md mục 3 (xanh lá=thành công, vàng=chờ xử lý, xám=không hoạt động) — ánh xạ variant ở
+// getStatusBadgeVariant (components/ui/Badge.tsx) đã có sẵn PAID/UNPAID/CANCELLED.
 export const DEPOSIT_STATUS_LABEL: Record<DepositStatus, string> = {
-  PENDING: 'Chờ thanh toán',
-  SUCCESS: 'Đã nhận cọc',
-  OVERDUE: 'Quá hạn thanh toán',
+  UNPAID: 'Chờ thanh toán',
+  PAID: 'Đã nhận cọc',
   CANCELLED: 'Đã hủy yêu cầu',
 };
 

@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { AxiosError } from 'axios';
-import { ChevronDown, ChevronLeft, ChevronRight, Plus, Search, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Button } from '@/components/ui/Button';
 import CustomerFormModal, { CustomerFormValues } from '@/components/customers/CustomerFormModal';
+import QuotationCatalogPicker from '@/components/quotations/QuotationCatalogPicker';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { customerApiService } from '@/services/customer.service';
 import { inventoryApiService } from '@/services/inventory.service';
@@ -58,59 +59,25 @@ function draftItemFromCatalog(catalogItem: InventoryRow): DraftLineItem {
 const cellInputClassName =
   'w-full rounded-md border border-slate-200 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500';
 
-function ItemNameSearchInput({
-  catalogItems,
-  onPick,
-}: Readonly<{ catalogItems: InventoryRow[]; onPick: (item: InventoryRow) => void }>) {
-  const [value, setValue] = useState('');
-  const [isOpen, setIsOpen] = useState(false);
-  const suggestions = useMemo(() => {
-    const term = value.trim().toLowerCase();
-    if (!term) return [];
-    return catalogItems.filter((it) => (it.itemName ?? '').toLowerCase().includes(term)).slice(0, 6);
-  }, [value, catalogItems]);
-
-  return (
-    <div className="relative min-w-[180px]">
-      <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-      <input
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onFocus={() => setIsOpen(true)}
-        onBlur={() => setTimeout(() => setIsOpen(false), 150)}
-        placeholder="Tìm trong kho để đổi hạng mục..."
-        className={`${cellInputClassName} pl-7`}
-      />
-      {isOpen && suggestions.length > 0 && (
-        <ul className="absolute z-10 mt-1 w-64 rounded-md border border-slate-200 bg-white py-1 text-sm shadow-lg">
-          {suggestions.map((it) => (
-            <li key={it.itemId}>
-              <button
-                type="button"
-                onMouseDown={() => {
-                  onPick(it);
-                  setValue('');
-                }}
-                className="flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left hover:bg-blue-50"
-              >
-                <span className="truncate">{it.itemName}</span>
-                <span className="flex-shrink-0 text-xs text-slate-400">{formatCurrency(it.rentalPrice ?? 0)}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
 interface CreateQuotationWizardModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (createdQuotationId?: string) => void;
+  /** Khi truyền vào: khóa cứng khách hàng, bỏ hẳn Bước 1 (dùng khi mở wizard này từ 1 khách hàng đã
+   * xác định sẵn, vd modal Tạo đơn hàng — không cần chọn lại khách). */
+  presetCustomer?: Customer;
+  /** Khi bật: sau khi lưu, tự PATCH status=approved luôn thay vì để lại bản nháp — dùng cho luồng Tạo
+   * đơn hàng, nơi Manager cần báo giá ở trạng thái duyệt được ngay để liên kết vào đơn mới tạo. */
+  autoApprove?: boolean;
 }
 
-export default function CreateQuotationWizardModal({ isOpen, onClose, onSaved }: Readonly<CreateQuotationWizardModalProps>) {
+export default function CreateQuotationWizardModal({
+  isOpen,
+  onClose,
+  onSaved,
+  presetCustomer,
+  autoApprove,
+}: Readonly<CreateQuotationWizardModalProps>) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isLoadingCustomers, setIsLoadingCustomers] = useState(false);
@@ -121,62 +88,53 @@ export default function CreateQuotationWizardModal({ isOpen, onClose, onSaved }:
   const [isCreatingCustomer, setIsCreatingCustomer] = useState(false);
   const [addCustomerError, setAddCustomerError] = useState<string | null>(null);
   const selectedCustomer = customers.find((c) => c.customerId === selectedCustomerId) ?? null;
+  // Preset khách hàng (mở từ modal Tạo đơn hàng) — Bước 1 vô nghĩa vì khách đã chốt sẵn, ẩn khỏi
+  // breadcrumb luôn thay vì chỉ nhảy qua, tránh gây hiểu lầm còn có bước chọn khách phía sau.
+  const visibleSteps = presetCustomer ? STEPS.filter((s) => s.step !== 1) : STEPS;
   const [items, setItems] = useState<DraftLineItem[]>([]);
-  const [catalogSearch, setCatalogSearch] = useState('');
-  const [openCategories, setOpenCategories] = useState<Set<string>>(new Set());
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   // Tải khách hàng + catalog thật (từ /inventory, xem giải thích ở đầu file) 1 lần khi mở modal —
-  // SearchableSelect/ItemNameSearchInput chỉ lọc client-side trên mảng đã tải, không hỗ trợ tìm kiếm
-  // bất đồng bộ (doc mục 4 gợi ý đổi component, chưa làm ở lần nối API này vì là component dùng chung).
+  // SearchableSelect chỉ lọc client-side trên mảng đã tải, không hỗ trợ tìm kiếm bất đồng bộ (doc mục 4
+  // gợi ý đổi component, chưa làm ở lần nối API này vì là component dùng chung).
+  // Khi có `presetCustomer` (mở từ modal Tạo đơn hàng): bỏ qua GET /customers, khóa cứng khách hàng đã
+  // chọn sẵn và nhảy thẳng vào Bước 2 — Bước 1 không còn ý nghĩa gì trong luồng này.
   useEffect(() => {
     if (!isOpen) return;
-    setIsLoadingCustomers(true);
-    // limit tối đa backend thật chấp nhận cho /customers là 100 (400 VALIDATION_ERROR nếu vượt quá,
-    // khác /inventory ở dưới không giới hạn 200 — xem docs/more-require.md).
-    customerApiService
-      .getCustomers({ limit: 100 })
-      .then((res) => setCustomers(res.data ?? []))
-      .catch(() => setCustomers([]))
-      .finally(() => setIsLoadingCustomers(false));
+    if (presetCustomer) {
+      setCustomers([presetCustomer]);
+      setSelectedCustomerId(presetCustomer.customerId);
+      setStep(2);
+    } else {
+      setStep(1);
+      setSelectedCustomerId('');
+      setIsLoadingCustomers(true);
+      // limit tối đa backend thật chấp nhận cho /customers là 100 (400 VALIDATION_ERROR nếu vượt quá,
+      // khác /inventory ở dưới không giới hạn 200 — xem docs/more-require.md).
+      customerApiService
+        .getCustomers({ limit: 100 })
+        .then((res) => setCustomers(res.data ?? []))
+        .catch(() => setCustomers([]))
+        .finally(() => setIsLoadingCustomers(false));
+    }
+    setItems([]);
+    setSaveError(null);
     setIsLoadingCatalog(true);
     inventoryApiService
       .getInventory({ limit: 200 })
       .then((res) => setCatalogItems(res.data ?? []))
       .catch(() => setCatalogItems([]))
       .finally(() => setIsLoadingCatalog(false));
-  }, [isOpen]);
-
-  const catalogGroups = useMemo(() => {
-    const term = catalogSearch.trim().toLowerCase();
-    const filtered = term ? catalogItems.filter((it) => (it.itemName ?? '').toLowerCase().includes(term)) : catalogItems;
-    const map = new Map<string, InventoryRow[]>();
-    filtered.forEach((it) => {
-      const category = it.typeName ?? 'Khác';
-      const bucket = map.get(category) ?? [];
-      bucket.push(it);
-      map.set(category, bucket);
-    });
-    return Array.from(map.entries()).map(([category, catalogRows]) => ({ category, items: catalogRows }));
-  }, [catalogItems, catalogSearch]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, presetCustomer?.customerId]);
 
   const resetState = () => {
     setStep(1);
     setSelectedCustomerId('');
     setItems([]);
-    setCatalogSearch('');
-    setOpenCategories(new Set());
     setSaveError(null);
   };
-
-  const toggleCategory = (category: string) =>
-    setOpenCategories((prev) => {
-      const next = new Set(prev);
-      if (next.has(category)) next.delete(category);
-      else next.add(category);
-      return next;
-    });
 
   const handleClose = () => {
     resetState();
@@ -204,18 +162,20 @@ export default function CreateQuotationWizardModal({ isOpen, onClose, onSaved }:
     }
   };
 
-  const addCatalogItem = (catalogItem: InventoryRow) => setItems((prev) => [...prev, draftItemFromCatalog(catalogItem)]);
+  // Chọn trùng 1 hạng mục đã có trong bảng (cùng itemId) thì chỉ cộng dồn số lượng thay vì thêm dòng mới.
+  const addCatalogItem = (catalogItem: InventoryRow) =>
+    setItems((prev) => {
+      const existing = prev.find((it) => it.itemId === catalogItem.itemId);
+      if (existing) {
+        return prev.map((it) =>
+          it.id === existing.id ? { ...it, quantity: String((Number(it.quantity) || 0) + 1) } : it,
+        );
+      }
+      return [...prev, draftItemFromCatalog(catalogItem)];
+    });
   const updateItem = (id: string, patch: Partial<DraftLineItem>) =>
     setItems((prev) => prev.map((it) => (it.id === id ? { ...it, ...patch } : it)));
   const removeItem = (id: string) => setItems((prev) => prev.filter((it) => it.id !== id));
-  const pickCatalogForRow = (id: string, catalogItem: InventoryRow) =>
-    updateItem(id, {
-      itemId: catalogItem.itemId,
-      name: catalogItem.itemName ?? catalogItem.itemId,
-      category: catalogItem.typeName ?? 'Khác',
-      unit: catalogItem.unit ?? 'Cái',
-      unitPrice: String(catalogItem.rentalPrice ?? 0),
-    });
 
   const subtotal = items.reduce((sum, it) => sum + (Number(it.unitPrice) || 0) * (Number(it.quantity) || 0), 0);
   const totalDiscount = items.reduce((sum, it) => sum + (Number(it.discount) || 0) * (Number(it.quantity) || 0), 0);
@@ -226,7 +186,7 @@ export default function CreateQuotationWizardModal({ isOpen, onClose, onSaved }:
     setIsSaving(true);
     setSaveError(null);
     try {
-      await quotationApiService.createQuotation(selectedCustomer.customerId, {
+      const res = await quotationApiService.createQuotation(selectedCustomer.customerId, {
         version: 'v1',
         items: items.map((it) => ({
           itemId: it.itemId,
@@ -235,8 +195,14 @@ export default function CreateQuotationWizardModal({ isOpen, onClose, onSaved }:
           discount: (Number(it.discount) || 0) * (Number(it.quantity) || 1),
         })),
       });
+      const createdQuotationId: string | undefined = res.data?.quotationId;
+      if (autoApprove && createdQuotationId) {
+        // Không chặn thành công của bước tạo nếu riêng bước duyệt lỗi — báo giá vẫn được tạo (draft),
+        // chỉ là chưa tự duyệt được, Manager có thể vào trang báo giá duyệt tay sau.
+        await quotationApiService.updateQuotationStatus(createdQuotationId, { status: 'approved' }).catch(() => {});
+      }
       resetState();
-      onSaved();
+      onSaved(createdQuotationId);
     } catch {
       setSaveError('Lưu báo giá thất bại. Vui lòng kiểm tra lại hạng mục và thử lại.');
     } finally {
@@ -248,7 +214,7 @@ export default function CreateQuotationWizardModal({ isOpen, onClose, onSaved }:
     <Modal isOpen={isOpen} onClose={handleClose} title="Tạo báo giá mới" subtitle="Quy trình soạn thảo báo giá kinh doanh theo từng bước rõ ràng." size="2xl">
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-slate-50 p-4">
         <div className="flex w-max items-center gap-2">
-          {STEPS.map((s, index) => (
+          {visibleSteps.map((s, index) => (
             <div key={s.step} className="flex items-center gap-2">
               <div className="flex items-center gap-2">
                 <span
@@ -260,7 +226,7 @@ export default function CreateQuotationWizardModal({ isOpen, onClose, onSaved }:
                 </span>
                 <span className={`whitespace-nowrap text-sm font-medium ${step >= s.step ? 'text-slate-900' : 'text-slate-400'}`}>{s.label}</span>
               </div>
-              {index < STEPS.length - 1 && <ChevronRight className="h-4 w-4 flex-shrink-0 text-slate-300" />}
+              {index < visibleSteps.length - 1 && <ChevronRight className="h-4 w-4 flex-shrink-0 text-slate-300" />}
             </div>
           ))}
         </div>
@@ -337,61 +303,8 @@ export default function CreateQuotationWizardModal({ isOpen, onClose, onSaved }:
               Đơn giá tự điền theo đơn giá thuê niêm yết trong kho — có thể sửa tay trước khi lưu (báo giá là ảnh chụp giá tại thời điểm lập).
             </p>
 
-            <div className="mt-5 rounded-xl border border-slate-100 bg-slate-50/60 p-4">
-              <p className="text-xs font-semibold text-slate-500">Chọn nhanh từ danh mục kho thiết bị có sẵn:</p>
-              <div className="relative mt-3">
-                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <input
-                  value={catalogSearch}
-                  onChange={(e) => setCatalogSearch(e.target.value)}
-                  placeholder="Tìm thiết bị theo tên..."
-                  className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
-
-              <div className="mt-3 max-h-72 space-y-2 overflow-y-auto pr-1">
-                {isLoadingCatalog ? (
-                  <p className="rounded-lg bg-white py-3 text-center text-xs text-slate-400">Đang tải danh mục thiết bị...</p>
-                ) : (
-                  <>
-                    {catalogGroups.map((group) => {
-                      const isOpenGroup = catalogSearch.trim() !== '' || openCategories.has(group.category);
-                      return (
-                        <div key={group.category} className="rounded-lg border border-slate-200 bg-white">
-                          <button
-                            type="button"
-                            onClick={() => toggleCategory(group.category)}
-                            className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-xs font-bold text-slate-700 hover:bg-slate-50"
-                          >
-                            <span>
-                              {group.category} <span className="font-normal text-slate-400">({group.items.length})</span>
-                            </span>
-                            <ChevronDown className={`h-3.5 w-3.5 flex-shrink-0 text-slate-400 transition-transform ${isOpenGroup ? 'rotate-180' : ''}`} />
-                          </button>
-                          {isOpenGroup && (
-                            <div className="flex flex-wrap gap-2 border-t border-slate-100 p-3">
-                              {group.items.map((catalogItem) => (
-                                <button
-                                  key={catalogItem.itemId}
-                                  type="button"
-                                  onClick={() => addCatalogItem(catalogItem)}
-                                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
-                                >
-                                  <Plus className="h-3.5 w-3.5" />
-                                  {catalogItem.itemName} <span>({formatCurrency(catalogItem.rentalPrice ?? 0)})</span>
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                    {catalogGroups.length === 0 && (
-                      <p className="rounded-lg bg-white py-3 text-center text-xs italic text-slate-400">Không tìm thấy thiết bị phù hợp.</p>
-                    )}
-                  </>
-                )}
-              </div>
+            <div className="mt-5">
+              <QuotationCatalogPicker catalogItems={catalogItems} isLoading={isLoadingCatalog} onPick={addCatalogItem} />
             </div>
 
             <div className="mt-5 overflow-x-auto rounded-lg border border-slate-100">
@@ -422,9 +335,6 @@ export default function CreateQuotationWizardModal({ isOpen, onClose, onSaved }:
                         <tr key={item.id}>
                           <td className="px-3 py-2 align-top">
                             <p className="px-1 py-1.5 text-sm font-medium text-slate-800">{item.name}</p>
-                            <div className="mt-1">
-                              <ItemNameSearchInput catalogItems={catalogItems} onPick={(catalogItem) => pickCatalogForRow(item.id, catalogItem)} />
-                            </div>
                           </td>
                           <td className="px-3 py-2 align-top text-slate-600">{item.category}</td>
                           <td className="px-3 py-2 align-top text-slate-600">{item.unit}</td>
@@ -489,10 +399,14 @@ export default function CreateQuotationWizardModal({ isOpen, onClose, onSaved }:
             </div>
 
             <div className="mt-6 flex justify-between border-t border-slate-100 pt-5">
-              <Button variant="secondary" onClick={() => setStep(1)}>
-                <ChevronLeft className="h-4 w-4" />
-                Quay lại
-              </Button>
+              {presetCustomer ? (
+                <span />
+              ) : (
+                <Button variant="secondary" onClick={() => setStep(1)}>
+                  <ChevronLeft className="h-4 w-4" />
+                  Quay lại
+                </Button>
+              )}
               <Button disabled={items.length === 0} onClick={() => setStep(3)}>
                 Tiếp tục
                 <ChevronRight className="h-4 w-4" />

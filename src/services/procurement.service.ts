@@ -1,8 +1,10 @@
 import api from './api';
+import type { ApiEnvelope, ApiListMeta } from './customer.service';
 import type {
   CreateSupplierTransactionPayload,
   GetSupplierTransactionsQuery,
   ReceiveSupplierTransactionPayload,
+  SupplierTransaction,
   UpdateSupplierTransactionPaymentStatusPayload,
   UpdateSupplierTransactionStatusPayload,
 } from '@/types/procurement';
@@ -10,13 +12,13 @@ import type {
 export const procurementApiService = {
   /** GET /api/v1/supplier-transactions */
   async getTransactions(params?: GetSupplierTransactionsQuery) {
-    const response = await api.get('/supplier-transactions', { params });
+    const response = await api.get<ApiEnvelope<SupplierTransaction[], ApiListMeta>>('/supplier-transactions', { params });
     return response.data;
   },
 
   /** GET /api/v1/supplier-transactions/:id */
   async getTransactionById(id: string) {
-    const response = await api.get(`/supplier-transactions/${id}`);
+    const response = await api.get<ApiEnvelope<SupplierTransaction>>(`/supplier-transactions/${id}`);
     return response.data;
   },
 

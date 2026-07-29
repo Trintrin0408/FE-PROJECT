@@ -1,6 +1,6 @@
 import api from './api';
 import type { AdjustInventoryPayload, GetInventoryMovementsQuery, GetInventoryQuery } from '@/types/inventory';
-import type { CreateCollectedEquipmentReportPayload } from '@/types/collectedEquipmentReport';
+import type { GetReturnReportsQuery } from '@/types/collectedEquipmentReport';
 
 export const inventoryApiService = {
   /** GET /api/v1/inventory */
@@ -21,15 +21,21 @@ export const inventoryApiService = {
     return response.data;
   },
 
-  /** POST /api/v1/inventory/return-reports — kho ghi nhận báo cáo thu hồi thiết bị */
-  async createReturnReport(payload: CreateCollectedEquipmentReportPayload) {
-    const response = await api.post('/inventory/return-reports', payload);
+  /** GET /api/v1/inventory/return-reports — chỉ role MANAGER/ADMIN gọi được (403 với role khác). */
+  async getReturnReports(params?: GetReturnReportsQuery) {
+    const response = await api.get('/inventory/return-reports', { params });
     return response.data;
   },
 
-  /** PUT /api/v1/inventory/return-reports/:id/confirm — cộng good vào available, damaged vào damaged, trừ lost khỏi total */
-  async confirmReturnReport(reportId: string) {
-    const response = await api.put(`/inventory/return-reports/${reportId}/confirm`);
+  /** GET /api/v1/inventory/return-reports/:id — chỉ role MANAGER/ADMIN gọi được. */
+  async getReturnReport(reportId: string) {
+    const response = await api.get(`/inventory/return-reports/${reportId}`);
+    return response.data;
+  },
+
+  /** PUT /api/v1/inventory/return-reports/:id/confirm — chỉ role MANAGER gọi được (Admin nhận 403). */
+  async confirmReturnReport(reportId: string, notes?: string) {
+    const response = await api.put(`/inventory/return-reports/${reportId}/confirm`, { notes });
     return response.data;
   },
 };

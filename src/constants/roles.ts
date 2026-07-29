@@ -1,13 +1,15 @@
+// Backend refactor 2026-07-26 (commit 4157a7f): gộp LEADER_STAFF/TECHNICAL_STAFF thành 1 role STAFF
+// chung — không còn phân biệt Leader/Technical ở cấp tài khoản (xem types/user.ts).
 export const ROLES = {
   ADMIN: 'Admin',
   MANAGER: 'Manager',
-  LEADER_STAFF: 'LEADER_STAFF',
-  TECHNICAL_STAFF: 'TECHNICAL_STAFF',
+  STAFF: 'STAFF',
 } as const;
 
 export const ROLE_DASHBOARD_PATH: Record<string, string> = {
   Admin: '/admin/settings/users',
   Manager: '/manager/dashboard',
+  STAFF: '/staff-mobile/dashboard',
 };
 
 // Không còn endpoint GET /roles — role là enum cố định. Dùng cho AuthProfile.role.roleName
@@ -16,8 +18,7 @@ export const ROLE_DASHBOARD_PATH: Record<string, string> = {
 export const ROLE_OPTIONS = [
   { value: 'Admin', label: 'Admin' },
   { value: 'Manager', label: 'Manager' },
-  { value: 'LEADER_STAFF', label: 'Leader Staff' },
-  { value: 'TECHNICAL_STAFF', label: 'Technical Staff' },
+  { value: 'STAFF', label: 'Staff' },
 ];
 
 // GET/POST/PUT /users trả role RAW enum (không hậu tố _STAFF) — khác ROLE_OPTIONS ở trên.

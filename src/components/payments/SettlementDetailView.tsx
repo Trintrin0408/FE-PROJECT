@@ -4,8 +4,10 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import type { AxiosError } from 'axios';
-import { Calendar, Check, ChevronLeft, Copy, Download, MapPin, Phone } from 'lucide-react';
+import { Calendar, Check, Copy, Download, MapPin, Phone } from 'lucide-react';
+import { BackButton } from '@/components/ui/BackButton';
 import { Badge } from '@/components/ui/Badge';
+import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
@@ -26,9 +28,9 @@ import type { Settlement } from '@/types/settlement';
 // Nối API thật (2026-07-21) — thay thế màn mock cũ (`mocks/db/payments.ts`), đúng pattern đã áp dụng
 // cho `DepositDetailView.tsx` (docs/datcoc_api.md). `[id]` trên URL là orderId (giữ nguyên quy ước cũ).
 // POST /orders/:id/settlement server tự tính finalAmount = totalAmount + additionalFee + compensation
-// - depositAmount(SUCCESS) - discount, chỉ trả về 1 bản ghi MỚI NHẤT/đơn (không phải lịch sử nhiều bản
+// - depositAmount(PAID) - discount, chỉ trả về 1 bản ghi MỚI NHẤT/đơn (không phải lịch sử nhiều bản
 // ghi như Deposit) — xác nhận qua curl: gọi POST nhiều lần trên cùng đơn trả về CÙNG 1 settlementId
-// (cập nhật lại bản DRAFT hiện có thay vì tạo bản mới). Luồng xác nhận giống hệt Mốc 5 đã nối ở
+// (cập nhật lại bản UNPAID hiện có thay vì tạo bản mới). Luồng xác nhận giống hệt Mốc 5 đã nối ở
 // order/[id]/page.tsx: PUT .../confirm rồi tự gọi thêm PUT /orders/:id/status COMPLETED.
 
 interface SettlementDetailViewProps {
@@ -107,7 +109,7 @@ export default function SettlementDetailView({ canManage, backHref }: Readonly<S
     );
   }
 
-  const depositCollected = deposits.filter((d) => d.status === 'SUCCESS').reduce((sum, d) => sum + d.amount, 0);
+  const depositCollected = deposits.filter((d) => d.status === 'PAID').reduce((sum, d) => sum + d.amount, 0);
   const estimatedFinal =
     order.totalAmount + (Number(additionalFee) || 0) + (Number(compensation) || 0) - depositCollected - (Number(discount) || 0);
   const displayAmount = settlement ? settlement.finalAmount : estimatedFinal;
@@ -159,7 +161,7 @@ export default function SettlementDetailView({ canManage, backHref }: Readonly<S
     if (!settlement) return;
     setIsConfirming(true);
     try {
-      await settlementApiService.confirmSettlement(settlement.settlementId, { status: 'CONFIRMED' });
+      await settlementApiService.confirmSettlement(settlement.settlementId, { status: 'PAID' });
       await orderApiService.updateOrderStatus(order.orderId, { orderStatus: 'COMPLETED' });
       load();
     } finally {
@@ -167,14 +169,20 @@ export default function SettlementDetailView({ canManage, backHref }: Readonly<S
     }
   };
 
-  const isConfirmed = settlement?.status === 'CONFIRMED';
+  const isConfirmed = settlement?.status === 'PAID';
 
   return (
     <div className="p-6">
-      <Link href={backHref} className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-blue-600">
-        <ChevronLeft className="h-4 w-4" />
-        Quay lại danh sách
-      </Link>
+      <div className="mb-4 flex items-center gap-3">
+        <BackButton href={backHref} />
+        <Breadcrumb
+          items={[
+            { label: 'Quyết toán' },
+            { label: 'Danh sách quyết toán', href: backHref },
+            { label: order.orderCode },
+          ]}
+        />
+      </div>
 
       <Reveal className="rounded-2xl bg-[#0F172A] p-6 text-white">
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_auto]">

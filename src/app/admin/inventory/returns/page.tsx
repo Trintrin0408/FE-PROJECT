@@ -1,105 +1,121 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { Eye, Plus, Search, Trash2 } from 'lucide-react';
+import { Eye, Search } from 'lucide-react';
 import { Table, TableColumn } from '@/components/ui/Table';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
-import { Button } from '@/components/ui/Button';
-import { Modal } from '@/components/ui/Modal';
+import { Pagination } from '@/components/ui/Pagination';
+import { usePagination } from '@/hooks/usePagination';
 import Reveal from '@/components/ui/Reveal';
-import {
-  CreateReturnSlipItemInput,
-  createReturnSlip,
-  getEligibleOrdersForReturn,
-  getReturnSlips,
-  RETURN_SLIP_STATUS_META,
-  ReturnSlip,
-  ReturnSlipStatus,
-} from '@/mocks/adminInventoryReturnsMock';
 import { formatDate } from '@/utils/formatDate';
+import { inventoryApiService } from '@/services/inventory.service';
+import type { CollectedEquipmentReport, CollectedEquipmentReportStatus } from '@/types/collectedEquipmentReport';
 
-// Trang thuần giao diện — xem giải thích ở đầu src/mocks/adminInventoryReturnsMock.ts. Danh sách phiếu
-// hoàn kho, dẫn tới trang chi tiết từng phiếu (/admin/inventory/returns/[id]) — nơi thực hiện xác nhận
-// hoàn kho theo ảnh mẫu. Nút "Tạo phiếu" mở modal khai báo đơn + danh sách thiết bị cần hoàn, sau khi
-// tạo sẽ chuyển thẳng sang trang chi tiết của phiếu vừa tạo.
+// Trang danh sách "Thu hồi & hoàn kho" — mirror /manager/inventory/returns (đọc, không tạo/xác nhận —
+// Admin chỉ đọc theo CLAUDE.md). Nối API thật GET /api/v1/inventory/return-reports (backend đang chạy:
+// D:\sep490-backend-api, xem cảnh báo đầu docs/more-require.md).
 
-type StatusFilter = '' | ReturnSlipStatus;
+const STATUS_META: Record<CollectedEquipmentReportStatus, { label: string; badgeClass: string }> = {
+  SUBMITTED: { label: 'CHƯA HOÀN', badgeClass: 'bg-amber-100 text-amber-700' },
+  CONFIRMED: { label: 'ĐÃ HOÀN', badgeClass: 'bg-emerald-100 text-emerald-700' },
+};
+
+type StatusFilter = '' | CollectedEquipmentReportStatus;
 
 export default function Page() {
-  const router = useRouter();
-  const [slips, setSlips] = useState<ReturnSlip[]>(() => getReturnSlips());
+  const [reports, setReports] = useState<CollectedEquipmentReport[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('');
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const { pagination, setPage, updatePagination } = usePagination(10);
+
+  useEffect(() => {
+    let cancelled = false;
+    setIsLoading(true);
+    setLoadError('');
+    inventoryApiService
+      .getReturnReports({ status: statusFilter || undefined, page: pagination.currentPage, limit: pagination.limit })
+      .then((res) => {
+        if (cancelled) return;
+        const data: CollectedEquipmentReport[] = res.data ?? [];
+        setReports(data.filter((r) => r.reportType === 'INTERNAL'));
+        if (res.meta) updatePagination({ totalItems: res.meta.totalItems, totalPages: Math.max(1, res.meta.totalPages) });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setReports([]);
+        setLoadError('Không tải được danh sách phiếu hoàn kho. Vui lòng thử lại.');
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusFilter, pagination.currentPage]);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
-    return slips.filter((slip) => {
-      if (statusFilter && slip.status !== statusFilter) return false;
-      if (!term) return true;
-      return (
-        slip.id.toLowerCase().includes(term) ||
-        slip.orderCode.toLowerCase().includes(term) ||
-        slip.customerName.toLowerCase().includes(term)
-      );
-    });
-  }, [slips, search, statusFilter]);
+    if (!term) return reports;
+    return reports.filter(
+      (r) =>
+        r.reportId.toLowerCase().includes(term) ||
+        r.orderCode.toLowerCase().includes(term) ||
+        r.reportedBy.fullName.toLowerCase().includes(term),
+    );
+  }, [reports, search]);
 
-  const handleCreated = (slip: ReturnSlip) => {
-    setSlips(getReturnSlips());
-    setIsCreateOpen(false);
-    router.push(`/admin/inventory/returns/${slip.id}`);
-  };
-
-  const columns: TableColumn<ReturnSlip>[] = [
+  const columns: TableColumn<CollectedEquipmentReport>[] = [
     {
       key: 'id',
       label: 'Mã phiếu',
-      render: (slip) => (
-        <Link href={`/admin/inventory/returns/${slip.id}`} className="font-semibold text-blue-600 hover:underline">
-          #{slip.id}
+      render: (r) => (
+        <Link
+          href={`/admin/inventory/returns/${r.reportId}`}
+          title={r.reportId}
+          className="font-semibold text-blue-600 hover:underline"
+        >
+          #{r.reportId.slice(0, 8).toUpperCase()}
         </Link>
       ),
     },
     {
       key: 'order',
       label: 'Đơn đặt cưới',
-      render: (slip) => (
-        <div>
-          <Link href={`/admin/orders_audit/${slip.orderCode}`} className="font-semibold text-blue-600 hover:underline">
-            {slip.orderCode}
-          </Link>
-          <p className="text-xs text-slate-400">{slip.orderName}</p>
-        </div>
+      render: (r) => (
+        <Link href={`/admin/orders_audit/${r.orderId}`} className="font-semibold text-blue-600 hover:underline">
+          {r.orderCode}
+        </Link>
       ),
     },
-    { key: 'itemCount', label: 'Số mặt hàng', render: (slip) => `${slip.items.length} loại thiết bị` },
-    { key: 'createdAt', label: 'Ngày tạo', render: (slip) => formatDate(slip.createdAt) },
-    { key: 'createdBy', label: 'Tạo bởi', render: (slip) => slip.createdBy },
+    { key: 'itemCount', label: 'Số mặt hàng', render: (r) => `${r.items.length} loại thiết bị` },
+    { key: 'createdAt', label: 'Ngày tạo', render: (r) => formatDate(r.createdAt) },
+    { key: 'createdBy', label: 'Tạo bởi', render: (r) => r.reportedBy.fullName },
     {
-      key: 'actualReturnDate',
+      key: 'confirmedAt',
       label: 'Ngày hoàn kho thực tế',
-      render: (slip) => (slip.actualReturnDate ? formatDate(slip.actualReturnDate) : '—'),
+      render: (r) => (r.confirmedAt ? formatDate(r.confirmedAt) : '—'),
     },
     {
       key: 'status',
       label: 'Trạng thái',
-      render: (slip) => (
-        <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${RETURN_SLIP_STATUS_META[slip.status].badgeClass}`}>
-          {RETURN_SLIP_STATUS_META[slip.status].label}
+      render: (r) => (
+        <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${STATUS_META[r.status].badgeClass}`}>
+          {STATUS_META[r.status].label}
         </span>
       ),
     },
     {
       key: 'actions',
       label: 'Thao tác',
-      render: (slip) => (
+      render: (r) => (
         <div className="flex items-center gap-1">
           <Link
-            href={`/admin/inventory/returns/${slip.id}`}
+            href={`/admin/inventory/returns/${r.reportId}`}
             aria-label="Xem chi tiết"
             title="Xem chi tiết"
             className="inline-flex rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-blue-600"
@@ -118,17 +134,13 @@ export default function Page() {
           <h1 className="text-xl font-bold text-slate-900">Thu hồi &amp; hoàn kho</h1>
           <p className="mt-1 text-sm text-slate-500">Danh sách phiếu hoàn kho thiết bị sau khi thi công xong sự kiện.</p>
         </div>
-        <Button onClick={() => setIsCreateOpen(true)}>
-          <Plus className="h-4 w-4" />
-          Tạo phiếu
-        </Button>
       </div>
 
       <Reveal className="mt-6 rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
         <div className="flex flex-wrap items-end gap-3">
           <div className="min-w-[240px] flex-1">
             <Input
-              placeholder="Tìm theo mã phiếu, mã đơn, khách hàng..."
+              placeholder="Tìm theo mã phiếu, mã đơn, người tạo (trong trang hiện tại)..."
               icon={<Search className="h-4 w-4" />}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -137,173 +149,32 @@ export default function Page() {
           <div className="w-full sm:w-48">
             <Select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+              onChange={(e) => {
+                setStatusFilter(e.target.value as StatusFilter);
+                setPage(1);
+              }}
               options={[
                 { value: '', label: 'Tất cả trạng thái' },
-                { value: 'PENDING', label: 'Chưa hoàn' },
-                { value: 'DONE', label: 'Đã hoàn' },
+                { value: 'SUBMITTED', label: 'Chưa hoàn' },
+                { value: 'CONFIRMED', label: 'Đã hoàn' },
               ]}
             />
           </div>
         </div>
 
+        {loadError && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 ring-1 ring-inset ring-red-600/20">{loadError}</p>}
+
         <div className="mt-4">
-          <Table columns={columns} rows={filtered} rowKey={(row) => row.id} />
+          <Table columns={columns} rows={filtered} rowKey={(row) => row.reportId} isLoading={isLoading} />
         </div>
+
+        <Pagination pagination={pagination} onPageChange={setPage} />
+
+        <p className="mt-3 text-[11px] italic text-slate-400">
+          Ghi chú: phiếu hoàn kho do Leader Staff ghi nhận tại hiện trường qua ứng dụng di động. Admin chỉ xem, không
+          có quyền tạo hay xác nhận (chỉ Manager mới xác nhận được).
+        </p>
       </Reveal>
-
-      <CreateReturnSlipModal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} onCreated={handleCreated} />
     </div>
-  );
-}
-
-const EMPTY_ITEM: CreateReturnSlipItemInput = {
-  itemName: '',
-  unit: 'Cái',
-  totalToReturn: 0,
-  warehouseTotalStock: 0,
-  warehouseDamagedStock: 0,
-  warehouseLockedStock: 0,
-};
-
-interface CreateReturnSlipModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onCreated: (slip: ReturnSlip) => void;
-}
-
-function CreateReturnSlipModal({ isOpen, onClose, onCreated }: Readonly<CreateReturnSlipModalProps>) {
-  const eligibleOrders = useMemo(() => getEligibleOrdersForReturn(), []);
-  const [orderId, setOrderId] = useState('');
-  const [createdBy, setCreatedBy] = useState('');
-  const [items, setItems] = useState<CreateReturnSlipItemInput[]>([{ ...EMPTY_ITEM }]);
-  const [error, setError] = useState('');
-
-  const resetAndClose = () => {
-    setOrderId('');
-    setCreatedBy('');
-    setItems([{ ...EMPTY_ITEM }]);
-    setError('');
-    onClose();
-  };
-
-  const updateItem = (index: number, patch: Partial<CreateReturnSlipItemInput>) => {
-    setItems((prev) => prev.map((item, i) => (i === index ? { ...item, ...patch } : item)));
-  };
-
-  const addItemRow = () => setItems((prev) => [...prev, { ...EMPTY_ITEM }]);
-  const removeItemRow = (index: number) => setItems((prev) => prev.filter((_, i) => i !== index));
-
-  const handleSubmit = () => {
-    if (!orderId || !createdBy.trim()) {
-      setError('Vui lòng chọn đơn đặt cưới và nhập người tạo phiếu');
-      return;
-    }
-    const validItems = items.filter((item) => item.itemName.trim() && item.totalToReturn > 0);
-    if (validItems.length === 0) {
-      setError('Vui lòng thêm ít nhất 1 thiết bị cần hoàn kho với số lượng lớn hơn 0');
-      return;
-    }
-    const slip = createReturnSlip({ orderId, createdBy: createdBy.trim(), items: validItems });
-    onCreated(slip);
-  };
-
-  return (
-    <Modal
-      isOpen={isOpen}
-      onClose={resetAndClose}
-      title="Tạo phiếu hoàn kho"
-      size="lg"
-      footer={
-        <>
-          <Button variant="secondary" onClick={resetAndClose}>
-            Hủy
-          </Button>
-          <Button onClick={handleSubmit}>Tạo phiếu</Button>
-        </>
-      }
-    >
-      <div className="space-y-4">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Select
-            label="Đơn đặt cưới (đã thi công/hoàn thành)"
-            required
-            value={orderId}
-            onChange={(e) => setOrderId(e.target.value)}
-            options={eligibleOrders.map((o) => ({ value: o.orderId, label: `${o.orderId} — ${o.customerName}` }))}
-            placeholder="-- Chọn đơn --"
-          />
-          <Input label="Người tạo phiếu" required value={createdBy} onChange={(e) => setCreatedBy(e.target.value)} placeholder="Họ và tên" />
-        </div>
-
-        <div>
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-semibold text-slate-800">Thiết bị cần hoàn kho</p>
-            <button type="button" onClick={addItemRow} className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:underline">
-              <Plus className="h-3.5 w-3.5" />
-              Thêm thiết bị
-            </button>
-          </div>
-
-          <div className="mt-2 space-y-3">
-            {items.map((item, index) => (
-              <div key={index} className="rounded-xl border border-slate-200 p-3">
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  <Input
-                    label="Tên thiết bị"
-                    value={item.itemName}
-                    onChange={(e) => updateItem(index, { itemName: e.target.value })}
-                    placeholder="VD: Bàn ghế Chavari Gold"
-                  />
-                  <Input label="Đơn vị" value={item.unit} onChange={(e) => updateItem(index, { unit: e.target.value })} placeholder="Cái" />
-                </div>
-                <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  <Input
-                    label="SL cần hoàn"
-                    type="number"
-                    min={0}
-                    value={item.totalToReturn}
-                    onChange={(e) => updateItem(index, { totalToReturn: Number(e.target.value) })}
-                  />
-                  <Input
-                    label="Tổng SL trong kho"
-                    type="number"
-                    min={0}
-                    value={item.warehouseTotalStock}
-                    onChange={(e) => updateItem(index, { warehouseTotalStock: Number(e.target.value) })}
-                  />
-                  <Input
-                    label="SL hỏng trong kho"
-                    type="number"
-                    min={0}
-                    value={item.warehouseDamagedStock}
-                    onChange={(e) => updateItem(index, { warehouseDamagedStock: Number(e.target.value) })}
-                  />
-                  <Input
-                    label="SL khóa trong kho"
-                    type="number"
-                    min={0}
-                    value={item.warehouseLockedStock}
-                    onChange={(e) => updateItem(index, { warehouseLockedStock: Number(e.target.value) })}
-                  />
-                </div>
-                {items.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removeItemRow(index)}
-                    className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-red-500 hover:underline"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                    Xóa thiết bị này
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 ring-1 ring-inset ring-red-600/20">{error}</p>}
-      </div>
-    </Modal>
   );
 }

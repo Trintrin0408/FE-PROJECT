@@ -8,6 +8,7 @@ import { formatDate } from '@/utils/formatDate';
 import { INSTALLMENT_STATUS_META, getAdminContractById } from '@/mocks/adminContractsMock';
 import { getAdminQuotationById } from '@/mocks/db/quotations';
 import { getAdminOrders } from '@/mocks/db/orders';
+import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import Reveal from '@/components/ui/Reveal';
 
 // Trang thuần giao diện — xem giải thích ở đầu src/mocks/adminContractsMock.ts. Toàn bộ trang port
@@ -61,6 +62,14 @@ export default function AdminContractDetailPage() {
 
   return (
     <div className="p-6">
+      <Breadcrumb
+        items={[
+          { label: 'Hợp đồng' },
+          { label: 'Danh sách hợp đồng', href: '/admin/contracts' },
+          { label: referenceCode },
+        ]}
+        className="mb-3"
+      />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <Link

@@ -11,6 +11,7 @@ import { formatCurrency } from '@/utils/formatCurrency';
 import { orderApiService } from '@/services/order.service';
 import { catalogApiService } from '@/services/catalog.service';
 import { EVENT_TYPES } from '@/constants/order-event-type';
+import { VN_TIME_ZONE } from '@/utils/formatDate';
 import type { QuotationDetailApi } from '@/types/quotation';
 import type { Item } from '@/types/catalog';
 
@@ -133,7 +134,7 @@ export default function CreateOrderFromQuotationModal({ isOpen, onClose, quotati
 
   const validate = (): Record<string, string> => {
     const next: Record<string, string> = {};
-    const todayStr = new Date().toLocaleDateString('en-CA');
+    const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: VN_TIME_ZONE });
     if (!eventDate) {
       next.eventDate = 'Vui lòng chọn ngày tổ chức';
     } else if (eventDate <= todayStr) {

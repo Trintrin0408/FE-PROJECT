@@ -75,6 +75,7 @@ lý (nếu có).
     CONSTRAINT chk_inventory_damaged_lte_total CHECK (quantity_damaged <= quantity_total)
   );
   ```
+
   Có chủ đích **không** lưu "đã khóa"/"khả dụng" như cột tĩnh — 2 số này phụ thuộc ngày chọn trên UI
   (Date-based Inventory Lock, UC 2.13), tính trực tiếp bằng query lúc đọc (công thức đã chốt ở
   `docs/tonkhodoanhnghiep_api.md` mục 3 — khóa theo khoảng ngày `schedule_plans` của đơn, không cần
@@ -139,6 +140,7 @@ lý (nếu có).
       REFERENCES items(item_id) ON DELETE RESTRICT ON UPDATE CASCADE
   );
   ```
+
   **Chưa xác nhận được** tên cột PK thật của `supplier_transactions` trong phiên viết tài liệu này (MCP
   bị timeout kết nối DB) — Backend cần tự đối chiếu lại trước khi tạo FK `transaction_id`.
 - **Không lưu tiền đền bù ở bảng này** — theo comment gốc `types/collectedEquipmentReport.ts`, đền bù
@@ -175,6 +177,7 @@ lý (nếu có).
     "meta": { "page": 1, "limit": 10, "totalItems": 2, "totalPages": 1,
       "counts": { "all": 2, "draft": 1, "approved": 1, "rejected": 0, "approvedValue": 1600000 } } }
   ```
+
   `meta.counts` giữ nguyên bất kể filter — đúng như cần cho 5 thẻ KPI. **Không cần Backend làm gì thêm**
   — FE chỉ cần thêm hàm `getQuotations()` vào `quotation.service.ts` gọi `GET /quotations` và wire vào
   `manager/quotations/page.tsx`/`admin/quotations/page.tsx` thay cho mock.
@@ -198,6 +201,7 @@ lý (nếu có).
   { "data": [...], "meta": { "page": 1, "limit": 10, "totalItems": 1, "totalPages": 1,
     "counts": { "all": 1, "new": 0, "confirmed": 1, "inProgress": 0, "completed": 0, "cancelled": 0 } } }
   ```
+
   `counts` giữ nguyên không đổi dù có truyền `orderStatus`/`paymentStatus`/`search` hay không (đã test cả
   3 trường hợp) — đúng hành vi cần cho 6 thẻ KPI (luôn hiển thị số liệu toàn bộ tập dữ liệu). **Không cần
   Backend làm gì thêm** — FE chỉ cần đọc `meta.counts` từ response `GET /orders` sẵn có. Đã áp dụng ở
@@ -266,8 +270,7 @@ lý (nếu có).
       ADD CONSTRAINT orders_closed_by_fkey FOREIGN KEY (closed_by) REFERENCES users(user_id)
         ON DELETE SET NULL ON UPDATE CASCADE;
     ```
-  - **Điều kiện hợp lệ**: chỉ cho đóng khi `order_status = 'COMPLETED' AND payment_status = 'PAID' AND
-    closed_at IS NULL`.
+  - **Điều kiện hợp lệ**: chỉ cho đóng khi `order_status = 'COMPLETED' AND payment_status = 'PAID' AND closed_at IS NULL`.
   - **Request**: không có body, hoặc `{ notes? }` (doc chưa chốt).
   - **Ảnh hưởng khác**: các endpoint ghi khác trên đơn (`PUT /orders/:id/status`, `PUT /orders/:id/items`,
     các API ghi `schedule_plans` của đơn đó) **phải trả 403** một khi `closed_at IS NOT NULL`.
@@ -372,6 +375,7 @@ lý (nếu có).
     "meta": { "page": 1, "limit": 10, "totalItems": 1, "totalPages": 1,
       "counts": { "all": 1, "draft": 0, "needsReview": 0, "submitted": 0, "confirmed": 1 } } }
   ```
+
   **Không cần Backend làm gì thêm** — FE chỉ cần thêm hàm gọi `GET /survey-reports` (không có `orderId`)
   vào `survey.service.ts` và wire vào màn danh sách khảo sát thay cho mock.
   Lưu ý `meta.counts` dùng key khác `AdminQuotationStatus`/`OrderStatus` — 5 khóa riêng
@@ -473,11 +477,9 @@ lý (nếu có).
     thêm cột; nếu tính động thì không cần đổi schema).
 - **Gap phụ khác trên `suppliers` (mục 4.1/5, chưa chốt)**: `catalogItems[]` ("Danh mục hạng mục & giá
   thiết bị cung cấp") **không có entity/endpoint tương ứng nào** trong DB thật — nếu Product xác nhận
-  cần giữ tính năng này, phải tạo bảng mới kiểu `supplier_catalog_items(supplier_id, item_name, price,
-  unit)` (chỉ là ví dụ minh họa, chưa phải SQL chính thức, cần Backend thiết kế lại). Enum trạng thái
+  cần giữ tính năng này, phải tạo bảng mới kiểu `supplier_catalog_items(supplier_id, item_name, price, unit)` (chỉ là ví dụ minh họa, chưa phải SQL chính thức, cần Backend thiết kế lại). Enum trạng thái
   giao dịch NCC cũng đang lệch giữa mock (`NEW/RECEIVED/CANCELLED`) và type thật
-  (`PENDING/APPROVED/IN_PROGRESS/COMPLETED/CANCELLED`) — cần chạy lại `SHOW CREATE TABLE
-  supplier_transactions` để chốt (lần viết doc này bị lỗi kết nối MySQL MCP, chưa xác nhận được; tương
+  (`PENDING/APPROVED/IN_PROGRESS/COMPLETED/CANCELLED`) — cần chạy lại `SHOW CREATE TABLE supplier_transactions` để chốt (lần viết doc này bị lỗi kết nối MySQL MCP, chưa xác nhận được; tương
   tự chưa xác nhận được `SHOW CREATE TABLE suppliers`).
 - **Trạng thái**: chờ Backend xác nhận trạng thái module Supplier trên server thật; FE giữ nguyên mock
   cho tới khi có ETA rõ ràng.
@@ -495,16 +497,14 @@ lý (nếu có).
     (công thức đã chốt, **không cần thêm cột/bảng mới**, thuần đổi công thức query); nếu bỏ trống, trả
     `quantityLocked = null`/ẩn cột thay vì mặc định hôm nay.
   - `onlyDamaged=true` (mới) — lọc `quantity_damaged > 0`.
-  - Response nên **JOIN sẵn** `itemCode`/`itemName`/`categoryName` (qua `items → item_types →
-    item_categories`), và khi có `date`, trả kèm `quantityAvailable = quantity_total - quantity_damaged
+  - Response nên **JOIN sẵn** `itemCode`/`itemName`/`categoryName` (qua `items → item_types → item_categories`), và khi có `date`, trả kèm `quantityAvailable = quantity_total - quantity_damaged
     - quantityLocked`.
   - **DB cần sửa**: không cần cột/bảng mới — thuần mở rộng query + JOIN trên schema đã có ở mục (b).
 - **`POST /api/v1/inventory/adjust` cần thêm field `movementType`**:
   - Đổi `MovementType` (`types/inventory.ts`) từ `'INBOUND' | 'ADJUSTMENT'` thành
     `'INBOUND' | 'ADJUSTMENT' | 'DAMAGE'` (giá trị `DAMAGE` này cần được thêm khi Backend tạo bảng
     `inventory` ở mục (b) — nhắc lại ở đây để không bỏ sót).
-  - **Request**: `{ itemId: string, movementType: 'INBOUND'|'ADJUSTMENT'|'DAMAGE', quantityChange:
-    number, notes?: string }`. **Output**: `InventoryRow` đã cập nhật (hoặc 204).
+  - **Request**: `{ itemId: string, movementType: 'INBOUND'|'ADJUSTMENT'|'DAMAGE', quantityChange: number, notes?: string }`. **Output**: `InventoryRow` đã cập nhật (hoặc 204).
   - **Backend cần validate**: `quantity_total` không âm sau khi cộng; `quantity_damaged` không âm và
     không vượt `quantity_total`; `movementType = 'DAMAGE'` ghi vào `quantity_damaged`, 2 loại còn lại
     ghi vào `quantity_total`.
@@ -550,14 +550,12 @@ của route này**, FE không có cách nào workaround vì không kiểm soát 
 
 **Ảnh hưởng**: nút "Lưu" ở Bước 3 của modal Tạo báo giá mới **không thể lưu thành công** với backend
 thật ở trạng thái hiện tại — `quotationApiService.createQuotation()` đã gọi đúng endpoint theo đúng
-tài liệu, lỗi hoàn toàn ở phía server. FE đã wire đúng (`src/components/quotations/
-CreateQuotationWizardModal.tsx`, gọi `quotationApiService.createQuotation(customerId, payload)`) và
+tài liệu, lỗi hoàn toàn ở phía server. FE đã wire đúng (`src/components/quotations/ CreateQuotationWizardModal.tsx`, gọi `quotationApiService.createQuotation(customerId, payload)`) và
 hiển thị lỗi rõ ràng cho người dùng thay vì giả vờ thành công — không sửa gì thêm ở FE cho tới khi
 Backend xác nhận đã fix.
 
 **Không có endpoint thay thế**: đã thử `POST /api/v1/quotations` (dạng phẳng, `customerId` trong body)
-— route này **404 Route not found**, không tồn tại dưới bất kỳ hình thức nào. `GET /api/v1/quotations
-?customerId=X` (dạng phẳng, dùng cho màn danh sách ở mục 4.1 doc gốc) **hoạt động đúng** — chỉ riêng
+— route này **404 Route not found**, không tồn tại dưới bất kỳ hình thức nào. `GET /api/v1/quotations ?customerId=X` (dạng phẳng, dùng cho màn danh sách ở mục 4.1 doc gốc) **hoạt động đúng** — chỉ riêng
 nhánh `POST` mới không có bản thay thế nào khác ngoài route đang lỗi.
 
 ### (p.2) Toàn bộ module `/catalog/*` chưa mount + không có API trả đơn giá thiết bị — Bước 2 của modal đang dùng giá FIX CỨNG
@@ -571,8 +569,7 @@ sách thiết bị là `GET /api/v1/inventory` (đã hoạt động, xác nhận
 (`rentalPrice`/`unitPrice`/`price`)).
 
 Vì báo giá bắt buộc phải có `price` cho mỗi dòng hạng mục, và không có API nào trả giá thiết bị,
-FE hiện đang **fix cứng đơn giá gợi ý** theo `itemCode` (`src/components/quotations/
-CreateQuotationWizardModal.tsx`, hằng số `FALLBACK_UNIT_PRICE`, có `DEFAULT_FALLBACK_PRICE` cho item
+FE hiện đang **fix cứng đơn giá gợi ý** theo `itemCode` (`src/components/quotations/ CreateQuotationWizardModal.tsx`, hằng số `FALLBACK_UNIT_PRICE`, có `DEFAULT_FALLBACK_PRICE` cho item
 lạ) — **hiển thị in nghiêng trên UI** kèm dòng chú thích "Đơn giá gợi ý... là dữ liệu fix cứng" ngay
 dưới tiêu đề Bước 2, người dùng vẫn sửa tay được trước khi lưu (đúng tinh thần "giá tại thời điểm báo
 giá" đã chốt ở doc gốc mục 2).
@@ -581,8 +578,7 @@ giá" đã chốt ở doc gốc mục 2).
 
 - **Hướng A (khuyến nghị — ít việc hơn)**: thêm cột giá vào response `GET /api/v1/inventory` — mở rộng
   JOIN hiện có sang `items` để trả kèm 1 field giá (ví dụ `unitPrice DECIMAL(14,2)` — cần Backend xác
-  nhận bảng `items` đã có cột giá nào chưa, nếu chưa thì `ALTER TABLE items ADD COLUMN unit_price
-  DECIMAL(14,2) NOT NULL DEFAULT 0`). Input: không đổi (`GET /inventory` giữ nguyên params). Output:
+  nhận bảng `items` đã có cột giá nào chưa, nếu chưa thì `ALTER TABLE items ADD COLUMN unit_price DECIMAL(14,2) NOT NULL DEFAULT 0`). Input: không đổi (`GET /inventory` giữ nguyên params). Output:
   thêm 1 field `unitPrice: number` vào mỗi dòng response hiện có.
 - **Hướng B**: implement thật module `/catalog/items` như doc gốc đề xuất (đầy đủ CRUD, có cột giá) —
   nhiều việc hơn Hướng A nhưng khớp đúng kiến trúc `catalog.service.ts`/`types/catalog.ts` đã viết sẵn
@@ -595,8 +591,7 @@ với backend thật (p.1 chặn việc LƯU, p.2 chỉ ảnh hưởng độ ch�
 
 **Cập nhật 2026-07-21 — ĐÃ XONG (Hướng A)**: xác nhận lại bằng `curl` thật (đăng nhập `manager`, gọi
 `GET /api/v1/inventory?limit=200`) — Backend đã bổ sung đúng Hướng A, response giờ trả kèm
-`rentalPrice`/`purchasePrice` thật cho từng dòng (vd `ITM-SPK-01` "Loa JBL 1000W" → `rentalPrice:
-500000`), không cần đợi module `/catalog/*` (Hướng B) nữa. Đã cập nhật `InventoryRow`
+`rentalPrice`/`purchasePrice` thật cho từng dòng (vd `ITM-SPK-01` "Loa JBL 1000W" → `rentalPrice: 500000`), không cần đợi module `/catalog/*` (Hướng B) nữa. Đã cập nhật `InventoryRow`
 (`src/types/inventory.ts`) thêm 2 field này, và sửa `CreateQuotationWizardModal.tsx` dùng thẳng
 `catalogItem.rentalPrice` thay cho `FALLBACK_UNIT_PRICE`/`fixedPriceFor` — gỡ luôn phần in nghiêng
 "dữ liệu fix cứng" ở Bước 2 vì giá giờ là dữ liệu thật. Mục (p.1) (lỗi `POST .../quotations`) vẫn còn
@@ -671,8 +666,7 @@ tồn đọng riêng, chưa xử lý ở lần sửa này.
   đã ghi ở mục (q): `CreateOrderFromQuotationModal` chưa tương thích shape API thật).
 - **Gap phát hiện khi nối thật (ngoài phạm vi phân tích ban đầu của doc gốc)**: `GET /api/v1/orders`
   (danh sách) **không trả field `quotationId`** — xác nhận qua `curl` thật (2026-07-20): response danh
-  sách chỉ có `orderId/orderCode/customerId/customerName/customerPhone/eventType/eventName/eventDate/
-  location/guestCount/totalAmount/paymentStatus/orderStatus/createdAt`, không có `quotationId`. Chỉ
+  sách chỉ có `orderId/orderCode/customerId/customerName/customerPhone/eventType/eventName/eventDate/ location/guestCount/totalAmount/paymentStatus/orderStatus/createdAt`, không có `quotationId`. Chỉ
   `GET /api/v1/orders/:id` (chi tiết) mới trả `quotationId` (đã xác nhận đơn mẫu thật `ORD-001` có
   `quotationId` khi gọi chi tiết). Vì màn này cần lọc chính xác "đơn có `quotationId`", FE phải gọi
   danh sách rồi gọi tiếp **chi tiết từng đơn** (N+1) để biết đơn nào có `quotationId` — chấp nhận được
@@ -715,8 +709,7 @@ tồn đọng riêng, chưa xử lý ở lần sửa này.
   **đây là việc riêng, chưa gỡ trong lần sửa này** (ngoài phạm vi task "Tạo đơn đặt lịch tiệc mới"), cần
   1 lần sửa riêng sau để gỡ hard-code giá ở modal báo giá và dùng thẳng `rentalPrice` thật.
 - **Bug thật phát hiện + đã sửa (không phải thiếu API, mà là giới hạn `limit` không đồng nhất giữa các
-  route)**: `GET /api/v1/customers?limit=200` và `GET /api/v1/orders?limit=200` đều trả `400
-  VALIDATION_ERROR` ("limit: Too big: expected number to be <=100"), trong khi `GET /api/v1/catalog/items`
+  route)**: `GET /api/v1/customers?limit=200` và `GET /api/v1/orders?limit=200` đều trả `400 VALIDATION_ERROR` ("limit: Too big: expected number to be <=100"), trong khi `GET /api/v1/catalog/items`
   và `GET /api/v1/inventory` lại chấp nhận `limit=200` bình thường (không giới hạn, hoặc giới hạn cao
   hơn). Nhiều nơi trong FE đang gọi `getCustomers({limit:200})`/`getOrders({limit:200})` — khi backend từ
   chối, `.catch()` âm thầm trả về mảng rỗng, khiến dropdown chọn khách hàng/đơn hàng **trống hoàn toàn**
@@ -725,6 +718,10 @@ tồn đọng riêng, chưa xử lý ở lần sửa này.
   `src/app/admin/orders_audit/page.tsx`, `src/components/quotations/CreateQuotationWizardModal.tsx`
   (chỉ sửa lời gọi `getCustomers`, giữ nguyên `getInventory({limit:200})` vì route đó không giới hạn),
   `src/components/schedule/CreateTaskModal.tsx` (sửa cả `getOrders` và `getCustomers`).
+  **Cập nhật 2026-07-24**: sót 1 chỗ — `src/components/layout/Header.tsx` (load "sự kiện sắp tới" ở
+  header, chạy trên MỌI trang) vẫn gọi `getOrders({limit:200})`, gây `[API 400] GET /orders` lặp lại ở
+  console trên mọi trang (không vỡ UI vì có `.catch()`, nhưng banner "sự kiện sắp tới" luôn rỗng). Đã sửa
+  về `limit: 100` cùng đợt này.
   **Đề xuất Backend** (không bắt buộc, chỉ để nhất quán API): hoặc nâng giới hạn `/customers`/`/orders`
   lên khớp `/catalog/items`/`/inventory` (khuyến nghị, ít việc FE hơn về sau), hoặc tài liệu hóa rõ giới
   hạn `limit` tối đa của mỗi route trong OpenAPI spec để FE không phải dò bằng `curl`. **Input/Output**:
@@ -772,8 +769,7 @@ tồn đọng riêng, chưa xử lý ở lần sửa này.
   1. **2 cột đo đạc chưa có** (mục 3.1): "Chiều cao trần" và "Công suất nguồn điện khả dụng" —
      `survey_reports` không có cột nào lưu 2 giá trị này. Đã hiển thị **in nghiêng** bằng dữ liệu fix
      cứng (`MOCK_CEILING_HEIGHT`/`MOCK_POWER_CAPACITY` trong `SurveyDetailDrawer.tsx`) kèm chú thích rõ.
-     **API/DB cần bổ sung**: `ALTER TABLE survey_reports ADD COLUMN ceiling_height DECIMAL(5,2) NULL,
-     ADD COLUMN power_capacity VARCHAR(100) NULL` — **Output**: thêm 2 field
+     **API/DB cần bổ sung**: `ALTER TABLE survey_reports ADD COLUMN ceiling_height DECIMAL(5,2) NULL, ADD COLUMN power_capacity VARCHAR(100) NULL` — **Output**: thêm 2 field
      `ceilingHeight?: number`/`powerCapacity?: string` vào response `GET /survey-reports/:id` (và có
      thể cả list nếu cần hiển thị ở bảng). **Input**: thêm 2 field tương ứng (optional) vào
      `CreateSurveyReportPayload` (`POST /survey-reports`, phía mobile Leader Staff điền khi nộp báo cáo).
@@ -816,16 +812,14 @@ tồn đọng riêng, chưa xử lý ở lần sửa này.
   **chưa tồn tại**, xem mục (b) — nay cần cập nhật lại phần "giả định" đó).
 - **Tin tốt xác nhận qua `curl` (2026-07-20)**: khác hẳn ghi nhận ở mục (b) ("chưa có bảng `inventory`
   nào trong DB thật"), `GET /api/v1/inventory` và `GET /api/v1/inventory/movements` **đã hoạt động đầy
-  đủ với dữ liệu thật** — trả sẵn `itemCode`/`itemName`/`categoryName`/`typeName` (join `items →
-  item_types → item_categories`) + 4 số liệu `quantityTotal`/`quantityDamaged`/`quantityReserved`/
+  đủ với dữ liệu thật** — trả sẵn `itemCode`/`itemName`/`categoryName`/`typeName` (join `items → item_types → item_categories`) + 4 số liệu `quantityTotal`/`quantityDamaged`/`quantityReserved`/
   `quantityAvailable`. `GET /api/v1/catalog/items/:id` cũng trả kèm `rentalPrice`/`purchasePrice`/
   `description` thật (không cần fix cứng giá cho modal chi tiết). Đã nối thật toàn bộ: viết lại
   `src/types/inventory.ts` (sửa field theo response thật — bỏ `inventoryId` không tồn tại,
   `performedBy` là object `{userId, fullName}` không phải string, `AdjustInventoryPayload` dùng
   `deltaTotal`/`deltaDamaged` không phải `movementType`/`quantityChange` như doc gốc đề xuất), viết lại
   `src/app/{manager/inventory/stock-check,admin/inventory/stock-status}/page.tsx` (gọi
-  `inventoryApiService.getInventory()` thật), tạo **component mới** `src/components/catalog/
-  InventoryDetailModal.tsx` (**không** sửa `EquipmentDetailModal.tsx` cũ — component đó vẫn đang dùng
+  `inventoryApiService.getInventory()` thật), tạo **component mới** `src/components/catalog/ InventoryDetailModal.tsx` (**không** sửa `EquipmentDetailModal.tsx` cũ — component đó vẫn đang dùng
   chung ở `/admin/catalog/packages`, 1 trang CRUD danh mục hoàn toàn khác, thuần mock, đổi chung sẽ phá
   vỡ trang đó). Đã sửa `src/app/admin/inventory/maintenance/page.tsx` (bỏ tham chiếu `row.inventoryId`
   không còn tồn tại trên type, dùng `itemId` làm khóa).
@@ -1052,12 +1046,10 @@ tồn đọng riêng, chưa xử lý ở lần sửa này.
      KHÔNG lưu ở bất kỳ status nào qua `PUT /deposits/:id`**, không riêng gì `CANCELLED`. `amount`/
      `evidenceId` vẫn bị bỏ qua như doc gốc ghi. Tức `PUT` chỉ thật sự ghi được đúng 1 field: `status`.
   3. **Xác nhận role đã bị chặn ở backend** (doc mục 7 để ngỏ câu hỏi "chưa thử token ADMIN"): test qua
-     `curl` với token `admin` — cả `POST /orders/:id/deposits` và `PUT /deposits/:id` đều trả `403
-     FORBIDDEN`. Vì vậy trang Admin **cố tình bỏ hẳn** mọi nút tạo/xác nhận/hủy (`canManage={false}`),
+     `curl` với token `admin` — cả `POST /orders/:id/deposits` và `PUT /deposits/:id` đều trả `403 FORBIDDEN`. Vì vậy trang Admin **cố tình bỏ hẳn** mọi nút tạo/xác nhận/hủy (`canManage={false}`),
      không phải thiếu sót — nếu giữ nút như bản mock cũ, Admin bấm sẽ luôn gặp lỗi 403.
 - **Kiến trúc đã chọn khi nối**:
-  - Không có `GET /api/v1/deposits` gộp toàn hệ thống (vẫn 404) — danh sách dùng N+1 tạm thời: `GET
-    /orders` (≤100) + `GET /orders/:id/deposits` cho từng đơn (lấy hồ sơ mới nhất theo `createdAt` để
+  - Không có `GET /api/v1/deposits` gộp toàn hệ thống (vẫn 404) — danh sách dùng N+1 tạm thời: `GET /orders` (≤100) + `GET /orders/:id/deposits` cho từng đơn (lấy hồ sơ mới nhất theo `createdAt` để
     hiển thị ở bảng), cùng kỹ thuật N+1 trên `GET /quotations?status=approved` + `GET /quotations/:id`
     (đọc `linkedOrderId`) để suy ra báo giá đã duyệt nhưng chưa tạo đơn — tái dùng đúng pattern đã có ở
     `manager/orders/[id]/page.tsx` (mục y). Gắn `TODO(perf)` rõ ràng trong code, không chặn demo ở quy
@@ -1146,8 +1138,7 @@ tồn đọng riêng, chưa xử lý ở lần sửa này.
   đầy đủ dữ liệu thật hiện có (danh sách đơn CONFIRMED/IN_PROGRESS, số lượng/đã chuẩn bị từng đơn qua
   `GET /orders/:id`, "Điều phối viên" qua `GET /schedule-plans` theo đúng hướng đã chốt ở doc mục 3.4)
   — riêng cột "Trạng thái xuất kho" + nút "Đã xuất kho" hiển thị in nghiêng "Chưa có API" (nút khóa hẳn),
-  và KPI "Sẵn sàng xuất kho" đổi tên thành "(ước tính)" vì phải tạm tính `SUM(preparedQty) >=
-  SUM(quantity)` phía client thay vì dựa vào cột `items_confirmed_at` như doc khuyến nghị.
+  và KPI "Sẵn sàng xuất kho" đổi tên thành "(ước tính)" vì phải tạm tính `SUM(preparedQty) >= SUM(quantity)` phía client thay vì dựa vào cột `items_confirmed_at` như doc khuyến nghị.
 - **Cần Backend làm** (nhắc lại nguyên trạng doc mục 7.1, chưa có gì thay đổi):
   1. `GET /api/v1/orders/picklists` (list + KPI, mục 5.1).
   2. `PUT /api/v1/orders/:orderId/picklist/picked-up` (mục 5.2).
@@ -1161,11 +1152,9 @@ tồn đọng riêng, chưa xử lý ở lần sửa này.
 - **Màn liên quan**: [`docs/thuhoi_hoankho_api.md`](thuhoi_hoankho_api.md).
 - Khác toàn bộ các màn đã re-test gần đây (phần lớn hóa ra Backend đã âm thầm làm xong) — màn này xác
   nhận lại đúng y hệt trạng thái doc đã ghi ngày 2026-07-20, không có gì mới:
-  1. `GET /api/v1/inventory/return-reports` → `404 {"code":"NOT_FOUND","message":"Inventory record not
-     found for this item"}` — lỗi này cho thấy route khớp nhầm vào `/inventory/:itemId` (coi
+  1. `GET /api/v1/inventory/return-reports` → `404 {"code":"NOT_FOUND","message":"Inventory record not found for this item"}` — lỗi này cho thấy route khớp nhầm vào `/inventory/:itemId` (coi
      `"return-reports"` là 1 `itemId`), xác nhận route riêng thật sự không tồn tại.
-  2. `POST /api/v1/inventory/return-reports` → `404 {"code":"NOT_FOUND","message":"Route not found: POST
-     /api/v1/inventory/return-reports"}` — lỗi rõ ràng, không mơ hồ như trên.
+  2. `POST /api/v1/inventory/return-reports` → `404 {"code":"NOT_FOUND","message":"Route not found: POST /api/v1/inventory/return-reports"}` — lỗi rõ ràng, không mơ hồ như trên.
   3. Bảng `inventory` (khác với `collected_equipment_reports`) **đã tồn tại thật** (dùng được ở màn "Tồn
      kho doanh nghiệp", mục (u)) — nhưng 2 bảng `collected_equipment_reports`/`collected_equipment_report_items`
      mà toàn bộ 4 endpoint của màn này phụ thuộc (doc mục 1/7) vẫn chưa được tạo.
@@ -1202,3 +1191,665 @@ tồn đọng riêng, chưa xử lý ở lần sửa này.
   đầu implement — quan trọng hơn việc đối chiếu tên cột/enum chi tiết (doc gốc mục 0).
 - **Trạng thái**: không có thay đổi code. Xác nhận lại bằng `curl` với backend thật đang chạy
   (2026-07-21).
+
+## (ae) Bug thật: `PUT /api/v1/quotations/:id` (sửa hạng mục báo giá) luôn 400 nếu thiếu `version` — khác hẳn comment cũ "không dùng khi update"
+
+- **Màn liên quan**: `/manager/quotations/[id]`, `/admin/quotations/[id]` (nút "Lưu thay đổi" khi sửa
+  hạng mục báo giá nháp), và modal `CreateQuotationModal.tsx` (chế độ sửa báo giá gọi từ trang chi tiết
+  đơn, tab "Báo giá & hợp đồng").
+- **Nguyên nhân người dùng báo "báo giá không update được"**: `types/quotation.ts` khai
+  `SaveQuotationPayload.version?: string` kèm comment "bắt buộc khi tạo mới, không dùng khi update" —
+  sai. Test qua `curl` xác nhận `PUT /quotations/:id` **luôn** yêu cầu `version` có mặt, kể cả khi update:
+  thiếu field này trả `400 {"code":"VALIDATION_ERROR","details":[{"path":"version","message":"Invalid input: expected string, received undefined"}]}`; gửi kèm đúng `version` hiện tại của báo giá thì `200`
+  thành công. Cả 3 nơi gọi `updateQuotation()` trong code (2 trang chi tiết báo giá + `CreateQuotationModal.tsx`)
+  đều **không gửi `version`** trong payload update — nghĩa là tính năng sửa hạng mục báo giá **luôn thất
+  bại 100%** với backend thật từ trước tới nay, chỉ hiện lỗi chung chung "Lưu thay đổi thất bại. Vui lòng
+  thử lại." (bị nuốt trong khối `catch` không đọc `error.response.data`), không có gì gợi ý nguyên nhân
+  thật.
+- **Đã sửa**: cả 3 nơi gọi `updateQuotation()` giờ gửi kèm `version: detail.version` (2 trang chi tiết)
+  / `version: editingQuotation.version` (`CreateQuotationModal.tsx`) — gửi lại đúng version hiện tại của
+  báo giá, không tự đổi version chỉ vì sửa hạng mục/số lượng/đơn giá. `SaveQuotationPayload.version` đổi
+  từ optional (`version?: string`) sang bắt buộc (`version: string`) để tsc tự bắt lỗi nếu có nơi khác
+  quên gửi field này sau này.
+- **Cần Backend xác nhận thêm** (chưa rõ, chỉ workaround được ở FE): route update có thực sự dùng giá
+  trị `version` gửi lên để làm gì (tăng version tự động? chỉ validate tồn tại?) hay chỉ là field bị yêu
+  cầu nhầm trong Zod schema (copy nhầm từ schema tạo mới, quên đổi thành optional cho route update) —
+  nếu là nhầm lẫn, Backend nên sửa validator cho phép bỏ trống `version` khi PUT, đúng nghĩa "chỉ đổi
+  field nào gửi lên" của 1 partial update thông thường.
+- **File đã sửa**: `src/types/quotation.ts` (`SaveQuotationPayload.version` bắt buộc + đính chính
+  comment), `src/app/{manager,admin}/quotations/[id]/page.tsx` (`handleSaveEditedItems`),
+  `src/components/orders/CreateQuotationModal.tsx` (`handleSubmit`, đổi tên biến `payload` →
+  `itemsAndNotes` để rõ nghĩa không còn thiếu field bắt buộc).
+- **Trạng thái**: `npx tsc --noEmit` sạch; `curl` tái hiện đúng bug (400 thiếu `version`) rồi xác nhận
+  fix hoạt động (200, cập nhật đúng SL/đơn giá) trên báo giá thật `QUO-004`, sau đó khôi phục lại đúng số
+  liệu gốc của báo giá này để không để lại dữ liệu test trong DB dùng chung. Smoke-test qua `curl` xác
+  nhận `/manager/quotations/[id]` và `/admin/quotations/[id]` trả HTTP 200, không lỗi compile. Chưa có
+  tool trình duyệt trong phiên này để tự bấm "Sửa hạng mục" → "Lưu thay đổi" và xem trực quan — cần người
+  dùng tự mở lại 1 báo giá `draft`, sửa SL/đơn giá 1 hạng mục, bấm lưu để xác nhận không còn báo lỗi.
+
+### (ae.1) Bổ sung 2026-07-21 (theo yêu cầu người dùng) — nút "Sửa hạng mục" giờ hiện ở MỌI trạng thái, không chỉ `draft`
+
+- **Phát hiện thêm khi test**: `PUT /quotations/:id` còn có **1 lớp chặn nghiệp vụ thứ 2**, độc lập với
+  bug `version` ở trên — kể cả gửi đủ `version`, backend vẫn từ chối `400 {"code":"BAD_REQUEST","message":"Chỉ có thể sửa báo giá khi còn ở trạng thái nháp (DRAFT)"}` nếu báo
+  giá đã `approved`/`rejected` (test trên báo giá thật `QUO-002`, đã `approved` + có `linkedOrderId`).
+- **Yêu cầu người dùng**: nút "Sửa hạng mục" phải hiện **bất kể trạng thái nào**, không chỉ `draft` như
+  trước. Đã chốt hướng xử lý qua `AskUserQuestion`: **vẫn hiện nút ở mọi trạng thái, cho vào chế độ sửa
+  bình thường, nhưng khi bấm "Lưu thay đổi" mà bị backend từ chối thì hiện đúng nguyên văn lỗi thật từ
+  backend** (không còn thông báo chung chung) — đồng thời ghi yêu cầu này vào đây để Backend cân nhắc nới
+  lỏng ràng buộc.
+- **Đã sửa**: bỏ điều kiện `detail.status === 'draft'` khỏi nút "Sửa hạng mục" ở cả 2 trang chi tiết báo
+  giá (giữ nguyên điều kiện `!isLinkedToContract` — không liên quan tới yêu cầu này), thêm `title` tooltip
+  báo trước khi trạng thái khác `draft`. `catch` của `handleSaveEditedItems` đổi từ thông báo cứng sang
+  đọc `error.response.data.error.message`/`.message` thật (cùng pattern `extractErrorMessage` đã dùng ở
+  `manager/customers/page.tsx`) — khi lưu thất bại vì lý do trạng thái, người dùng thấy đúng câu backend
+  trả về thay vì "Lưu thay đổi thất bại. Vui lòng thử lại." vô nghĩa.
+- **Cần Backend/Product quyết định**: có nên nới lỏng ràng buộc "chỉ sửa khi draft" hay không — đây là 1
+  quyết định nghiệp vụ (báo giá đã duyệt/gắn Order thật có nên cho sửa ngược lại số lượng/đơn giá hay
+  không, ảnh hưởng tới số liệu Order/Hợp đồng đã tạo dựa trên báo giá đó), **không phải bug kỹ thuật đơn
+  thuần** — FE chỉ có thể hiện đúng lỗi thật, không thể tự ý bỏ qua ràng buộc phía backend. Nếu Product
+  xác nhận cần cho sửa cả báo giá đã duyệt, Backend cần nới lỏng validator ở route `PUT /quotations/:id` (có thể giữ nguyên chặn khi đã `linkedOrderId` — tránh sửa ngược khi đã phát sinh đơn
+  thật — nhưng cho phép sửa báo giá `approved` chưa gắn đơn nào).
+- **File đã sửa thêm**: `src/app/{manager,admin}/quotations/[id]/page.tsx` (nút "Sửa hạng mục" + catch
+  `handleSaveEditedItems`).
+- **Trạng thái**: `npx tsc --noEmit` sạch; `curl` xác nhận đúng lỗi `BAD_REQUEST` khi PUT báo giá
+  `approved` (`QUO-002`, không sửa dữ liệu, chỉ test-đọc hành vi lỗi). Chưa test trực quan qua trình
+  duyệt trong phiên này.
+
+### (ae.2) Re-test 2026-07-21 (theo yêu cầu người dùng "muốn sửa được báo giá kể cả đã liên kết đơn hàng") — Backend đã đổi thông báo lỗi, có vẻ đã thu hẹp phạm vi chặn về đúng `linkedOrderId`, nhưng CHƯA nới lỏng
+
+- **Người dùng yêu cầu**: cho sửa được hạng mục báo giá ngay cả khi báo giá đã liên kết Order thật, kèm
+  1 request `curl PUT /quotations/:id` mẫu (báo giá `QUO-011`, đã `approved` + có `linkedOrderId`).
+- **Test lại**: gửi đúng `curl` đó tới backend thật (dùng lại toàn bộ giá trị hiện tại, không đổi số liệu
+  để tránh để lại dữ liệu test) — vẫn bị từ chối, nhưng **thông báo lỗi đã đổi khác** so với lần test ở
+  mục (ae.1):
+  - Cũ (test trên `QUO-002`): `400 {"code":"BAD_REQUEST","message":"Chỉ có thể sửa báo giá khi còn ở trạng thái nháp (DRAFT)"}`.
+  - Mới (test trên `QUO-011`, 2026-07-21): `400 {"code":"BAD_REQUEST","message":"Không thể sửa báo giá đã được chuyển thành đơn hàng"}`.
+  - Thông báo mới gợi ý điều kiện chặn giờ bám theo `linkedOrderId` (đã "chuyển thành đơn hàng") thay vì
+    chặn mọi báo giá khác `draft` — **đúng hướng đề xuất** đã ghi ở cuối mục (ae.1) ("giữ nguyên chặn khi
+    đã `linkedOrderId` nhưng cho phép sửa báo giá `approved` chưa gắn đơn nào"). Tuy nhiên **chưa xác
+    minh được** vế còn lại (báo giá `approved` nhưng CHƯA có `linkedOrderId`) vì tại thời điểm test, toàn
+    bộ 8 báo giá `approved` hiện có trong DB đều đã có `linkedOrderId` — không còn báo giá nào ở trạng
+    thái "approved nhưng chưa gắn đơn" để thử.
+- **Kết luận**: đây vẫn là chặn nghiệp vụ chủ động phía backend, không phải bug — **FE không có cách nào
+  cho sửa thành công khi đã `linkedOrderId`** mà không giả kết quả (nút "Sửa hạng mục" + luồng lưu ở 2
+  trang chi tiết báo giá đã đúng như mô tả ở (ae.1): vẫn cho bấm sửa, khi lưu thất bại thì hiện đúng
+  nguyên văn lỗi thật ở trên). Giữ nguyên hiện trạng FE, không đổi gì thêm ở lần này.
+- **Cần Backend/Product xác nhận lại** (nối tiếp câu hỏi mở ở (ae.1)): có đúng là backend đã chủ đích thu
+  hẹp điều kiện chặn về riêng `linkedOrderId` hay không, và nếu người dùng thực sự cần sửa báo giá đã
+  liên kết Order — đây vẫn là quyết định nghiệp vụ (ảnh hưởng ngược số liệu Order đã tạo từ báo giá đó),
+  cần Backend nới lỏng có chủ đích (vd chỉ cho Manager sửa kèm cảnh báo đồng bộ lại Order, hoặc bắt buộc
+  hủy liên kết Order trước khi sửa) — FE sẽ nối theo ngay khi có endpoint/luồng chính thức.
+
+### (ae.3) Yêu cầu chính thức từ người dùng 2026-07-21 — CẦN Backend nới lỏng `PUT /quotations/:id` để cho sửa số lượng/đơn giá/giảm giá của báo giá đã có `linkedOrderId`
+
+- **Người dùng xác nhận rõ**: muốn Manager sửa được số liệu sản phẩm (số lượng/đơn giá/giảm giá từng
+  hạng mục) của báo giá **ngay cả khi đã liên kết Order** — không chấp nhận theo hướng vòng qua bằng cách
+  bắt Manager tự hủy liên kết Order rồi sửa rồi liên kết lại (đã đề xuất phương án này ở trên nhưng người
+  dùng chọn chờ Backend nới lỏng thay vì làm workaround đó ở FE).
+- **Lý do không tự làm workaround "hủy liên kết → sửa → liên kết lại" ở FE lúc này** (đã cân nhắc, không
+  chọn): 2 vướng mắc thật sẽ gây sai số liệu nếu làm ẩu — (1) nút "Hủy liên kết" hiện chỉ bật khi khách
+  hàng có **>1 báo giá đã duyệt** (`canUnlinkQuotation` ở `manager/orders/[id]/page.tsx`), phần lớn đơn
+  chỉ gắn đúng 1 báo giá nên sẽ bị khóa ngay bước đầu; (2) `handleLinkQuotation` hiện **cộng dồn** số
+  lượng từ báo giá vào `order.items` thay vì thay thế — nếu liên kết lại đúng báo giá vừa sửa sẽ bị cộng
+  dồn 2 lần, sai lệch tồn kho/hóa đơn của Order. Muốn làm workaround an toàn cần sửa cả 2 điểm này trước,
+  ngoài phạm vi yêu cầu hiện tại.
+- **Yêu cầu Backend**: nới lỏng validator ở route `PUT /api/v1/quotations/:id` — bỏ điều kiện chặn khi
+  báo giá đã có `linkedOrderId` (thông báo lỗi hiện tại: `"Không thể sửa báo giá đã được chuyển thành đơn hàng"`, xem (ae.2)), cho phép Manager sửa `quantity`/`price`/`discount` của từng `quotation_items` bất
+  kể trạng thái liên kết Order. Nếu cần giữ 1 lớp bảo vệ nghiệp vụ, đề xuất: chỉ chặn khi Order đã ở giai
+  đoạn không còn hợp lý để đổi số liệu nữa (vd đã `settlement_pending`/`completed`/đã khóa kho), thay vì
+  chặn cứng ngay khi vừa có `linkedOrderId`.
+- **Lưu ý đồng bộ ngược khi Backend mở khóa**: nếu chỉ nới lỏng phía `quotations`, số liệu trên
+  `order.items` (tab "Thiết bị & Kho hàng" của Order) sẽ **không tự cập nhật theo** — hiện chỉ đồng bộ 1
+  lần lúc liên kết (`handleLinkQuotation`, cộng dồn). Khi backend cho sửa báo giá đã liên kết, FE sẽ cần
+  làm thêm 1 việc: sau khi sửa báo giá thành công, gọi lại để đồng bộ số liệu mới nhất vào `order.items`
+  của Order đang liên kết — chưa có endpoint/luồng nào cho việc đồng bộ lại này, cần Backend xác nhận
+  cách làm đúng (server tự đồng bộ, hay FE tự gọi `updateOrderItems` sau khi sửa báo giá).
+- **Trạng thái**: chưa có thay đổi code ở FE cho mục này — theo lựa chọn của người dùng, chờ Backend nới
+  lỏng trước khi triển khai UI cho phép sửa thật sự khi đã `linkedOrderId`.
+
+## (af) Màn "Thu hồi & hoàn kho" — ĐÃ nối API thật đầy đủ (list + detail + confirm), (ac) đã lỗi thời chỉ vài giờ sau khi viết; Backend đã âm thầm implement xong trong ngày 2026-07-21
+
+- **Màn liên quan**: `/manager/inventory/returns` (+ `[id]`), mirror `/admin/inventory/returns` (+
+  `[id]`) — xem [`docs/thuhoi_hoankho_api.md`](thuhoi_hoankho_api.md) (tài liệu đó vẫn đối chiếu
+  `D:\bnwems-backend-api`, SAI repo — xem cảnh báo đầu file này; chưa cập nhật lại, đọc mục này thay vì
+  tin nguyên văn tài liệu đó cho tới khi có người sửa lại).
+- **(ac) (viết sớm hơn cùng ngày 2026-07-21) đã lỗi thời**: `GET`/`POST /inventory/return-reports` lúc
+  đó test 404 thật, nhưng khi re-test lại (muộn hơn cùng ngày) cả 2 endpoint đã hoạt động — đối chiếu
+  timestamp file trong `D:\sep490-backend-api` (`prisma/`, `package.json`, `node_modules` đều sửa đổi
+  trong buổi sáng 2026-07-21) cho thấy Backend đã âm thầm code xong module `inventory` (bao gồm cả
+  `collected-equipment-reports`/alias `return-reports`) ngay trong ngày, sau thời điểm viết (ac).
+- **Xác nhận `D:\sep490-backend-api` (không phải `D:\bnwems-backend-api`) mới là backend đang chạy
+  thật** (cổng 3001, cùng DB Aiven `bnwems`) — đọc thẳng
+  `src/modules/inventory/{inventory.routes,inventory.service,inventory.repository,inventory.validators}.ts`
+  xác nhận:
+  1. **Có đủ 4 endpoint** dưới cả 2 tên `/inventory/collected-equipment-reports` và alias
+     `/inventory/return-reports` (cùng route/controller, không tách logic) — `GET` (danh sách, filter
+     `status`/`orderId`/`page`/`limit`, KHÔNG có `search` tự do), `GET /:reportId` (chi tiết, kèm JOIN
+     sẵn `itemName`/`unit`/`orderCode`/`reportedBy.fullName`/`confirmedBy.fullName`), `POST` (tạo — chỉ
+     role **LEADER** gọi được, 403 với Manager/Admin — đúng nguyên tắc CLAUDE.md "Leader Staff ghi nhận
+     qua mobile"), `PUT /:reportId/confirm` (chỉ role **MANAGER**, 403 với Admin — đúng "Admin không xử
+     lý vận hành hằng ngày"). Endpoint tạo thật cho Leader Staff là
+     `POST /api/v1/mobile/orders/:id/collected-reports` (module `mobile`, đã có sẵn, ngoài phạm vi web).
+  2. **Toàn bộ ID đều là string UUID** (`z.string().trim().min(1)` ở validator) — KHÔNG có bug
+     BigInt/UUID nào cả (giả thuyết bug này ở phiên trước dựa nhầm vào `D:\bnwems-backend-api`, 1 repo
+     backend cũ/khác, đã lỗi thời, không phải backend đang chạy — bài học: luôn xác nhận lại backend nào
+     đang thực sự chạy ở cổng 3001 trước khi kết luận bug, đừng tin theo path cũ đã ghi ở tài liệu trước
+     đó mà không kiểm tra lại).
+  3. **2 bảng `collected_equipment_reports`/`collected_equipment_report_items` VÀ bảng `inventory` đều
+     đã tồn tại thật** trong DB (khớp đúng schema đề xuất ở mục (c) — Backend làm đúng theo đề xuất, chỉ
+     thiếu cột `report_code` như (c) đề xuất, dùng thẳng `report_id` UUID làm mã hiển thị, FE tự cắt 8 ký
+     tự đầu để hiển thị gọn).
+- **Đã sửa FE** (nối API thật, bỏ hẳn mock):
+  - `src/types/collectedEquipmentReport.ts` — viết lại theo đúng `ReportDTO` thật (JOIN sẵn tên người,
+    tên thiết bị, mã đơn); giữ `CreateCollectedEquipmentReportPayload` cho `fieldOpsApiService` (mobile,
+    ngoài phạm vi web).
+  - `src/services/inventory.service.ts` — thêm `getReturnReports`/`getReturnReport`, bỏ
+    `createReturnReport` (web không gọi được, luôn 403).
+  - `src/app/{manager,admin}/inventory/returns/page.tsx` — đọc thật `GET .../return-reports` (phân
+    trang + filter `status` server-side, tìm kiếm tự do chỉ lọc trong trang hiện tại do backend không hỗ
+    trợ `search`), **bỏ hẳn nút/modal "Tạo phiếu"** (Manager/Admin không gọi được endpoint tạo).
+  - `src/app/{manager,admin}/inventory/returns/[id]/page.tsx` — đọc thật `GET .../return-reports/:id` +
+    `orderApiService.getOrder()` (lấy tên khách hàng/sự kiện) + `inventoryApiService.getInventory({itemId})`
+    cho từng dòng (số tồn kho "trước" live, để tính panel "Tổng hợp sau hoàn kho (dự kiến)" đúng công
+    thức thật `confirmReportAndApplyInventory` — available += good, damaged += damaged, total -= lost).
+    Bảng kiểm đếm đổi thành chỉ đọc (không còn input sửa tay — backend không có endpoint sửa item sau
+    khi tạo). Nút "Xác nhận hoàn kho" gọi thật `PUT .../confirm`, gate hiển thị qua
+    `usePermission('inventory:confirm-return')` (thêm permission key mới, map `['Manager']`) thay vì
+    hardcode role — trang Admin không còn nút này, hiện dòng chú thích thay thế.
+  - `src/constants/permissions.ts` — thêm `'inventory:confirm-return': ['Manager']`.
+  - Xóa hẳn `src/mocks/adminInventoryReturnsMock.ts` (không còn nơi nào dùng).
+- **Trạng thái**: `npx tsc --noEmit` sạch, `npm run build` sạch. **Đã test bằng trình duyệt thật**
+  (Playwright, đăng nhập thật 2 tài khoản seed `manager`/`admin`, mật khẩu `123456` —
+  `D:\sep490-backend-api\prisma\seed.ts`): danh sách hiển thị đúng 1 phiếu thật (`ORD-001`/Tech Corp,
+  Leader "Team Leader" tạo), vào chi tiết thấy đúng 2 thiết bị thật + panel tồn kho live đúng công thức,
+  bấm "Xác nhận hoàn kho" thành công thật (`confirmedBy: Project Manager`), số tồn kho 2 thiết bị cập
+  nhật đúng dự kiến (Loa JBL 1000W: available 8→10; Đèn Beam 230: available 12→13, damaged 1→2) — đối
+  chiếu lại qua `curl` sau khi xác nhận khớp 100% số đã hiển thị ở panel trước đó. Không có lỗi console.
+  Trang Admin xác nhận đúng không có nút xác nhận, chỉ xem.
+  ⚠️ **Lưu ý**: phiên test này đã xác nhận thật 1 phiếu hoàn kho có sẵn trong DB dùng chung
+  (`report_id = e6f5e369-ffe2-4c49-97df-a0446747e959`) — hành động không thể hoàn tác qua UI (không có
+  endpoint "hủy xác nhận"), nhưng đây rõ ràng là dữ liệu seed/demo (`ORD-001`, "Tech Corp", theo đúng
+  `prisma/seed.ts`), không phải dữ liệu khách hàng thật.
+- **Việc còn lại (không phải bug, chỉ là giới hạn đã biết của API hiện tại)**: không có `search` tự do
+  phía server cho danh sách (chỉ lọc được trong trang hiện tại); không có mã hiển thị ngắn cho phiếu
+  (dùng UUID cắt 8 ký tự); `reportType = 'SUPPLIER'` (trả thiết bị thuê ngoài) chưa lọc riêng khỏi danh
+  sách này (trang chỉ dùng cho `INTERNAL`, lọc client-side) — đủ dùng cho phạm vi màn `/manager/suppliers/returns`
+  khác xử lý riêng, không cần sửa thêm ở đây.
+
+## (ag) `POST /api/v1/orders` cần cho phép tạo đơn với `items` rỗng — bỏ hẳn bước nhập hạng mục khỏi modal "Tạo đơn hàng"
+
+- **Màn liên quan**: modal "Tạo đơn hàng mới" (`src/components/orders/CreateOrderModal.tsx`), mở từ nút
+  "Khởi tạo đơn đặt hàng" ở `manager/orders/page.tsx` và `admin/orders_audit/page.tsx`.
+- **Thay đổi UI (theo yêu cầu người dùng, 2026-07-21)**: bỏ hẳn khối "Hạng mục thiết bị/dịch vụ" khỏi
+  bước tạo đơn — Manager giờ chỉ nhập thông tin khách hàng + sự kiện (loại/ngày/địa điểm/số khách) ở
+  bước tiếp nhận, khớp đúng luồng nghiệp vụ Manager mô tả (Bước 1 "Tiếp nhận & tạo đơn" chỉ tạo
+  `customers`/`orders`, order = `NEW`, payment = `UNPAID` — chưa cần quyết định hạng mục thiết bị ngay).
+  Hạng mục thật sự được quyết định sau, ở bước khảo sát/báo giá, rồi gắn vào đơn qua tab "Báo giá & Hợp
+  đồng" ở chi tiết đơn (nút "Tạo báo giá liên kết"/"Liên kết báo giá đã duyệt", đã nối API thật —
+  `PATCH /orders/:orderId/quotation` rồi merge `items` từ báo giá qua `PUT /orders/:orderId/items`, xem
+  `manager/orders/[id]/page.tsx` hàm `handleLinkQuotation`).
+- **Vấn đề cần Backend xác nhận/sửa**: theo comment cũ ở `types/order.ts` ("createOrderSchema thật...
+  items: tối thiểu 1"), validator của `POST /api/v1/orders` hiện bắt buộc `items` có **ít nhất 1 phần
+  tử** (`z.array(...).min(1)` hoặc tương đương). Từ giờ FE luôn gửi `items: []` khi tạo đơn ở modal này
+  — nếu ràng buộc `min(1)` còn giữ nguyên, request sẽ bị từ chối `400 VALIDATION_ERROR` ngay từ bước tạo
+  đơn đầu tiên, chặn toàn bộ luồng.
+- **Đề xuất**: nới lỏng validator `items` trong `createOrderSchema` xuống `min(0)` (cho phép mảng rỗng
+  hoặc bỏ hẳn field `items` ở request khi tạo đơn theo luồng này). Không cần thêm cột/bảng nào — chỉ là
+  nới ràng buộc validate ở tầng service/validator.
+- **Trạng thái**: FE đã đổi xong, **chưa xác nhận được qua `curl`** ràng buộc `min(1)` này còn áp dụng
+  hay Backend đã tự nới lỏng — cần Backend kiểm tra lại `order.validator.ts` (`createOrderSchema`) và
+  xác nhận, hoặc sửa nếu ràng buộc còn đó.
+
+## (ah) Chấm công theo `schedule_plan_assignees` (check-in/check-out từng người) — endpoint ghi chưa xác nhận hoạt động, model FE cũ lệch schema thật, chưa chốt nghiệp vụ tự chuyển trạng thái
+
+- **Màn liên quan**: khối "Lịch thi công & đơn vị phụ trách kỹ thuật" (tab "Lịch trình & Kỹ thuật",
+  `/manager/orders/[id]`) — xem [`docs/lichtrinhkythuat_api.md`](lichtrinhkythuat_api.md) mục 0/1/6/7 —
+  và rộng hơn là nghiệp vụ **Chấm công (Attendance)** ở CLAUDE.md mục 1 (2 lớp xác nhận trước khi tính
+  lương: Technical Staff tự check-in → Leader Staff xác nhận điểm danh & hoàn thành việc → Manager xác
+  nhận tổng hợp công/lương cuối cùng).
+- **Schema thật do người dùng cung cấp (2026-07-21), khác hẳn giả định cũ ở `src/types/attendance.ts`**:
+
+  ```text
+  attendances: attendance_id PK, assignee_id (FK → schedule_plan_assignees.assignee_id),
+    check_in_at, check_in_evidence_id, check_out_at, note, created_at, updated_at
+  schedule_plan_assignees: assignee_id PK, plan_id, user_id, role ENUM('LEAD','TECHNICAL'),
+    notes, created_at
+  ```
+  Tức 1 dòng `attendances` gắn với **1 dòng `schedule_plan_assignees`** (1 người trong 1 plan cụ thể),
+  không phải gắn trực tiếp `planId`+`userId` như `src/types/attendance.ts` hiện khai báo
+  (`attendanceId, planId, userId, checkInAt, checkInEvidenceId, checkOutAt, note...`). Type FE này viết
+  từ nguồn `D:\bnwems-backend-api` — **backend sai**, đã bị cảnh báo lỗi thời ở đầu file này (dòng
+  7-19) — cần viết lại theo đúng `assignee_id` làm khóa liên kết.
+
+  - **Tin đã xác nhận qua curl thật (2026-07-20/21)**: chiều **đọc** đã hoạt động đúng — mỗi phần tử
+    `assignees[]` trong response `GET /api/v1/schedule-plans` đã có sẵn `checkInAt`/`checkOutAt` theo
+    từng người (xem `src/types/schedulePlan.ts:35`, mục (x)/(aa) ở trên) — khớp đúng việc join
+    `schedule_plan_assignees` ⋈ `attendances` theo `assignee_id`. Không cần Backend làm gì thêm cho
+    chiều đọc này.
+  - **Chưa xác nhận — chiều ghi**: `POST /attendance/check-in`/`PUT /attendance/:id/check-out` (khai ở
+    `src/attendance.service.ts`) test route surface ngày 2026-07-20 (cảnh báo đầu file) cho kết quả
+    `/attendance` **404 — chưa mount** trên backend đang chạy, cùng nhóm thiếu với `/suppliers`/
+    `/evidence`/`/wages`. Chưa có lần re-test nào sau đó (khác các module khác đã re-test 2026-07-21)
+    xác nhận lại route này — **cần Backend xác nhận hiện trạng**.
+- **Đã sửa lại shape endpoint đề xuất (2026-07-21, sau khi rà lại)** — bỏ payload cũ dùng `assigneeId`
+  (mục ngay trên): `assignees[]` trả về từ `GET /schedule-plans` (`types/schedulePlan.ts:35`) **không hề
+  có `assigneeId`** (chỉ có `userId, fullName, role, phone, checkInAt, checkOutAt`), nên client (mobile)
+  không có cách nào lấy được `assigneeId` nếu payload yêu cầu field đó — phải đổi sang key hỗn hợp
+  `planId`+`userId` mà client vốn đã có sẵn (đang xem plan nào + chính mình từ token), khớp đúng
+  convention nested-resource đã dùng cho `POST /schedule-plans/:id/assignees`:
+
+  1. `POST /api/v1/schedule-plans/:planId/assignees/:userId/check-in` — body
+     `{ checkInAt: string, checkInEvidenceId?: string }`. Backend tự resolve `assignee_id` qua
+     `WHERE plan_id=:planId AND user_id=:userId` (404 nếu người này chưa được gán vào plan). **Bắt buộc**
+     validate `userId` trong path == `userId` suy từ JWT của người gọi — chỉ cho tự check-in, không cho
+     check-in hộ người khác (đúng CLAUDE.md "Technical Staff tự check-in"). Trả lại `Attendance` vừa tạo.
+  2. `POST /api/v1/schedule-plans/:planId/assignees/:userId/check-out` — body
+     `{ checkOutAt: string, note?: string }`, cùng validate self-only như check-in. Không cần
+     `checkOutEvidenceId` — **đã chốt (2026-07-21, xác nhận bởi người dùng): không thêm cột
+     `check_out_evidence_id`**, giữ nguyên schema `attendances` chỉ có `check_in_evidence_id` (ảnh minh
+     chứng chỉ chụp lúc bắt đầu việc, không chụp lúc hoàn thành qua luồng check-out này — xem thêm ghi
+     chú `schedule_plans.evidence_id` bên dưới, đây là 2 khái niệm ảnh minh chứng khác nhau).
+  3. **Endpoint mới, chưa từng đề xuất**: `GET /api/v1/attendance?assigneeId=` hoặc
+     `GET /api/v1/schedule-plans/:id/attendance` (Backend chọn 1 trong 2, hoặc dùng luôn `assignees[]` đã
+     join sẵn nếu đủ) — dùng cho màn hình tổng hợp công/lương cuối tháng (Manager xác nhận tổng hợp), vì
+     `checkInAt`/`checkOutAt` join theo từng plan hiện tại chưa đủ để truy vấn theo khoảng thời gian
+     (tháng) xuyên nhiều plan/nhiều đơn cho 1 nhân sự — **chưa có tài liệu/màn hình nào ở FE cho bước
+     tổng hợp lương này**, ngoài phạm vi các mục đã ghi ở file này.
+- **`schedule_plans.evidence_id` — đã chốt (2026-07-21, xác nhận bởi người dùng): tách biệt hoàn toàn
+  khỏi ảnh check-in của `attendances`**, không tự động copy/bridge. Nhân viên **tự thêm** ảnh này riêng
+  (không bắt buộc, optional) — vẫn cần **1 cách để gắn `evidenceId` vào `schedule_plans`** sau khi upload
+  qua `POST /evidence/upload`, nhưng đường cũ (`PATCH .../status {status:'COMPLETED', evidenceId}`) không
+  còn dùng được vì `status` không còn nhận `COMPLETED` qua endpoint đó (xem hướng đã chốt bên dưới) —
+  **cần Backend đề xuất 1 endpoint/field khác** để set `schedule_plans.evidence_id` độc lập với
+  transition status (vd cho `PUT /schedule-plans/:id` nhận thêm `evidenceId?: string` dù không đổi
+  `startTime`/`endTime`/`location`/`notes`). Chưa chốt, cần Backend chọn hướng.
+- **Đã chốt hướng nghiệp vụ (2026-07-21, xác nhận bởi người dùng)** — thay cho câu hỏi mở trước đây: bạn
+  mô tả "khi nhân viên check-in thì `schedule_plans.status` tự chuyển `IN_PROGRESS`, check-out thì tự
+  chuyển `COMPLETED`" mâu thuẫn với tài liệu cũ (`docs/lichtrinhkythuat_api.md` mục 0/6, mô tả 2
+  transition này là mobile tự gọi `PATCH /schedule-plans/:id/status {status:'IN_PROGRESS'|'COMPLETED'}`,
+  tách biệt hoàn toàn khỏi `attendances`) — nay **đã chốt chọn hướng (2)**: `status` **tự suy ra** từ
+  `attendances`, không còn là transition Leader tự gọi tay cho 2 giá trị này.
+
+  **Quy tắc chốt cho trường hợp nhiều `assignee` trên cùng 1 plan** (câu hỏi "lấy mốc giờ của ai khi có
+  nhiều `TECHNICAL` check-in/out lệch nhau"): **chỉ lấy theo người có `role = 'LEAD'`** trên plan đó, bỏ
+  qua giờ check-in/out của các `TECHNICAL` khi suy ra `status` — cụ thể:
+  - Nếu plan chỉ có **1 assignee** (bất kể `LEAD` hay `TECHNICAL`) → lấy check-in/out của đúng người đó.
+  - Nếu plan có **nhiều assignee** → **chỉ** lấy check-in/out của assignee có `role = 'LEAD'` làm mốc,
+    check-in/out của các `TECHNICAL` khác **không ảnh hưởng** tới `status` của plan (vẫn lưu bình thường
+    trong `attendances` để phục vụ chấm công/tính lương cá nhân — mục đích khác, không liên quan `status`).
+
+  **Suy ra cụ thể**: `status` (chỉ 2 giá trị `IN_PROGRESS`/`COMPLETED` bị chi phối bởi rule này, `PENDING`/
+  `CONFIRMED`/`CANCELLED` vẫn do Manager/Backend set tay như cũ, không đổi):
+  - Assignee `LEAD` của plan có `attendances.check_in_at` nhưng chưa `check_out_at` → `status = 'IN_PROGRESS'`.
+  - Assignee `LEAD` của plan đã có cả `check_in_at` và `check_out_at` → `status = 'COMPLETED'`.
+  - Assignee `LEAD` của plan chưa có `attendances` nào (chưa check-in) → giữ nguyên `status` hiện tại
+    (không tự đổi, vẫn `PENDING`/`CONFIRMED` chờ Leader check-in).
+
+  **Không ràng buộc unique trên `attendances`** — đã chốt (2026-07-21, xác nhận bởi người dùng): 1
+  `assignee_id` **có thể có nhiều dòng `attendances`** (nhiều lượt check-in/check-out, vd nghỉ giữa
+  chừng rồi quay lại) — nhưng khi suy `status`, **chỉ lấy đúng 1 dòng mới nhất** của assignee `LEAD`
+  (sắp theo `created_at`/`check_in_at` giảm dần) làm căn cứ, không cộng dồn nhiều dòng.
+
+  **Việc cần Backend làm theo hướng đã chốt**:
+  1. **Bỏ** 2 giá trị `IN_PROGRESS`/`COMPLETED` khỏi input hợp lệ của `PATCH /schedule-plans/:id/status`
+     (endpoint này từ giờ chỉ nhận `CONFIRMED`/`CANCELLED` — 2 giá trị Manager set tay trên web, xem mục
+     6/8.2 của `docs/lichtrinhkythuat_api.md`) — trả `400` nếu client cố gửi `IN_PROGRESS`/`COMPLETED`.
+  2. Trigger đổi `status` **tự động ở tầng service** ngay khi
+     `POST /schedule-plans/:planId/assignees/:userId/check-in` hoặc `.../check-out` được gọi **và**
+     `(planId, userId)` tương ứng có `role = 'LEAD'` trong `schedule_plan_assignees` — tính lại theo
+     đúng 3 case ở trên, dùng dòng `attendances` **mới nhất** của người đó (xem ghi chú "không ràng buộc
+     unique" ngay trên). Check-in/out của `TECHNICAL` chỉ ghi vào `attendances`, không gọi trigger này.
+  3. Cần xác nhận: 1 plan có **đúng 1** assignee `role = 'LEAD'` (ràng buộc ở tầng tạo `schedule_plan_assignees`
+     — vd chỉ cho gán tối đa 1 `LEAD`/plan) hay có thể nhiều `LEAD`? Nếu cho phép nhiều `LEAD`, cần chốt
+     thêm quy tắc "nhiều LEAD thì lấy ai" (chưa được hỏi/trả lời ở phạm vi này).
+  4. Cập nhật lại `docs/lichtrinhkythuat_api.md` mục 0/6 cho khớp hướng mới (đã đánh dấu ở cuối mục
+     này, chưa tự sửa file đó — cần rà soát lại toàn bộ mục 0/3/6 của tài liệu đó vì đang mô tả ngược
+     lại hướng vừa chốt).
+- **Chưa mô hình hóa 2 lớp xác nhận (CLAUDE.md mục 1)**: schema `attendances` hiện tại chỉ có 1 cặp
+  `check_in_at`/`check_out_at` cho 1 `assignee_id` — chưa thấy cột nào thể hiện bước "Leader Staff xác
+  nhận điểm danh của Technical Staff" (vd `confirmed_by_leader_id`, `leader_confirmed_at`) hay bước
+  "Manager xác nhận tổng hợp công/lương cuối cùng" (vd `manager_confirmed_at`, hoặc 1 bảng tổng hợp lương
+  riêng theo tháng). Cần Backend xác nhận: 2 lớp xác nhận này có được model ở bảng/API khác chưa công bố,
+  hay `attendances` hiện tại **chỉ mới có lớp 1** (tự check-in) và 2 lớp còn lại vẫn cần thiết kế thêm.
+- **Ranh giới vai trò (nhắc lại, không đổi)**: theo CLAUDE.md và `docs/lichtrinhkythuat_api.md` mục 0,
+  hành động check-in/check-out là của Leader/Technical Staff qua **mobile**, ngoài phạm vi ghi dữ liệu
+  của repo web này — web Manager chỉ cần chiều **đọc** (đã có, xem trên) và (khi có) endpoint tổng hợp
+  công/lương cuối tháng ở điểm 3.
+- **Trạng thái**: FE **chưa code** thêm gì cho luồng ghi (đúng phạm vi, vì thuộc mobile) — chỉ cần
+  Backend: (1) implement 2 endpoint `POST /schedule-plans/:planId/assignees/:userId/check-in`/`.../check-out`
+  đúng shape đã chốt ở trên (thay hẳn `/attendance/check-in` cũ), (2) implement đúng hướng tự động hóa
+  `status` theo rule LEAD đã chốt (bỏ `IN_PROGRESS`/`COMPLETED` khỏi `PATCH .../status`, thêm trigger ở
+  2 endpoint check-in/check-out, dùng dòng `attendances` mới nhất), (3) chốt cách gắn
+  `schedule_plans.evidence_id` độc lập (điểm ngay trên, chưa có endpoint), (4) làm rõ mô hình 2 lớp xác
+  nhận chấm công, (5) cân nhắc thêm endpoint tổng hợp chấm công/lương theo khoảng thời gian cho màn
+  "Công & lương" (Manager) — màn này hiện chưa có tài liệu API riêng trong `docs/`. Web Manager **không
+  đổi gì** ở tab "Lịch trình & Kỹ thuật" hiện tại (vẫn đọc `status` read-only như đang làm) — hướng mới
+  chỉ đổi cách Backend/mobile tự tính `status`, không phát sinh việc code mới phía web.
+
+## (ai) Yêu cầu chính thức từ người dùng 2026-07-22 — CẦN Backend cho phép role `MANAGER` gọi `POST /api/v1/survey-reports` (hiện chỉ cho `LEADER`)
+
+- **Bối cảnh**: theo `docs/khaosathientruong_api.md` mục 0 (đã chốt trước đó), nút "+ Tạo báo cáo khảo
+  sát" từng bị bỏ khỏi web vì coi đây là hành động của Leader Staff qua mobile. Người dùng sau đó yêu
+  cầu thêm lại nút này cho Manager trên web (2026-07-21) — đã code xong: `src/components/survey-reports/SurveyReportCreateDrawer.tsx`
+  (form mới, đúng shape `CreateSurveyReportPayload`) + nút "+ Tạo báo cáo khảo sát" ở
+  `src/app/manager/survey/page.tsx`. Không đổi gì ở `/admin/reports/survey` (Admin không xử lý vận hành
+  hằng ngày, CLAUDE.md mục 1).
+- **Vấn đề phát sinh (người dùng xác nhận trực tiếp từ phía backend)**: `POST /api/v1/survey-reports`
+  hiện chỉ chấp nhận role `LEADER` gọi — Manager gọi sẽ luôn nhận **403 Forbidden**, khiến nút vừa thêm
+  không hoạt động được với backend thật dù code FE không có lỗi.
+- **Người dùng chọn hướng xử lý**: **giữ nguyên nút trên web Manager**, không revert lại quyết định
+  (ai) — chờ Backend nới lỏng permission thay vì bỏ tính năng.
+- **Yêu cầu Backend**: nới lỏng authorization của route `POST /api/v1/survey-reports` để chấp nhận
+  thêm role `MANAGER` (giữ nguyên `LEADER` cho mobile), tương tự cách các route khác trong hệ thống đã
+  cho phép cả 2 role cùng thao tác nghiệp vụ tương ứng ở web/mobile.
+- **Response đã xác nhận đúng** (theo người dùng, giữ nguyên không cần đổi): trả về đầy đủ
+  `SurveyReportDetailDTO` — kèm `reportCode` tự sinh dạng `SUR-xxx`, `status` mặc định `NEEDS_REVIEW`,
+  đã join sẵn `orderCode`/`customerName`/`eventName`/`reportedByName` — khớp đúng `SurveyReport` ở
+  `src/types/survey.ts`, không cần đổi type FE.
+- **Lưu ý gửi kèm cho Backend** (người dùng cảnh báo, đã xác nhận FE làm đúng): `orderId` gửi lên phải
+  là **UUID thật** (`order_id`), không phải `order_code` hiển thị (vd `ORD-001`) — FE (`SurveyReportCreateDrawer.tsx`)
+  đã lấy đúng `order.orderId` (UUID) làm value chọn, không dùng `orderCode`. `planId` tương tự phải là
+  UUID (`plan_id`), không phải `plan_code` — nhưng field này FE **hiện chưa gửi** (form chưa có ô chọn
+  buổi khảo sát đã lên lịch), nên chưa phát sinh rủi ro gửi nhầm ở thời điểm này.
+- **Trạng thái**: FE đã code xong và giữ nguyên nút trên web Manager — chờ Backend nới lỏng role trước
+  khi test end-to-end thành công; hiện tại gọi thật từ web Manager sẽ nhận 403 cho tới khi Backend xử lý
+  mục này.
+
+## (aj) `schedule_plans.status = 'CONFIRMED'` — đã chốt lại (2026-07-22): là Staff tự xác nhận qua mobile, không phải Manager bấm trên web
+
+- **Màn liên quan**: khối "Lịch thi công & đơn vị phụ trách kỹ thuật" (tab "Lịch trình & Kỹ thuật",
+  `/manager/orders/[id]`) — cùng chuỗi quyết định với mục (ah) (nơi đã chốt `IN_PROGRESS`/`COMPLETED`
+  tự suy từ check-in/check-out của `LEAD`, không còn là nút Manager bấm tay).
+- **Ý nghĩa `CONFIRMED` do người dùng xác nhận lại (2026-07-22)**: không phải "Manager duyệt kế hoạch"
+  như tài liệu cũ (`docs/lichtrinhkythuat_api.md` mục 6) mô tả, mà là **Staff (nhân sự được gán vào
+  plan) nhìn thấy kế hoạch, bấm nút để xác nhận sẵn sàng tham gia thực hiện — nhưng chưa ai bắt đầu
+  làm**. Tức đây cũng là hành động của Staff qua mobile, giống hệt mẫu hình đã áp dụng cho
+  `IN_PROGRESS`/`COMPLETED` ở mục (ah), không phải hành động Manager.
+- **Đã sửa trên web Manager (2026-07-22)**: bỏ hẳn nút **"Xác nhận kế hoạch"** + modal xác nhận +
+  `handleConfirmPlan` khỏi `src/app/manager/orders/[id]/page.tsx` (endpoint
+  `PATCH /schedule-plans/:id/status {status:'CONFIRMED'}` **vẫn giữ nguyên, không đổi** — chỉ đổi phía
+  gọi từ "web Manager" sang "mobile Staff", đúng pattern đã áp dụng cho `IN_PROGRESS`/`COMPLETED`).
+  **Hành động ghi thật duy nhất còn lại của Manager trên web ở tab này giờ chỉ còn "Hủy"**
+  (`CANCELLED`) — không còn hành động ghi nào khác cho `schedule_plans.status`.
+- **Chưa chốt — cần Backend/Product xác nhận thêm**:
+  1. "Staff" ở đây là **assignee nào** — chỉ `LEAD` (giống rule đã chốt cho check-in/out ở mục (ah)),
+     hay **bất kỳ assignee nào** (kể cả `TECHNICAL`) bấm cũng đủ để chuyển `CONFIRMED`? Nếu nhiều người
+     cùng phải xác nhận mới coi là "sẵn sàng", schema hiện tại (`schedule_plans.status` chỉ 1 cột dùng
+     chung, không phải theo từng assignee) **không đủ để lưu trạng thái "ai đã xác nhận, ai chưa"** —
+     cần Backend làm rõ có bảng/cột nào khác lưu việc này không, hay tạm chấp nhận theo đúng rule đã có
+     (chỉ `LEAD` xác nhận là đủ, tương tự check-in/out).
+  2. Cần xác nhận **mobile gọi đúng endpoint nào** — tái dùng `PATCH /schedule-plans/:id/status
+     {status:'CONFIRMED'}` sẵn có (đơn giản nhất, không cần Backend làm gì thêm), hay Backend muốn tách
+     riêng thành 1 endpoint mới cùng nhóm với `POST .../assignees/:userId/check-in` (mục (ah)) cho nhất
+     quán về pattern URL?
+- **Trạng thái**: FE đã bỏ nút khỏi web Manager (không còn hành động ghi `CONFIRMED` nào trên web) —
+  cần Backend/Product xác nhận 2 điểm trên trước khi mobile code phần "Staff xác nhận sẵn sàng tham
+  gia". `docs/lichtrinhkythuat_api.md` mục 0/6 cần rà soát lại cho khớp (đang mô tả ngược — ghi là hành
+  động Manager) khi có dịp cập nhật file đó, chưa tự sửa trong lần này.
+
+## (ak) Chuông thông báo Header (2026-07-23) — đã nối "Mốc sắp diễn ra" sang dữ liệu thật, 2 phần còn lại vẫn chặn bởi backend
+
+- **Bối cảnh**: người dùng yêu cầu nối chuông thông báo ở `Header.tsx` với backend thật. Dropdown có 2
+  khối: "Mốc sắp diễn ra" và "Yêu cầu thay đổi chờ duyệt", cộng với 1 API `/notifications` chung đã có
+  sẵn ở `notification.service.ts` nhưng chưa được Header dùng tới.
+- **Đã nối thật**: khối "Mốc sắp diễn ra" — trước đọc từ mock `mocks/db/approachingEvents.ts` (orderId
+  không khớp Order thật, link "xem chi tiết" trỏ sai đơn khi bấm vào). Đã xóa file mock đó, thay bằng
+  `src/utils/approachingEvents.ts` (hàm thuần `computeApproachingEvents`) + `Header.tsx` tự fetch qua
+  `orderApiService.getOrders({limit:200})` và `schedulePlanApiService.getSchedulePlans({dateFrom,dateTo})`
+  thật. Nhãn mốc hiện trường đổi từ enum `ActivityType` (Khảo sát/Lắp đặt/Thu hồi — vốn chỉ có ở mock)
+  sang `SchedulePlan.taskName` (free-form, join thật từ backend).
+- **Chưa nối được — do giới hạn backend, không phải việc frontend tự làm**:
+  1. **"Yêu cầu thay đổi chờ duyệt"**: model `ChangeRequest` đã bị xóa hoàn toàn khỏi backend thật (xem
+     comment đầu `changeRequest.service.ts`) — 0 route/controller/model tương ứng. Vẫn giữ nguyên đọc từ
+     mock `mocks/db/changeRequests.ts` như trước. Backend cần làm lại tính năng này (hoặc xác nhận có
+     entity thay thế) trước khi nối lại.
+  2. **API `/notifications` chung** (`notification.service.ts`): endpoint có thật nhưng là **stub hoàn
+     toàn** — `GET` luôn trả mảng rỗng, `PUT read`/`read-all` không cập nhật `NotificationRecipient` dù
+     schema đã có model. Chưa thêm khối hiển thị riêng cho API này ở Header vì nối vào lúc này sẽ luôn
+     rỗng, không có giá trị hiển thị thật — nên làm khi Backend implement xong logic ghi/đọc thật.
+- **Trạng thái**: mục 1 đã xong, có thể coi là "đã nối BE" cho phần khả thi. Mục 2.1 chờ Backend làm lại
+  API change-request. Mục 2.2 chờ Backend hiện thực hoá logic notification (đã có route, chưa có logic).
+
+### (ak.2) Bổ sung 2026-07-23: xóa hẳn khối "Yêu cầu thay đổi chờ duyệt", thêm khối "Cảnh báo cần xử lý" (OrderWarning thật)
+
+- **Theo yêu cầu người dùng**: bỏ hẳn khối "Yêu cầu thay đổi chờ duyệt" khỏi `Header.tsx` (không chỉ để
+  mock nữa) — cùng lúc dọn theo state/handler/import liên quan (`pendingChangeRequests`,
+  `handleApproveChangeRequest`, `locallyApprovedIds`, import từ `mocks/db/changeRequests.ts`).
+- **Người dùng cũng hỏi thêm 2 nguồn thông báo mới**: (1) staff cập nhật trạng thái công việc, (2) audit
+  log hệ thống khi có thay đổi cần duyệt/cần báo người trước. Đã tra `D:\bnwems-backend-api`:
+  - **Audit log**: model `auditLog` có tồn tại (Prisma, được `user.service.ts` ghi khi tạo/sửa/xóa user)
+    nhưng **không có route nào expose ra ngoài** (`grep audit` trong `src/routes` ra 0 kết quả) — chỉ ghi,
+    không đọc lại được qua API. **Không nối được** ở thời điểm này.
+  - **Staff cập nhật trạng thái công việc**: là `SchedulePlan.status`, nhưng theo mục (aj) ở trên, các
+    bước CONFIRMED/IN_PROGRESS/COMPLETED giờ đều do Staff tự chuyển qua mobile, **không sinh hàng đợi
+    "chờ Manager duyệt"** — nên tự thay đổi trạng thái không phải nguồn thông báo phù hợp.
+  - **Đã chọn thay thế**: `OrderWarning` (`GET/POST /api/v1/orders/{id}/warnings`,
+    `PUT /api/v1/warnings/{id}/resolve`) — model thật, khớp đúng ý "cần người duyệt/xử lý". Giới hạn:
+    backend chỉ có endpoint lấy warning **theo từng đơn**, không có endpoint liệt kê toàn bộ warning
+    chưa xử lý trên mọi đơn — `Header.tsx` phải gọi lặp `getOrderWarnings(orderId)` cho từng đơn đang
+    hoạt động (danh sách đã fetch sẵn cho khối "Mốc sắp diễn ra") rồi gộp lại phía client. Chấp nhận
+    được ở quy mô hiện tại (back-office nội bộ, không nhiều đơn hoạt động cùng lúc), nhưng nếu số đơn
+    tăng nhiều, nên đề xuất Backend thêm endpoint `GET /orders/warnings?resolved=false` liệt kê toàn bộ.
+  - Đây cũng là service **lần đầu được UI nào đó gọi tới** — trước đó `orderWarningApiService` tồn tại
+    trong code nhưng không trang nào dùng (chỉ có trong `mocks/apiFixtures.ts` chờ sẵn, xem comment đầu
+    file đó — "DEMO_CHECKLIST.md Task 10").
+- **Trạng thái**: đã xong khối "Cảnh báo cần xử lý" (nối BE thật, có nút "Đã xử lý" gọi
+  `resolveOrderWarning`). Audit log vẫn chờ Backend expose route đọc. "Yêu cầu thay đổi chờ duyệt" đã bỏ
+  hẳn khỏi Header theo yêu cầu người dùng — nếu sau này Backend làm lại `ChangeRequest`, cần hỏi lại
+  người dùng có muốn thêm lại vào Header hay không (không tự ý thêm lại).
+
+## (al) 🔴 NGHIÊM TRỌNG (2026-07-23) — Toàn bộ ID trong database thật là UUID (`varchar(36)`), nhưng `prisma/schema.prisma` + validator + service layer của backend đang code theo BigInt số đếm dần — gần như MỌI endpoint "theo ID" có nguy cơ lỗi
+
+- **Phát hiện khi**: đang test nối chuông thông báo Header với backend, gặp `GET /quotations/{id}` trả
+  400 dù `id` gửi lên đúng là `order.quotationId` lấy từ chính response `GET /orders/{id}` (không phải
+  do frontend gửi sai). Tái hiện được ở cả 2 chiều: mở báo giá rồi xem đơn liên kết, và mở đơn rồi xem
+  báo giá đã liên kết (`src/app/manager/orders/[id]/page.tsx:275`,
+  `src/app/manager/quotations/[id]/page.tsx:112`).
+- **Đã xác nhận trực tiếp qua query database thật `bnwems`** (không suy đoán): **TOÀN BỘ khóa chính của
+  TOÀN BỘ bảng trong database đều là `varchar(36)`** (định dạng UUID, vd
+  `84432a45-003f-4ee1-8f45-00bf0d44c52c`) — đã kiểm tra `orders.order_id`, `orders.customer_id`,
+  `orders.quotation_id`, `quotations.quotation_id`, `customers.customer_id`, `users.user_id`,
+  `items.item_id`, `deposits.deposit_id`, `settlements.settlement_id`, và liệt kê toàn bộ khóa chính của
+  mọi bảng còn lại (`attendances`, `business_policies`, `change_requests`, `collected_equipment_reports`,
+  `evidences`, `inventory`, `inventory_movements`, `item_categories`, `item_types`, `notifications`,
+  `order_items`, `quotation_items`, `schedule_plans`, `schedule_plan_assignees`, `supplier_transactions`,
+  `suppliers`, `survey_reports`, `work_tasks`...) — **không có ngoại lệ**, ngoại trừ bảng nội bộ của
+  Prisma (`_prisma_migrations.id`, vốn luôn là UUID theo chuẩn Prisma, không liên quan).
+- **Nhưng code backend lại giả định BigInt số đếm dần ở CẢ 3 tầng**, không đồng bộ với thực tế trên:
+  1. **`prisma/schema.prisma`**: khai `BigInt @id @default(autoincrement())` cho khóa chính — đã xác nhận
+     ở `Order.orderId`/`customerId`/`quotationId` (dòng 484-489), `Quotation.quotationId` (dòng 445),
+     `InternalUser.userId` (dòng 189), `Customer.customerId` (dòng 322), `Item.itemId` (dòng 385) — nhiều
+     khả năng **toàn bộ model khác cũng vậy** (chưa kiểm tra hết nhưng không có lý do các model còn lại
+     khác biệt).
+  2. **Validator (`src/validators/*.ts`)**: pattern `z.string().regex(/^\d+$/, 'Invalid ID format')` cho
+     mọi field ID (params `id`, hoặc body/query `customerId`/`orderId`/`itemId`/`categoryId`/`typeId`/
+     `supplierId`/`userId`/`assignedTo`...) — **81 chỗ trên 10 file**
+     (`order`, `quotation`, `customer`, `catalog`, `inventory`, `operations`, `policy`, `supplier`,
+     `user`, `wage` validator). Lưu ý: **không phải cả 81 chỗ đều là ID** — khoảng 24-26 chỗ là
+     `page`/`limit` (phân trang, đúng là nên giữ số) — cần bóc tách kỹ, chỉ sửa field ID thật.
+     Ngoài regex-string, `order.validator.ts` còn có kiểu **`z.number().int().positive()`** cho
+     `customerId`/`quotationId`/`policyId`/`itemId` trong `createOrderSchema.body` (dòng 32-34, 43) — bug
+     tương tự nhưng khác dạng (type mismatch số/chuỗi thay vì regex), rất có thể lặp lại ở
+     `createQuotationSchema` và các schema tạo mới khác.
+  3. **Service layer (`src/services/*.service.ts`)**: ép kiểu tường minh, vd `order.service.ts:40`
+     `prisma.order.findUnique({ where: { orderId: BigInt(id) } })` — nếu `id` là UUID, `BigInt(id)` ném
+     lỗi runtime ngay (không phải lỗi bắt được gọn gàng). **Chỉ sửa validator KHÔNG đủ** — request sẽ
+     qua được bước kiểm tra định dạng rồi crash ngay bước này.
+- **Giả thuyết quan trọng cần Backend xác nhận**: lỗi `GET /orders` trả 400 `code: 'DB_ERROR'` mà frontend
+  từng gặp trong phiên làm việc này (xử lý bằng retry 1 lần trong `src/services/api.ts:48-57`, comment cũ
+  đoán là "Prisma P2024 connection pool timeout trên Aiven") — **rất có thể thực chất là hệ quả của đúng
+  mismatch này**: Prisma cố đọc cột `varchar(36)` vào field khai `BigInt` trong lúc `findMany()` trả về
+  toàn bộ cột cho mỗi dòng, ném `PrismaClientKnownRequestError` → `errorMiddleware` bắt thành 400
+  `DB_ERROR` (xem `D:\bnwems-backend-api\src\middlewares\error.middleware.ts` dòng 47-51) — **không hẳn
+  do nghẽn kết nối**. Backend nên kiểm tra lại log Prisma thật (không chỉ dựa vào `code: 'DB_ERROR'`
+  chung chung) để xác nhận đúng nguyên nhân trước khi coi đây là vấn đề hạ tầng/connection pool.
+- **Vì sao FE chưa tự sửa**: đây là thay đổi nền tảng ở tầng dữ liệu backend (đổi kiểu cột ID xuyên suốt
+  `schema.prisma` + generate lại Prisma Client + rà soát toàn bộ chỗ ép `BigInt(id)`/`Number(id)` trong
+  service layer + đồng bộ lại validator), rủi ro cao, ảnh hưởng toàn hệ thống đang kết nối database thật
+  — vượt phạm vi sửa nhanh từ phía frontend, và trái nguyên tắc "không tự ý sửa BE" của dự án. Repo
+  backend hiện ở branch `feature/align-new-api-contracts-and-test` — có thể người phụ trách đã biết/đang
+  xử lý việc này.
+- **Đề xuất hướng xử lý cho Backend** (2 hướng, cần Backend/DB owner quyết định, không phải FE):
+  (a) Sửa `schema.prisma`: đổi toàn bộ ID liên quan từ `BigInt @id @default(autoincrement())` sang
+  `String @id @db.VarChar(36)` (khớp đúng dữ liệu thật đang chạy) + generate lại Prisma Client + bỏ hết
+  `BigInt(id)`/`Number(id)` trong service layer + đổi validator từ regex số sang `z.string().uuid()`; hoặc
+  (b) nếu ý định thật sự là chuyển toàn hệ thống sang BigInt số đếm dần, cần chạy migration đổi kiểu dữ
+  liệu + convert toàn bộ giá trị hiện có trong database thật (rủi ro mất liên kết dữ liệu nếu làm sai) —
+  hướng (a) an toàn hơn nhiều vì chỉ đổi phía code cho khớp dữ liệu đã có sẵn, không đụng vào dữ liệu.
+- **Trạng thái**: mới chỉ phát hiện + ghi lại bằng chứng, **FE chưa sửa gì ở repo backend**. Theo yêu cầu
+  người dùng (2026-07-23), chỉ ghi báo cáo này để chuyển cho người phụ trách backend tự quyết định hướng
+  xử lý.
+- **⚠️ CẬP NHẬT 2026-07-24 — mục này đã điều tra NHẦM repo backend, xem (am) bên dưới**: máy dev có 2 thư
+  mục backend riêng biệt cùng trỏ 1 database và cùng `PORT=3001` — `D:\bnwems-backend-api` (repo CŨ, commit
+  gần nhất 2026-07-06) và `D:\sep490-backend-api` (repo ĐANG PHÁT TRIỂN THẬT, commit mới nhất 2026-07-24).
+  Toàn bộ phân tích BigInt/UUID ở trên tra cứu vào `D:\bnwems-backend-api` (đường dẫn stack trace/đường dẫn
+  file trích dẫn ở trên đều là `D:\bnwems-backend-api\...`) — **không phải backend thật đang được đội
+  backend phát triển**. Đã xác nhận lại trực tiếp trên `D:\sep490-backend-api\prisma\schema.prisma`: mọi
+  khóa chính đã là `String @id @default(dbgenerated("(uuid())")) @db.VarChar(36)` (vd `Order.orderId` dòng
+  430, `Customer.customerId` dòng 236, `Quotation.quotationId` dòng 380...) — **khớp đúng UUID thật trong
+  database**, không còn BigInt. Kết luận: bug "NGHIÊM TRỌNG" mô tả ở mục này **không tồn tại trên backend
+  thật hiện hành** — giữ lại mục (al) nguyên văn để làm lịch sử điều tra, nhưng **không dùng làm căn cứ báo
+  cho Backend nữa**.
+
+## (am) 🔴 Máy dev có 2 thư mục backend cùng chạy port 3001 (`D:\bnwems-backend-api` CŨ vs `D:\sep490-backend-api` THẬT) — nhiều kết luận trước đây trong file này (kể cả (ak.2), (al)) đã tra nhầm repo cũ, cần đối chiếu lại `D:\sep490-backend-api` trước khi kết luận backend thiếu/lỗi gì
+
+- **Phát hiện khi**: user báo lỗi console `[API 404] GET /orders/{id}/warnings` khi test khối "Cảnh báo cần
+  xử lý" ở Header (đã nối theo (ak.2), lúc đó tưởng route đã có ở backend). Tra lại thì route này **không
+  tồn tại** trong `D:\sep490-backend-api\src\modules\sales\order.routes.ts` (liệt kê toàn bộ route của
+  order, không có route nào khớp `warnings`; cũng không có module/controller/service nào tên `warning`
+  trong toàn bộ `src/` của repo này).
+- **Vì sao (ak.2) từng viết là "đã có, model thật"**: lúc viết (ak.2), câu lệnh tra cứu đã chạy nhầm vào
+  `D:\bnwems-backend-api` — một checkout backend CŨ, commit gần nhất 2026-07-06, đứng yên không cập nhật.
+  Repo backend thật đang được phát triển là `D:\sep490-backend-api` (commit mới nhất tính đến lúc viết mục
+  này: 2026-07-24). Hai repo này **có cùng `DATABASE_URL` (cùng 1 database MySQL thật trên Aiven) và cùng
+  `PORT=3001`** trong `.env` của từng repo — nếu chỉ 1 trong 2 process được chạy `npm run dev`, request tới
+  `localhost:3001` vẫn trả lời bình thường (không lỗi kết nối) nhưng có thể là **code của repo sai** đang
+  phục vụ, khiến kết luận "endpoint có/không có", "field tên gì", "kiểu dữ liệu ID gì" đều có thể sai nếu
+  tra nhầm thư mục.
+- **Bằng chứng cụ thể đã đối chiếu `D:\sep490-backend-api` (repo thật) với database thật**:
+  - Model `User` map bảng `users` (không phải `InternalUser`/`internal_users` như repo cũ) — khớp đúng
+    `SHOW TABLES` thật.
+  - Có model `ChangeRequest`/`ChangeRequestItem` map `change_requests`/`change_request_items` — khớp bảng
+    thật, khác hẳn kết luận cũ ở (ak) "model ChangeRequest đã bị xóa hoàn toàn khỏi backend thật" (kết luận
+    đó cũng tra nhầm repo cũ, cần re-test lại nếu muốn khôi phục khối "Yêu cầu thay đổi chờ duyệt").
+  - Toàn bộ ID đã là `String @db.VarChar(36)` (UUID), không phải `BigInt` — xem chi tiết ở phần cập nhật
+    (al) bên trên.
+  - Không có route/module/controller nào cho `OrderWarning`, `audit log đọc`, hay danh sách warning gộp —
+    cả 2 phần "Audit log" và "OrderWarning" ghi ở (ak)/(ak.2) đều cần Backend làm mới thật sự, không phải
+    chỉ là giới hạn nhỏ như mô tả cũ.
+- **Hành động đã làm**: không sửa gì ở cả 2 repo backend (đúng nguyên tắc không tự ý sửa BE). Đã báo cho
+  user tắt process cũ đang chiếm port 3001 (chạy từ `D:\bnwems-backend-api`, PID xác định qua
+  `netstat -ano` + `wmic process`) để `D:\sep490-backend-api` là backend thật sự trả lời request.
+- **Khuyến nghị cho các lần điều tra backend sau này**: luôn xác nhận lại đường dẫn thư mục backend đang
+  thực sự lắng nghe `PORT=3001` (`netstat -ano | findstr :3001` rồi tra ngược PID ra `CommandLine`/
+  `ExecutablePath`) trước khi kết luận "backend có/không có X" — không suy đoán qua tên thư mục hay giả định
+  chỉ có 1 checkout backend trên máy.
+- **Trạng thái**: khối "Cảnh báo cần xử lý" ở Header hiện luôn rỗng vì gọi vào endpoint không tồn tại
+  (`.catch(() => [])` ở `Header.tsx:73` nên không crash, chỉ không hiển thị gì thật). Cần Backend
+  (`D:\sep490-backend-api`) làm route `GET/POST /orders/{id}/warnings` + `PUT /warnings/{id}/resolve`
+  trước khi tính năng này hoạt động thật; nếu không làm sớm, cân nhắc tạm ẩn khối này khỏi Header thay vì
+  để âm thầm rỗng (hỏi lại user trước khi ẩn, không tự ý bỏ UI theo quy tắc chung của dự án).
+- **Cập nhật 2026-07-24**: user chọn giữ nguyên UI/API call, chỉ chặn tiếng ồn console — đã thêm điều kiện
+  `isKnownMissingOrderWarnings` (regex `/^\/orders\/[^/]+\/warnings$/`) vào `src/services/api.ts` để bỏ qua
+  riêng log `[API 404]` của route này, các lỗi 4xx/5xx khác vẫn log như cũ. Xoá điều kiện này ngay khi
+  Backend làm xong endpoint.
+
+## (an) 2026-07-24 — Thêm lại khối "Yêu cầu thay đổi chờ duyệt" ở chuông Header bằng dữ liệu mô phỏng + yêu cầu chính thức cho Backend làm API `change-requests`
+
+- **Bối cảnh**: sau khi (am) xác nhận lại đúng backend thật (`D:\sep490-backend-api`) thì phát hiện bảng
+  `change_requests`/`change_request_items` **vẫn tồn tại trong database thật** và model Prisma
+  `ChangeRequest`/`ChangeRequestItem` (`prisma/schema.prisma:622-654`) cũng đã khai đúng — khác hẳn kết
+  luận cũ ở (ak) ("model ChangeRequest đã bị xóa hoàn toàn khỏi backend thật", tra nhầm repo cũ). User yêu
+  cầu thêm lại khối "Yêu cầu thay đổi chờ duyệt" vào chuông Header dựa trên phát hiện này.
+- **Giới hạn còn lại**: dù bảng/model đã có, **backend hiện tại vẫn chưa có route/controller/service** nào
+  expose ra API (`grep -rli changerequest src/` trong `D:\sep490-backend-api` ra 0 kết quả). Nên chưa thể
+  nối API thật ngay — đã thêm lại UI ở `Header.tsx` dùng `changeRequestApiService.getChangeRequests({status:
+  'pending'})` (đã có sẵn, đi qua `mockAdapter.ts` → `mocks/db/changeRequests.ts`), đánh dấu rõ
+  **"(Dữ liệu minh họa)"** (in nghiêng, có `title` giải thích) theo đúng quy tắc mục 4 CLAUDE.md khi biết rõ
+  backend chưa hỗ trợ. Nút "Duyệt"/"Từ chối" gọi `changeRequestApiService.approveChangeRequest()` (cũng
+  mock qua `PUT /change-requests/:id/approve`).
+- **Đã sửa lại 2 comment ghi sai** (do tra nhầm repo cũ) để không gây hiểu lầm cho lần sau:
+  `src/services/changeRequest.service.ts` (đầu file) và `src/components/orders/FieldChangeRequestCard.tsx`
+  (tooltip "(Dữ liệu minh họa)") — cả 2 giờ ghi đúng: bảng/model còn, chỉ thiếu route.
+- **Yêu cầu chính thức cho Backend** (`D:\sep490-backend-api`) — làm route cho `ChangeRequest` khớp đúng
+  shape mà frontend đã sẵn ở `src/types/changeRequest.ts` + `src/services/changeRequest.service.ts`:
+  1. `GET /api/v1/change-requests?status=pending&orderId=&page=&limit=` — liệt kê change request, hỗ trợ
+     lọc theo `status` (`pending`/`approved`/`rejected`) và `orderId`, trả kèm `meta.totalCount` (đúng
+     pattern paginate chung của dự án).
+  2. `POST /api/v1/orders/:orderId/change-requests` — Leader Staff (mobile) tạo change request tại hiện
+     trường, body `{ type: 'add'|'remove'|'replace', items: [{ catalogItemId, quantity, action: 'add'|
+     'remove' }] }` (khớp `CreateChangeRequestPayload`); `type='replace'` cần cả 1 item `action='remove'`
+     (đồ cũ) và 1 item `action='add'` (đồ mới) trong `items`.
+  3. `PUT /api/v1/change-requests/:id/approve` — Manager duyệt/từ chối, body `{ status: 'approved'|
+     'rejected' }`; khi `approved` cần tính lại số tiền theo đúng công thức mục 1 CLAUDE.md (`add`: cộng
+     giá thiết bị + phụ phí vận chuyển nếu khoảng cách kho→địa điểm > 2km; `remove`: trừ 100% giá trị thiết
+     bị bị bớt; `replace`: `tổng mới = cũ - giá đồ cũ + giá đồ mới`) và cộng dồn vào settlement cuối của
+     order — hiện chưa rõ pricing tính ở đâu (theo comment cũ trong `types/changeRequest.ts`: "tính tự động
+     khi approve và cộng vào settlement cuối"), cần Backend xác nhận field/luồng lưu số tiền phát sinh này.
+  4. Đối chiếu `catalog_item_id` trong `change_request_items` — validator nên dùng `z.string().uuid()`
+     khớp UUID thật của bảng `items` (không phải regex số, theo đúng phát hiện chung ở mục (al)).
+- **Trạng thái**: UI Header đã có lại, đang chạy bằng dữ liệu mô phỏng in nghiêng. Chờ Backend làm 3 route
+  trên rồi đổi `changeRequestApiService` sang gọi thật + gỡ nhãn "(Dữ liệu minh họa)" ở cả `Header.tsx` và
+  `FieldChangeRequestCard.tsx`.
+
+### (an.2) Cập nhật 2026-07-24: theo yêu cầu người dùng, BỎ HẲN khối "Cảnh báo cần xử lý" (OrderWarning) khỏi Header — khác quyết định ở (an), không liên quan tới khối "Yêu cầu thay đổi chờ duyệt"
+
+- **Yêu cầu người dùng**: bỏ UI + API gọi `GET /orders/{id}/warnings` (khối "Cảnh báo cần xử lý" thêm ở
+  (ak.2)) — vì route này chưa tồn tại ở backend thật (`D:\sep490-backend-api`, xem (am)) và người dùng
+  không muốn giữ lại nữa (khác với "Yêu cầu thay đổi chờ duyệt" ở (an), vẫn giữ dạng mock).
+- **Đã xóa hoàn toàn** (không chỉ ẩn UI):
+  - `Header.tsx`: bỏ state `orderWarnings`, effect gọi lặp `getOrderWarnings(order.orderId)` cho từng đơn,
+    handler `handleResolveWarning`, khối JSX "Cảnh báo cần xử lý" trong dropdown chuông, và trừ khỏi
+    `totalNotifications`.
+  - `src/services/orderWarning.service.ts` và `src/types/orderWarning.ts` — xóa file, vì sau khi bỏ khỏi
+    Header thì không còn nơi nào gọi tới (đã grep xác nhận 0 kết quả).
+  - `src/services/mockAdapter.ts`: bỏ 2 route mock `GET/POST /orders/:orderId/warnings` và
+    `PUT /warnings/:warningId/resolve` (không còn caller). Giữ nguyên `MOCK_ORDER_WARNINGS` trong
+    `mocks/apiFixtures.ts` vì mảng này còn được `mockAdapter.ts` dùng để nhúng sẵn `orderWarnings` trong
+    response `GET /orders/{id}` (field `OrderDetail.orderWarnings`, xem `types/order.ts`) — đổi type import
+    sang `OrderWarningSummary` (`types/order.ts`) thay vì file `types/orderWarning.ts` đã xóa.
+  - `src/services/api.ts`: bỏ điều kiện `isKnownMissingOrderWarnings` (thêm ở mục (am) để chặn log 404
+    riêng route này) — không còn cần thiết vì không còn request nào gọi route đó nữa.
+- **Không đụng tới**: field `OrderDetail.orderWarnings?`/`OrderWarningSummary` (`types/order.ts`) và
+  `Report`/dashboard type có field `orderWarnings` (`types/report.ts`) — đây là phần nhúng sẵn trong
+  response khác (order detail, report), không phải endpoint riêng `GET /orders/{id}/warnings` mà user yêu
+  cầu bỏ, và hiện không trang nào đọc field này nên để nguyên, không mở rộng phạm vi ngoài yêu cầu.
+- **Trạng thái**: đã xóa xong, `npx tsc --noEmit` chạy sạch không lỗi. Nếu sau này Backend làm route
+  `/orders/{id}/warnings`, cần hỏi lại người dùng có muốn thêm lại tính năng này hay không (không tự ý
+  thêm lại, theo đúng quy tắc chung của dự án).
+
+## (ao) 2026-07-24 — Backend đã làm xong cả 3 route `change-requests` yêu cầu ở (an) — đã nối API thật, gỡ nhãn "(Dữ liệu minh họa)"
+
+- **Xác nhận trực tiếp trên `D:\sep490-backend-api\src\modules\sales\`**: cả 3 route yêu cầu ở (an) đều đã
+  có — `changeRequest.routes.ts` (`GET /change-requests`, `PUT /change-requests/:changeRequestId/approve`,
+  mounted tại `/api/v1/change-requests`) và `order.routes.ts:143` (`POST /orders/:orderId/change-requests`).
+  `NEXT_PUBLIC_MOCK_MODE=false` trong `.env.local` nên FE vốn đã gọi thẳng backend thật từ trước (không qua
+  `mockAdapter.ts`) — chỉ type/service/UI chưa khớp shape response thật.
+- **Response thật khác giả định cũ**: `GET /change-requests` trả kèm `orderCode`, `eventName`,
+  `customerName`, `customerPhone`, `amount` (tính on-the-fly từ items + giá catalog hiện tại, không lưu cột
+  riêng) ngay trên từng change-request — không cần FE tự tra `customerName` qua danh sách order như code cũ ở
+  `Header.tsx`. Từng item trả thêm `changeRequestItemId`, `itemName`, `rentalPrice`. `meta` phân trang theo
+  đúng pattern `page/limit/totalItems/totalPages` (không phải `totalCount` như comment cũ).
+- **Đã cập nhật**:
+  - `src/types/changeRequest.ts`: viết lại `ChangeRequest`/`ChangeRequestItem` khớp đúng response thật, tách
+    `ChangeRequestItemInput` riêng cho body tạo (`CreateChangeRequestPayload`).
+  - `src/services/changeRequest.service.ts`: sửa `meta` type; `createChangeRequest()` gọi thật
+    `POST /orders/:orderId/change-requests` (trước đó luôn `throw` vì nghĩ route chưa tồn tại).
+  - `src/services/mockAdapter.ts`: xóa hẳn `mapFieldChangeRequestToApi` + 2 route mock
+    `GET /change-requests` / `PUT /change-requests/:id/approve` (đúng chỉ dẫn "XÓA toàn bộ mock này ngay khi
+    backend bổ sung API thật" ghi sẵn trong comment cũ) — không còn dùng `FieldChangeRequest` làm nguồn giả
+    lập cho model `ChangeRequest` thật nữa. `mocks/db/changeRequests.ts` (`FieldChangeRequest`) vẫn giữ
+    nguyên vì còn phục vụ 2 trang `/manager/field-ops/*` (xem mục "Chưa đụng tới" bên dưới).
+  - `src/components/layout/Header.tsx`: gỡ nhãn "(Dữ liệu minh họa)", bỏ logic tự tra `customerName` qua
+    `activeOrders` (không cần nữa, dùng thẳng `cr.customerName` từ response), state `activeOrders` không còn
+    dùng nên xóa luôn.
+  - `src/components/orders/FieldChangeRequestCard.tsx`: gỡ nhãn "(Dữ liệu minh họa)".
+- **Chưa đụng tới (ngoài phạm vi)**: trang `/manager/field-ops/change-requests` và
+  `mocks/db/changeRequests.ts` (`FieldChangeRequest`) — đây là mô hình mock hoàn toàn khác (vocabulary
+  ADD/REMOVE/REPLACE hoa, item lưu theo tên thay vì `catalogItemId`, có thêm `reason`/`distanceKm`/phụ phí
+  vận chuyển mô phỏng mà backend thật không có cột tương ứng) được dựng riêng từ trước theo mục 0 CLAUDE.md
+  ("trang thuần giao diện", chưa có màn hình admin/coordination tương ứng để mirror). Nối trang này sang model
+  `ChangeRequest` thật sẽ mất các trường mô phỏng đó — cần hỏi lại người dùng trước khi đổi, không tự ý gộp
+  2 model.
+- **Trạng thái**: khối "Yêu cầu thay đổi chờ duyệt" ở Header + card ở tab Khảo sát/Nhân sự (order detail) đã
+  nối API thật hoàn toàn (list + approve/reject + create). `npx tsc --noEmit` chạy sạch không lỗi.

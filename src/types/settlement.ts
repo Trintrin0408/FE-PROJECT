@@ -3,7 +3,10 @@
 // remainingAmount tự tính phía FE, không còn evidences[] lồng nhau.
 // Nguồn: D:\bnwems-backend-api prisma/schema.prisma (model Settlement), order.route.ts (GET/POST
 // theo orderId), settlement.route.ts (confirm theo settlementId), order.validator.ts.
-export type SettlementStatus = 'DRAFT' | 'AGREED' | 'REQUESTED' | 'PAID' | 'CONFIRMED';
+// Backend refactor 2026-07-26 (commit 4157a7f): rút gọn SettlementStatus từ DRAFT/AGREED/REQUESTED/
+// PAID/CONFIRMED xuống UNPAID/PAID/CANCELLED — `PUT /settlements/:id/confirm` giờ chỉ nhận literal
+// `status: 'PAID'` (khác giá trị cũ 'CONFIRMED').
+export type SettlementStatus = 'UNPAID' | 'PAID' | 'CANCELLED';
 
 // GET /api/v1/orders/:orderId/settlement — trả bản ghi mới nhất (settlementId desc) hoặc null nếu
 // chưa có settlement nào cho order này.
@@ -13,7 +16,7 @@ export interface Settlement {
   additionalFee: number;
   compensation: number;
   discount: number;
-  finalAmount: number; // server tự tính = totalAmount(Order) + additionalFee + compensation - depositAmount(SUCCESS) - discount
+  finalAmount: number; // server tự tính = totalAmount(Order) + additionalFee + compensation - depositAmount(PAID) - discount
   paymentMethod?: string;
   qrCodeUrl?: string;
   paidAt?: string;

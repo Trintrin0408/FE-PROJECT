@@ -1,7 +1,7 @@
-// docs/api/04-suppliers.md — ĐÃ LỖI THỜI sau đợt backend refactor 2026-07-06. SupplierTransaction
-// đã gộp thuê/mua qua field transactionType; paymentStatus tách riêng khỏi status vận hành.
-// Nguồn: D:\bnwems-backend-api prisma/schema.prisma (model SupplierTransaction/Item),
-// supplier-transaction.route.ts, supplier.validator.ts.
+// Xác nhận trực tiếp qua curl với backend thật (localhost:3001) ngày 2026-07-21 — GET
+// /api/v1/supplier-transactions?supplierId=X khớp đúng shape dưới đây, kể cả `orderCode` (join sẵn,
+// trước đó type thiếu field này). SupplierTransaction gộp thuê/mua qua field transactionType;
+// paymentStatus tách riêng khỏi status vận hành.
 
 export type SupplierTransactionType = 'RENTAL' | 'PURCHASE';
 export type SupplierTransactionStatus = 'PENDING' | 'APPROVED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
@@ -24,6 +24,7 @@ export interface SupplierTransaction {
   supplierId: string;
   supplierName?: string; // join thêm khi GET
   orderId: string;
+  orderCode?: string; // join thêm khi GET
   transactionType: SupplierTransactionType;
   serviceTitle: string;
   estimatedCost: number;

@@ -8,26 +8,29 @@ export interface GetChangeRequestsQuery {
   limit?: number;
 }
 
-// ===== MOCK-ONLY =====
-// Model ChangeRequest đã bị XÓA HẲN khỏi backend thật (0 kết quả grep "ChangeRequest" trong
-// D:\bnwems-backend-api) — không còn route/controller/service/model nào tương ứng. Theo quyết định
-// giữ UI + chuyển sang mock rõ ràng (xem docs/more-require.md mục mới nhất), service này gọi qua
-// `api` (chặn bởi mockAdapter.ts như mọi service khác — DEMO_CHECKLIST.md Task 20, trước đây gọi
-// riêng `fetch()` tới route handler Next.js `src/app/api/v1/change-requests/*` dùng
-// `src/mocks/seed.ts`, là cơ chế mock thứ 3 độc lập, đã xóa). XÓA toàn bộ mock này ngay khi backend
-// bổ sung lại API cho change-request.
+export interface ChangeRequestListMeta {
+  page: number;
+  limit: number;
+  totalItems: number;
+  totalPages: number;
+}
+
+// UC 2.27 — Backend đã bổ sung đủ 3 route theo đúng yêu cầu ở docs/more-require.md mục (an)
+// (`D:\sep490-backend-api\src\modules\sales\changeRequest.routes.ts` +
+// `order.routes.ts:143` cho route tạo).
 export const changeRequestApiService = {
   async getChangeRequests(params?: GetChangeRequestsQuery) {
     const response = await api.get('/change-requests', { params });
-    return response.data as { success: boolean; data: ChangeRequest[]; meta: { totalCount: number } };
+    return response.data as { success: boolean; data: ChangeRequest[]; meta: ChangeRequestListMeta };
   },
 
-  async createChangeRequest(_orderId: string, _payload: CreateChangeRequestPayload) {
-    throw new Error('Không có API tạo change-request — mục này chỉ dùng để mobile Leader Staff ghi nhận (ngoài phạm vi web).');
+  async createChangeRequest(orderId: string, payload: CreateChangeRequestPayload) {
+    const response = await api.post(`/orders/${orderId}/change-requests`, payload);
+    return response.data as { success: boolean; data: ChangeRequest };
   },
 
   async approveChangeRequest(id: string, status: 'approved' | 'rejected') {
     const response = await api.put(`/change-requests/${id}/approve`, { status });
-    return response.data;
+    return response.data as { success: boolean; data: ChangeRequest };
   },
 };

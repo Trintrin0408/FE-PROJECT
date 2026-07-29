@@ -5,11 +5,13 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
-  AlertCircle, Building, ChevronRight, Clock, Eye, FileText, Filter, Mail, MapPin,
+  AlertCircle, Building, Clock, Eye, FileText, Filter, Mail, MapPin,
   MoreHorizontal, Pencil, Phone, Search, ShoppingCart, User,
 } from 'lucide-react';
 import { Avatar } from '@/components/ui/Avatar';
+import { BackButton } from '@/components/ui/BackButton';
 import { Badge } from '@/components/ui/Badge';
+import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import { Pagination } from '@/components/ui/Pagination';
@@ -75,20 +77,21 @@ export default function AdminCustomerDetailPage() {
 
   return (
     <div className="p-6 print:p-0">
-      <div className="flex items-center gap-1.5 text-sm text-slate-400 print:hidden">
-        <span>Khách hàng</span>
-        <ChevronRight className="h-3.5 w-3.5" />
-        <Link href="/admin/customers" className="hover:text-blue-600 hover:underline">
-          Danh sách khách hàng
-        </Link>
-        <ChevronRight className="h-3.5 w-3.5" />
-        <span className="font-medium text-slate-600">{customer.customerId}</span>
-      </div>
+      <Breadcrumb
+        items={[
+          { label: 'Khách hàng' },
+          { label: 'Danh sách khách hàng', href: '/admin/customers' },
+          { label: customer.customerId },
+        ]}
+      />
 
       <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Chi tiết khách hàng</h1>
-          <p className="mt-1 text-sm text-slate-500">Theo dõi thông tin hồ sơ khách hàng, lịch sử giao dịch và danh sách đơn hàng liên quan.</p>
+        <div className="flex items-start gap-3">
+          <BackButton href="/admin/customers" />
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Chi tiết khách hàng</h1>
+            <p className="mt-1 text-sm text-slate-500">Theo dõi thông tin hồ sơ khách hàng, lịch sử giao dịch và danh sách đơn hàng liên quan.</p>
+          </div>
         </div>
         <div className="flex items-center gap-2 print:hidden">
           <Button onClick={() => setIsEditOpen(true)}>

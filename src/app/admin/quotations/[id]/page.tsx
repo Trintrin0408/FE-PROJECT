@@ -4,18 +4,30 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Check, CheckCircle2, ChevronRight, Copy, FileSignature, Mail, MapPin, Pencil, Phone, Printer, Trash2, X } from 'lucide-react';
+import type { AxiosError } from 'axios';
+import { Check, CheckCircle2, Copy, FileSignature, Mail, MapPin, Pencil, Phone, Printer, Trash2, X } from 'lucide-react';
+import { BackButton } from '@/components/ui/BackButton';
 import { Badge } from '@/components/ui/Badge';
+import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { formatDate } from '@/utils/formatDate';
 import { quotationApiService } from '@/services/quotation.service';
+import { inventoryApiService } from '@/services/inventory.service';
 import type { QuotationDetailApi, QuotationDetailItem } from '@/types/quotation';
+import type { InventoryRow } from '@/types/inventory';
 import { getAdminContracts } from '@/mocks/adminContractsMock';
 import CreateOrderFromQuotationModal from '@/components/quotations/CreateOrderFromQuotationModal';
+import QuotationCatalogPicker from '@/components/quotations/QuotationCatalogPicker';
 import { policyApiService } from '@/services/policy.service';
 import type { BusinessPolicy } from '@/types/policy';
+
+// unit là chuỗi tự do (types/policy.ts) — dữ liệu thật hiện seed "PERCENT" thay vì "%" cho policy tỉ lệ
+// phần trăm, chuẩn hóa lại cho dễ đọc thay vì hiển thị dính liền "50PERCENT".
+function formatPolicyUnit(unit: string): string {
+  return unit.trim().toUpperCase() === 'PERCENT' ? '%' : ` ${unit}`;
+}
 
 // Nối API thật theo docs/xemchitietbaogia_api.md — GET /quotations/:id thật đã trả sẵn ĐÚNG shape mở
 // rộng mà doc mục 5.1 đề xuất (customerEmail/customerAddress JOIN, createdBy object, linkedOrderId,
@@ -31,11 +43,12 @@ import type { BusinessPolicy } from '@/types/policy';
 // hiển thị dữ liệu bịa này (QuotationPicklistView, InventoryAvailabilityPanel, SurveyComparisonPanel)
 // và 2 hàm sinh dữ liệu tương ứng trong db/quotations.ts vì không còn nơi nào dùng.
 //
-// Sửa hạng mục inline: giữ lại (đổi/xóa số lượng, đơn giá, giảm giá của hạng mục ĐÃ có trong báo giá,
-// gọi PUT /quotations/:id thật) nhưng đã bỏ 2 cách "thêm dòng mới" cũ (nhập tay tự do + chọn nhanh từ
-// QUOTATION_CATALOGUE) vì cả 2 đều tạo dòng KHÔNG có itemId thật — vi phạm NOT NULL FK trên
-// quotation_items, cùng vấn đề đã chốt Hướng A ở docs/taobaogiamoi_api.md mục 3.1. Thêm hạng mục mới
-// cho báo giá đã tồn tại tạm thời ngoài phạm vi (cần màn hình chọn catalog giống modal Tạo báo giá mới).
+// Sửa hạng mục inline: đổi/xóa số lượng, đơn giá, giảm giá của hạng mục có sẵn + THÊM hạng mục mới từ
+// catalog thật (QuotationCatalogPicker, dùng chung với modal Tạo báo giá mới — mọi dòng thêm vào luôn
+// gắn itemId thật, đúng Hướng A đã chốt ở docs/taobaogiamoi_api.md mục 3.1), lưu qua PUT /quotations/:id
+// thật (gửi nguyên mảng items thay thế toàn bộ). Backend đã nới lỏng điều kiện sửa (xem
+// docs/more-require.md mục (ae.3)): chỉ còn chặn báo giá REJECTED hoặc có Order liên kết đã
+// COMPLETED/CANCELLED — các trạng thái khác (kể cả APPROVED đã gắn Order) đều sửa được.
 //
 // Cập nhật 2026-07-21: "Sinh đơn đặt từ báo giá" đã nối lại API thật — CreateOrderFromQuotationModal
 // viết lại nhận đúng QuotationDetailApi + gọi orderApiService.createOrder() thật (xem
@@ -56,8 +69,7 @@ const STATUS_LABEL: Record<QuotationDetailApi['status'], string> = {
 const ROLE_LABEL: Record<string, string> = {
   MANAGER: 'Quản lý',
   ADMIN: 'Quản trị viên',
-  LEADER: 'Leader Staff',
-  TECHNICAL: 'Technical Staff',
+  STAFF: 'Nhân viên',
 };
 
 interface EditableLineItem extends QuotationDetailItem {
@@ -80,6 +92,8 @@ export default function AdminQuotationDetailPage() {
   const [isEditingItems, setIsEditingItems] = useState(false);
   const [editItems, setEditItems] = useState<EditableLineItem[]>([]);
   const [editNotes, setEditNotes] = useState('');
+  const [catalogItems, setCatalogItems] = useState<InventoryRow[]>([]);
+  const [isLoadingCatalog, setIsLoadingCatalog] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
@@ -132,15 +146,18 @@ export default function AdminQuotationDetailPage() {
   }
 
   const canDelete = detail.status !== 'approved';
-  const canApproveReject = detail.status === 'draft';
+  // Đã liên kết đơn đặt (kể cả khi báo giá còn Bản nháp, do đơn có thể liên kết trực tiếp qua tab Báo
+  // giá & Hợp đồng) thì "Duyệt và sinh đơn đặt" không còn ý nghĩa — đơn đã tồn tại rồi.
+  const canApproveReject = detail.status === 'draft' && !detail.linkedOrderId;
   const canCreateOrder = detail.status === 'approved' && !detail.linkedOrderId;
 
-  const handleApprove = async () => {
+  const handleApproveAndCreateOrder = async () => {
     if (!canApproveReject || isUpdatingStatus) return;
     setIsUpdatingStatus(true);
     try {
       await quotationApiService.updateQuotationStatus(detail.quotationId, { status: 'approved' });
       load();
+      setIsCreateOrderOpen(true);
     } finally {
       setIsUpdatingStatus(false);
     }
@@ -195,8 +212,8 @@ export default function AdminQuotationDetailPage() {
     }
   };
 
-  // ---- Sửa hạng mục inline — chỉ sửa số lượng/đơn giá/giảm giá hoặc xóa dòng có sẵn, không thêm dòng
-  // mới (mọi hạng mục bắt buộc gắn itemId thật, xem giải thích đầu file) ----
+  // ---- Sửa hạng mục inline — sửa số lượng/đơn giá/giảm giá, xóa dòng, hoặc thêm dòng mới từ catalog
+  // thật (mọi hạng mục bắt buộc gắn itemId thật, xem giải thích đầu file) ----
   const startEditingItems = () => {
     setEditItems(
       detail.items.map((it) => ({
@@ -210,11 +227,50 @@ export default function AdminQuotationDetailPage() {
     setDetailPage(1);
     setSaveError(null);
     setIsEditingItems(true);
+    if (catalogItems.length === 0) {
+      setIsLoadingCatalog(true);
+      inventoryApiService
+        .getInventory({ limit: 200 })
+        .then((res) => setCatalogItems(res.data ?? []))
+        .catch(() => setCatalogItems([]))
+        .finally(() => setIsLoadingCatalog(false));
+    }
   };
 
   const updateEditItem = (quotationItemId: string, patch: Partial<EditableLineItem>) =>
     setEditItems((prev) => prev.map((it) => (it.quotationItemId === quotationItemId ? { ...it, ...patch } : it)));
   const removeEditItem = (quotationItemId: string) => setEditItems((prev) => prev.filter((it) => it.quotationItemId !== quotationItemId));
+  // Chọn trùng 1 hạng mục đã có trong bảng (cùng itemId) thì chỉ cộng dồn số lượng thay vì thêm dòng mới.
+  const addEditItemFromCatalog = (catalogItem: InventoryRow) =>
+    setEditItems((prev) => {
+      const existing = prev.find((it) => it.itemId === catalogItem.itemId);
+      if (existing) {
+        return prev.map((it) =>
+          it.quotationItemId === existing.quotationItemId
+            ? { ...it, quantityInput: String((Number(it.quantityInput) || 0) + 1) }
+            : it,
+        );
+      }
+      return [
+        ...prev,
+        {
+          // Dòng mới chưa tồn tại trên backend — quotationItemId tạm chỉ dùng làm React key/selector cục
+          // bộ, khi lưu chỉ gửi itemId/quantity/price/discount nên giá trị này không đi lên server.
+          quotationItemId: `new-${Date.now()}-${catalogItem.itemId}`,
+          itemId: catalogItem.itemId,
+          itemName: catalogItem.itemName ?? catalogItem.itemCode ?? catalogItem.itemId,
+          categoryName: catalogItem.categoryName ?? catalogItem.typeName ?? 'Khác',
+          unit: catalogItem.unit ?? 'Cái',
+          quantity: 1,
+          price: catalogItem.rentalPrice ?? 0,
+          discount: 0,
+          lineTotal: catalogItem.rentalPrice ?? 0,
+          quantityInput: '1',
+          priceInput: String(catalogItem.rentalPrice ?? 0),
+          discountInput: '0',
+        },
+      ];
+    });
 
   const editSubtotal = editItems.reduce((sum, it) => sum + (Number(it.priceInput) || 0) * (Number(it.quantityInput) || 0), 0);
   const editDiscountTotal = editItems.reduce((sum, it) => sum + (Number(it.discountInput) || 0), 0);
@@ -229,6 +285,10 @@ export default function AdminQuotationDetailPage() {
     setSaveError(null);
     try {
       await quotationApiService.updateQuotation(detail.quotationId, {
+        // Backend bắt buộc gửi kèm `version` ở mọi lần PUT (dù type cũ ghi "không dùng khi update") —
+        // thiếu field này sẽ luôn bị 400 VALIDATION_ERROR "expected string, received undefined". Gửi
+        // lại đúng version hiện tại của báo giá để không đổi version khi chỉ sửa hạng mục.
+        version: detail.version,
         notes: editNotes,
         items: editItems.map((it) => ({
           itemId: it.itemId,
@@ -239,8 +299,12 @@ export default function AdminQuotationDetailPage() {
       });
       setIsEditingItems(false);
       load();
-    } catch {
-      setSaveError('Lưu thay đổi thất bại. Vui lòng thử lại.');
+    } catch (err) {
+      // Backend vẫn còn 2 trường hợp chặn PUT (báo giá REJECTED, hoặc Order liên kết đã
+      // COMPLETED/CANCELLED — xem docs/more-require.md mục (ae.3)) và validate chiết khấu không được
+      // vượt giá trị dòng — hiện đúng nguyên văn lỗi thật từ backend thay vì thông báo chung chung.
+      const axiosError = err as AxiosError<{ message?: string; error?: { message?: string } }>;
+      setSaveError(axiosError.response?.data?.error?.message ?? axiosError.response?.data?.message ?? 'Lưu thay đổi thất bại. Vui lòng thử lại.');
     } finally {
       setIsSaving(false);
     }
@@ -248,25 +312,26 @@ export default function AdminQuotationDetailPage() {
 
   return (
     <div className="p-6 print:p-0">
-      <div className="flex items-center gap-1.5 text-sm text-slate-400 print:hidden">
-        <span>Báo giá</span>
-        <ChevronRight className="h-3.5 w-3.5" />
-        <Link href="/admin/quotations" className="hover:text-blue-600 hover:underline">
-          Danh sách báo giá
-        </Link>
-        <ChevronRight className="h-3.5 w-3.5" />
-        <span className="font-medium text-slate-600">{detail.quotationCode}</span>
-      </div>
+      <Breadcrumb
+        items={[
+          { label: 'Báo giá' },
+          { label: 'Danh sách báo giá', href: '/admin/quotations' },
+          { label: detail.quotationCode },
+        ]}
+      />
 
       <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold text-slate-900">Báo giá {detail.quotationCode}</h1>
-            <Badge variant={statusToBadgeVariant(detail.status)}>{STATUS_LABEL[detail.status]}</Badge>
+        <div className="flex items-start gap-3">
+          <BackButton href="/admin/quotations" />
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold text-slate-900">Báo giá {detail.quotationCode}</h1>
+              <Badge variant={statusToBadgeVariant(detail.status)}>{STATUS_LABEL[detail.status]}</Badge>
+            </div>
+            <p className="mt-1 text-xs font-medium text-slate-500">
+              Phiên bản: {detail.version} | Tạo bởi: {detail.createdBy.fullName} ({ROLE_LABEL[detail.createdBy.role] ?? detail.createdBy.role})
+            </p>
           </div>
-          <p className="mt-1 text-xs font-medium text-slate-500">
-            Phiên bản: {detail.version} | Tạo bởi: {detail.createdBy.fullName} ({ROLE_LABEL[detail.createdBy.role] ?? detail.createdBy.role})
-          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 print:hidden">
           {isEditingItems ? (
@@ -316,9 +381,9 @@ export default function AdminQuotationDetailPage() {
               )}
               {canApproveReject && (
                 <>
-                  <Button className="bg-green-600 hover:bg-green-700" onClick={handleApprove} isLoading={isUpdatingStatus}>
+                  <Button className="bg-green-600 hover:bg-green-700" onClick={handleApproveAndCreateOrder} isLoading={isUpdatingStatus}>
                     <CheckCircle2 className="h-4 w-4" />
-                    Phê duyệt báo giá
+                    Duyệt và sinh đơn đặt
                   </Button>
                   <Button variant="secondary" className="border-red-100 bg-red-50 text-red-600 hover:bg-red-100" onClick={handleReject} disabled={isUpdatingStatus}>
                     <X className="h-4 w-4" />
@@ -428,18 +493,17 @@ export default function AdminQuotationDetailPage() {
                     <p className="text-xs italic leading-relaxed text-slate-700">{detail.notes || 'Không có yêu cầu ghi chú gì thêm cho báo giá này.'}</p>
                   )}
                 </div>
-                <div className="space-y-1 text-xs text-slate-500">
-                  <p className="font-semibold text-slate-700">Chính sách chung:</p>
-                  <p className="italic">
-                    • (Dữ liệu fix cứng — chưa có API chính sách thật) Báo giá có hiệu lực 30 ngày kể từ ngày lập.
-                  </p>
-                  {generalPolicies.map((policy) => (
-                    <p key={policy.policyId} className="italic">
-                      • {policy.policyName}: <strong className="font-semibold text-slate-700">{policy.policyValue.toLocaleString('vi-VN')}{policy.unit}</strong>
-                      {policy.description ? ` — ${policy.description}` : ''}
-                    </p>
-                  ))}
-                </div>
+                {generalPolicies.length > 0 && (
+                  <div className="space-y-1 text-xs text-slate-500">
+                    <p className="font-semibold text-slate-700">Chính sách chung:</p>
+                    {generalPolicies.map((policy) => (
+                      <p key={policy.policyId}>
+                        • {policy.policyName}: <strong className="font-semibold text-slate-700">{policy.policyValue.toLocaleString('vi-VN')}{formatPolicyUnit(policy.unit)}</strong>
+                        {policy.description ? ` — ${policy.description}` : ''}
+                      </p>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -514,16 +578,20 @@ export default function AdminQuotationDetailPage() {
                     </tbody>
                   </table>
                 </div>
-                <p className="text-xs italic text-slate-400">
-                  Chưa hỗ trợ thêm hạng mục mới ở đây — mọi hạng mục bắt buộc gắn thiết bị thật trong kho, cần màn chọn catalog giống modal "Tạo báo giá mới".
-                </p>
+                <QuotationCatalogPicker catalogItems={catalogItems} isLoading={isLoadingCatalog} onPick={addEditItemFromCatalog} />
               </div>
             ) : (
               <div className="mt-6">
                 <div className="mb-2 flex items-center justify-between">
                   <p className="text-xs font-bold uppercase tracking-wider text-slate-900">Hạng mục báo giá</p>
-                  {!isLinkedToContract && detail.status === 'draft' && (
-                    <button type="button" onClick={startEditingItems} aria-label="Sửa hạng mục" className="text-slate-400 hover:text-blue-600">
+                  {!isLinkedToContract && (
+                    <button
+                      type="button"
+                      onClick={startEditingItems}
+                      aria-label="Sửa hạng mục"
+                      title={detail.status === 'rejected' ? 'Báo giá đã bị từ chối — backend sẽ không cho lưu thay đổi' : 'Sửa hạng mục'}
+                      className="text-slate-400 hover:text-blue-600"
+                    >
                       <Pencil className="h-4 w-4" />
                     </button>
                   )}

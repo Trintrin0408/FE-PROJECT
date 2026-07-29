@@ -2,6 +2,8 @@ import api from './api';
 import type {
   CloseOrderPayload,
   CreateOrderPayload,
+  ExportEquipmentPayload,
+  ExportEquipmentResult,
   Order,
   OrderListMeta,
   UpdateLiveChecklistPayload,
@@ -65,6 +67,16 @@ export const orderApiService = {
   /** PATCH /api/v1/orders/{id}/quotation — liên kết/hủy liên kết báo giá, xác nhận hoạt động thật qua curl */
   async updateOrderQuotation(id: string, payload: UpdateOrderQuotationPayload) {
     const response = await api.patch(`/orders/${id}/quotation`, payload);
+    return response.data;
+  },
+
+  /**
+   * POST /api/v1/orders/{id}/export-equipment — xuất thiết bị theo đơn (transaction trừ kho + movement
+   * OUTBOUND + set picked_up_at), docs/xuatthietbi_tubaogia_api.md mục 4. Lỗi cần xử lý riêng ở UI:
+   * 409 đã xuất trước đó, 400 thiếu tồn kho (details.items: ExportEquipmentShortageItem[]).
+   */
+  async exportEquipment(id: string, payload: ExportEquipmentPayload = {}) {
+    const response = await api.post<{ data: ExportEquipmentResult }>(`/orders/${id}/export-equipment`, payload);
     return response.data;
   },
 };

@@ -4,11 +4,9 @@ import { formatCurrency } from '@/utils/formatCurrency';
 import type { Settlement } from '@/types/settlement';
 
 const STATUS_LABEL: Record<Settlement['status'], string> = {
-  DRAFT: 'Nháp',
-  AGREED: 'Đã thống nhất',
-  REQUESTED: 'Đã yêu cầu',
-  PAID: 'Đã thanh toán',
-  CONFIRMED: 'Đã xác nhận',
+  UNPAID: 'Chưa thanh toán',
+  PAID: 'Đã xác nhận',
+  CANCELLED: 'Đã hủy',
 };
 
 interface SettlementSummaryCardProps {
@@ -33,7 +31,7 @@ export default function SettlementSummaryCard({
   onOpenRecordSettlement,
   onConfirmSettlement,
 }: Readonly<SettlementSummaryCardProps>) {
-  const isConfirmed = settlement?.status === 'CONFIRMED';
+  const isConfirmed = settlement?.status === 'PAID';
 
   return (
     <AnalyticsCard title="Quyết toán" isPlaceholder>

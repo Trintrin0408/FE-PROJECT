@@ -1,16 +1,18 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Activity, AlertOctagon, Ban, Box, Calendar, Check, CheckCircle2, ChevronLeft, Clock, Eye, FileText, Lock, Link2, MapPin, Package, Pencil, Phone, PlayCircle, Plus, Printer, Users } from 'lucide-react';
+import { Activity, Ban, Box, Calendar, Check, CheckCircle2, ChevronLeft, Clock, Eye, FileText, Lock, Link2, MapPin, Package, Pencil, Phone, PlayCircle, Plus, Printer, Users } from 'lucide-react';
 import { Badge, getStatusBadgeVariant, type BadgeVariant } from '@/components/ui/Badge';
+import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
 import RecordSettlementModal from '@/components/orders/RecordSettlementModal';
 import CreateSchedulePlanModal from '@/components/schedule/CreateSchedulePlanModal';
+import CreateQuotationWizardModal from '@/components/quotations/CreateQuotationWizardModal';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { formatDate, formatTime } from '@/utils/formatDate';
 import { getUrgencyBadgeVariant } from '@/utils/eventDate';
@@ -91,7 +93,14 @@ import type { SurveyReportListItem } from '@/types/survey';
 // `PUT /orders/:id/items/confirm-prepared` (mục 2b doc) test qua `curl` không hoạt động như mô tả
 // (rơi vào validate của route khác), xem docs/more-require.md mục (w).
 
-type DetailTab = 'overview' | 'lifecycle' | 'items' | 'plans' | 'quotation' | 'dispute';
+type DetailTab = 'overview' | 'lifecycle' | 'items' | 'plans' | 'quotation';
+
+// Cho phép mở thẳng 1 tab qua URL (?tab=items...) — dùng bởi nút "Xuất thiết bị" ở trang chi tiết
+// báo giá (docs/xuatthietbi_tubaogia_api.md mục 5: điều hướng sang tab "Thiết bị & Kho hàng").
+function parseTabParam(value: string | null): DetailTab {
+  const valid: DetailTab[] = ['overview', 'lifecycle', 'items', 'plans', 'quotation'];
+  return valid.includes(value as DetailTab) ? (value as DetailTab) : 'overview';
+}
 
 // Tab "Tiến độ sự kiện" đã ẩn khỏi thanh điều hướng theo yêu cầu — giữ nguyên khai báo trong DetailTab
 // + nhánh render ở dưới (activeTab === 'lifecycle') để khôi phục lại dễ dàng nếu cần, chỉ bỏ khỏi TABS.
@@ -100,13 +109,12 @@ const TABS: { id: DetailTab; label: string; icon: typeof Activity; doc?: string 
   { id: 'items', label: 'Thiết bị & Kho hàng', icon: Box, doc: 'docs/thietbikhohang_api.md' },
   { id: 'plans', label: 'Lịch trình & Kỹ thuật', icon: Calendar, doc: 'docs/lichtrinhkythuat_api.md' },
   { id: 'quotation', label: 'Báo giá & Hợp đồng', icon: FileText, doc: 'docs/baogiavahopdong_api.md' },
-  { id: 'dispute', label: 'Tranh chấp', icon: AlertOctagon },
 ];
 
 const LIFECYCLE_STEPS: { id: OrderStatus; label: string; desc: string }[] = [
   { id: 'NEW', label: `1. ${ORDER_STATUS_LABEL.NEW}`, desc: 'Lập đơn & hợp đồng' },
-  { id: 'CONFIRMED', label: `2. ${ORDER_STATUS_LABEL.CONFIRMED}`, desc: 'Xác nhận đặt cọc' },
-  { id: 'IN_PROGRESS', label: `3. ${ORDER_STATUS_LABEL.IN_PROGRESS}`, desc: 'Vận hành & live show' },
+  { id: 'CONFIRMED', label: `2. ${ORDER_STATUS_LABEL.CONFIRMED}`, desc: 'Xác nhận cọc' },
+  { id: 'IN_PROGRESS', label: `3. ${ORDER_STATUS_LABEL.IN_PROGRESS}`, desc: 'Lên kế hoạch và thực hiện' },
   { id: 'COMPLETED', label: `4. ${ORDER_STATUS_LABEL.COMPLETED}`, desc: 'Quyết toán & nghiệm thu' },
 ];
 const LIFECYCLE_ORDER: OrderStatus[] = ['NEW', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED'];
@@ -146,16 +154,33 @@ const ASSIGNEE_ROLE_LABEL: Record<string, string> = {
   TECHNICAL: 'Nhân viên kỹ thuật',
 };
 
-export default function ManagerOrderDetailPage() {
+function ManagerOrderDetailContent() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const id = params.id;
 
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<DetailTab>('overview');
+  const [activeTab, setActiveTab] = useState<DetailTab>(() => parseTabParam(searchParams.get('tab')));
+
+  // Toast sau khi "Xuất thiết bị" từ trang chi tiết báo giá điều hướng sang đây
+  // (docs/xuatthietbi_tubaogia_api.md mục 5.3/5.4 bản v2: 'unchanged' = đơn đã khớp báo giá, no-op)
+  // — đọc từ ?exported= rồi xóa param khỏi URL ngay để không hiện lại khi refresh.
+  const [exportToast, setExportToast] = useState<'success' | 'unchanged' | null>(() => {
+    const value = searchParams.get('exported');
+    return value === 'success' || value === 'unchanged' ? value : null;
+  });
+
+  useEffect(() => {
+    if (!exportToast) return;
+    router.replace(`/manager/orders/${id}`, { scroll: false });
+    const timer = setTimeout(() => setExportToast(null), 5000);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ chạy 1 lần cho toast đọc từ URL lúc mở trang
+  }, []);
 
   const [isCancelOpen, setIsCancelOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
@@ -179,19 +204,17 @@ export default function ManagerOrderDetailPage() {
   const [picklistInventory, setPicklistInventory] = useState<Record<string, InventoryRow>>({});
 
   const [viewingScheduleItem, setViewingScheduleItem] = useState<SchedulePlan | null>(null);
-  const [confirmingPlanId, setConfirmingPlanId] = useState<string | null>(null);
   const [cancelingPlanId, setCancelingPlanId] = useState<string | null>(null);
   const [isUpdatingPlanStatus, setIsUpdatingPlanStatus] = useState(false);
   const [evidenceModal, setEvidenceModal] = useState<{ isLoading: boolean; evidence: Evidence | null } | null>(null);
   const [isCreatePlanOpen, setIsCreatePlanOpen] = useState(false);
 
   const [quotationDetail, setQuotationDetail] = useState<QuotationDetailApi | null>(null);
-  const [approvedQuotationsCount, setApprovedQuotationsCount] = useState(0);
   const [linkableQuotations, setLinkableQuotations] = useState<QuotationListItem[]>([]);
   const [selectedLinkQuoteId, setSelectedLinkQuoteId] = useState('');
   const [isLinkingQuote, setIsLinkingQuote] = useState(false);
-  const [isUnlinkingQuote, setIsUnlinkingQuote] = useState(false);
-  const [isUnlinkConfirmOpen, setIsUnlinkConfirmOpen] = useState(false);
+  const [linkQuoteError, setLinkQuoteError] = useState<string | null>(null);
+  const [isCreateQuotationOpen, setIsCreateQuotationOpen] = useState(false);
 
   const load = () => {
     setIsLoading(true);
@@ -235,15 +258,9 @@ export default function ManagerOrderDetailPage() {
 
   // Tab "Báo giá & Hợp đồng" — GET /customers/:id/quotations vẫn lỗi thật (docs/more-require.md mục
   // (p.1), chưa được Backend sửa), dùng workaround GET /quotations?customerId= (endpoint phẳng, xác
-  // nhận hoạt động đúng qua curl) để đếm số báo giá APPROVED của khách hàng + liệt kê báo giá có thể
-  // liên kết.
+  // nhận hoạt động đúng qua curl) để liệt kê báo giá có thể liên kết.
   useEffect(() => {
     if (!order) return;
-    quotationApiService
-      .getQuotations({ customerId: order.customerId })
-      .then((res) => setApprovedQuotationsCount(res.meta?.counts?.approved ?? 0))
-      .catch(() => setApprovedQuotationsCount(0));
-
     if (order.quotationId) {
       setLinkableQuotations([]);
       quotationApiService
@@ -253,7 +270,9 @@ export default function ManagerOrderDetailPage() {
     } else {
       setQuotationDetail(null);
       quotationApiService
-        .getQuotations({ customerId: order.customerId, status: 'approved' })
+        // Không lọc theo status ở đây nữa — hiện tất cả báo giá của khách (kể cả nháp) chưa liên kết đơn
+        // nào, để Manager tự chọn rồi mới quyết định duyệt trước khi liên kết nếu cần.
+        .getQuotations({ customerId: order.customerId })
         .then((res) => {
           const candidates: QuotationListItem[] = res.data ?? [];
           return Promise.all(
@@ -265,11 +284,33 @@ export default function ManagerOrderDetailPage() {
             ),
           );
         })
-        .then((pairs) => setLinkableQuotations(pairs.filter((p) => !p.linkedOrderId).map((p) => p.item)))
+        // Loại báo giá đã "Từ chối" — không có lý do nghiệp vụ nào để liên kết báo giá bị từ chối vào đơn.
+        .then((pairs) => setLinkableQuotations(pairs.filter((p) => !p.linkedOrderId && p.item.status !== 'rejected').map((p) => p.item)))
         .catch(() => setLinkableQuotations([]));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ tải lại khi order thay đổi thật sự
   }, [order?.orderId, order?.quotationId, order?.customerId]);
+
+  // Tồn kho khả dụng theo từng hạng mục — tải ngay khi order sẵn sàng (không chỉ khi mở Picklist) để
+  // tab "Thiết bị & Kho hàng" hiện được cảnh báo thiếu hàng ngay trên bảng chính.
+  useEffect(() => {
+    if (!order || order.items.length === 0) return;
+    Promise.all(
+      order.items.map((item) =>
+        inventoryApiService
+          .getInventory({ itemId: item.itemId, limit: 1 })
+          .then((res) => [item.itemId, (res.data ?? [])[0]] as const)
+          .catch(() => [item.itemId, undefined] as const),
+      ),
+    ).then((pairs) => {
+      const next: Record<string, InventoryRow> = {};
+      pairs.forEach(([itemId, row]) => {
+        if (row) next[itemId] = row;
+      });
+      setPicklistInventory(next);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ tải lại khi danh sách hạng mục đổi
+  }, [order?.orderId, order?.items]);
 
   if (isLoading) {
     return (
@@ -319,13 +360,18 @@ export default function ManagerOrderDetailPage() {
   const isMilestone3Complete = order.orderStatus === 'IN_PROGRESS' || order.orderStatus === 'COMPLETED';
   const isMilestone4Complete = order.orderStatus === 'COMPLETED';
   const isReadyToClose = order.orderStatus === 'COMPLETED' && order.paymentStatus === 'PAID' && !order.closedAt;
-  const depositCollected = deposits.filter((d) => d.status === 'SUCCESS').reduce((sum, d) => sum + d.amount, 0);
+  const depositCollected = deposits.filter((d) => d.status === 'PAID').reduce((sum, d) => sum + d.amount, 0);
 
   const handleConfirmDeposit = async () => {
     if (!latestDeposit) return;
     setIsConfirmingDeposit(true);
     try {
-      await paymentApiService.updateDepositStatus(latestDeposit.depositId, { status: 'SUCCESS' });
+      await paymentApiService.updateDepositStatus(latestDeposit.depositId, { status: 'PAID' });
+      // Yêu cầu người dùng (2026-07-22): xác nhận cọc thành công tự chuyển mốc tiến trình sang
+      // "2. Đã xác nhận" — chỉ chuyển tiếp (không lùi lại) nên chỉ áp dụng khi đơn còn ở "1. Mới".
+      if (order.orderStatus === 'NEW') {
+        await orderApiService.updateOrderStatus(order.orderId, { orderStatus: 'CONFIRMED' });
+      }
       load();
     } finally {
       setIsConfirmingDeposit(false);
@@ -367,7 +413,7 @@ export default function ManagerOrderDetailPage() {
     if (!settlement) return;
     setIsCompletingSettlement(true);
     try {
-      await settlementApiService.confirmSettlement(settlement.settlementId, { status: 'CONFIRMED' });
+      await settlementApiService.confirmSettlement(settlement.settlementId, { status: 'PAID' });
       await orderApiService.updateOrderStatus(order.orderId, { orderStatus: 'COMPLETED' });
       load();
     } finally {
@@ -388,31 +434,6 @@ export default function ManagerOrderDetailPage() {
 
   const handleOpenPicklist = () => {
     setIsPicklistOpen(true);
-    Promise.all(
-      order.items.map((item) =>
-        inventoryApiService
-          .getInventory({ itemId: item.itemId, limit: 1 })
-          .then((res) => [item.itemId, (res.data ?? [])[0]] as const)
-          .catch(() => [item.itemId, undefined] as const),
-      ),
-    ).then((pairs) => {
-      const next: Record<string, InventoryRow> = {};
-      pairs.forEach(([itemId, row]) => {
-        if (row) next[itemId] = row;
-      });
-      setPicklistInventory(next);
-    });
-  };
-
-  const handleConfirmPlan = async (planId: string) => {
-    setIsUpdatingPlanStatus(true);
-    try {
-      await schedulePlanApiService.updateSchedulePlanStatus(planId, { status: 'CONFIRMED' });
-      setConfirmingPlanId(null);
-      load();
-    } finally {
-      setIsUpdatingPlanStatus(false);
-    }
   };
 
   const handleCancelPlan = async (planId: string) => {
@@ -434,18 +455,22 @@ export default function ManagerOrderDetailPage() {
       .catch(() => setEvidenceModal({ isLoading: false, evidence: null }));
   };
 
-  const handleLinkQuotation = async () => {
-    if (!selectedLinkQuoteId) return;
+  const handleLinkQuotation = async (quotationIdOverride?: string) => {
+    const targetQuotationId = quotationIdOverride ?? selectedLinkQuoteId;
+    if (!targetQuotationId) return;
     setIsLinkingQuote(true);
+    setLinkQuoteError(null);
     try {
-      await orderApiService.updateOrderQuotation(order.orderId, { quotationId: selectedLinkQuoteId });
+      // Cho phép liên kết báo giá ở bất kỳ trạng thái nào (kể cả nháp) miễn chưa gắn đơn khác — Manager
+      // chủ động chọn, không giới hạn chỉ báo giá đã duyệt.
+      const quoRes = await quotationApiService.getQuotation(targetQuotationId);
+      await orderApiService.updateOrderQuotation(order.orderId, { quotationId: targetQuotationId });
 
       // Cộng dồn số lượng từ báo giá vừa liên kết vào danh sách hạng mục hiện có của đơn — tab "Thiết
       // bị & Kho hàng" phải phản ánh đúng số lượng đã báo giá ngay khi đơn được liên kết báo giá, thay
       // vì giữ nguyên order.items cũ (độc lập hoàn toàn với báo giá) như trước. Hạng mục đã có sẵn trên
       // đơn: giữ nguyên đơn giá đã chốt, chỉ cộng thêm số lượng. Hạng mục mới từ báo giá: thêm dòng mới,
       // đơn giá = lineTotal/quantity (giá thực tế sau chiết khấu đã chốt ở báo giá).
-      const quoRes = await quotationApiService.getQuotation(selectedLinkQuoteId);
       const mergedByItemId = new Map<string, CreateOrderItemPayload>();
       order.items.forEach((it) => {
         mergedByItemId.set(it.itemId, { itemId: it.itemId, quantity: it.quantity, unitPrice: it.unitPrice, source: it.source, notes: it.notes });
@@ -465,35 +490,70 @@ export default function ManagerOrderDetailPage() {
       });
       await orderApiService.updateOrderItems(order.orderId, { items: Array.from(mergedByItemId.values()) });
 
+      // Cập nhật state cục bộ ngay để hiện báo giá liên kết tức thì trên tab, không chờ load() lại toàn
+      // bộ dữ liệu đơn (customer/deposits/settlement/schedule/survey — mất vài giây) mới thấy kết quả.
+      // load() ở finally bên dưới vẫn chạy để đồng bộ đầy đủ (số lượng hạng mục, ...) nhưng không còn
+      // chặn việc hiển thị báo giá vừa liên kết.
+      if (quoRes.data) setQuotationDetail(quoRes.data);
+      setOrder((prev) => (prev ? { ...prev, quotationId: targetQuotationId } : prev));
       setSelectedLinkQuoteId('');
-      // Chờ load() cập nhật xong order.quotationId trước khi mở khóa nút — tránh cửa sổ đua (race) để
+    } catch {
+      setLinkQuoteError('Liên kết báo giá thất bại. Vui lòng thử lại.');
+    } finally {
+      // Luôn load() lại dù thành công hay lỗi nửa chừng — nếu updateOrderQuotation đã ghi thành công
+      // nhưng updateOrderItems lỗi sau đó, backend đã lưu liên kết rồi nhưng UI vẫn hiện "chưa liên kết"
+      // nếu không load() lại, khiến Manager tưởng phải bấm lại (thật ra chỉ cần F5 là thấy đã liên kết).
+      // Chờ load() xong (cập nhật order.quotationId) trước khi mở khóa nút — tránh cửa sổ đua (race) để
       // Manager bấm "Liên kết ngay" lần 2 với báo giá khác trước khi UI kịp chuyển sang trạng thái "đã
       // liên kết", vốn khiến backend chấp nhận đổi liên kết hàng loạt lần mà không cảnh báo gì (xem
       // gating theo order.quotationId thay vì quotationDetail bên dưới — đây là lớp phòng thủ thứ 2).
       await load();
-    } finally {
       setIsLinkingQuote(false);
     }
   };
 
-  const handleUnlinkQuotation = async () => {
-    setIsUnlinkingQuote(true);
-    try {
-      await orderApiService.updateOrderQuotation(order.orderId, { quotationId: null });
-      setIsUnlinkConfirmOpen(false);
-      await load();
-    } finally {
-      setIsUnlinkingQuote(false);
+  // Yêu cầu người dùng (2026-07-22): chỉ tạo lịch trình loại việc "Lắp đặt thiết bị" (tab "Lịch trình
+  // & Kỹ thuật") mới tự chuyển mốc tiến trình đơn sang "3. Đang thực hiện" — các loại việc khác (khảo
+  // sát, vận chuyển, thu hồi...) không kích hoạt transition này. Chỉ chuyển tiếp (không lùi lại), nên
+  // bỏ qua nếu đơn đã ở IN_PROGRESS/COMPLETED/CANCELLED.
+  const handleSchedulePlanCreated = async (taskName: string) => {
+    const shouldActivate =
+      taskName === 'Lắp đặt thiết bị' &&
+      order.orderStatus !== 'IN_PROGRESS' &&
+      order.orderStatus !== 'COMPLETED' &&
+      order.orderStatus !== 'CANCELLED';
+    if (shouldActivate) {
+      await orderApiService.updateOrderStatus(order.orderId, { orderStatus: 'IN_PROGRESS' });
     }
+    await load();
   };
-
-  const canUnlinkQuotation = approvedQuotationsCount > 1;
 
   const daysLeft = Math.round((new Date(order.eventDate).getTime() - Date.now()) / 86_400_000);
   const urgencyVariant = daysLeft >= 0 ? getUrgencyBadgeVariant(daysLeft) : null;
 
   return (
     <div className="p-6">
+      {exportToast && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.2 }}
+          className={`fixed right-6 top-6 z-50 flex items-center gap-2.5 rounded-xl border px-4 py-3 text-sm font-medium shadow-lg ${
+            exportToast === 'success' ? 'border-green-200 bg-green-50 text-green-700' : 'border-blue-200 bg-blue-50 text-blue-700'
+          }`}
+        >
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+          {exportToast === 'success' ? 'Xuất thiết bị thành công.' : 'Đơn đã khớp báo giá, không có gì cần xuất thêm.'}
+        </motion.div>
+      )}
+      <Breadcrumb
+        items={[
+          { label: 'Đơn đặt' },
+          { label: 'Danh sách đơn đặt', href: '/manager/orders' },
+          { label: order.orderCode },
+        ]}
+        className="mb-3"
+      />
       <div className="flex flex-col gap-4 border-b border-slate-100 pb-5 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-3">
           <button
@@ -666,13 +726,6 @@ export default function ManagerOrderDetailPage() {
                   </p>
                 </div>
               </div>
-
-              <div>
-                <h5 className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-900">Phân công khảo sát báo giá</h5>
-                <p className="rounded-lg border border-dashed border-slate-200 p-3 text-xs italic text-slate-500">
-                  Chưa nối API thật — backend chưa seed danh mục công việc &quot;Khảo sát hiện trường&quot; (`work_tasks`), cần trước khi dùng được luồng phân công qua `schedule_plans` (xem docs/more-require.md mục (f)).
-                </p>
-              </div>
             </motion.div>
           )}
 
@@ -731,13 +784,13 @@ export default function ManagerOrderDetailPage() {
                       <p className="font-semibold text-slate-700">Thu tiền tạm ứng đặt cọc</p>
                       {latestDeposit ? (
                         <p className="mt-0.5 text-slate-500">
-                          {formatCurrency(latestDeposit.amount)} · {latestDeposit.status === 'SUCCESS' ? 'Đã nhận' : 'Chờ xác nhận'}
+                          {formatCurrency(latestDeposit.amount)} · {latestDeposit.status === 'PAID' ? 'Đã nhận' : 'Chờ xác nhận'}
                         </p>
                       ) : (
                         <p className="mt-0.5 italic text-slate-400">Chưa có yêu cầu cọc cho đơn này.</p>
                       )}
                     </div>
-                    {latestDeposit && latestDeposit.status !== 'SUCCESS' && (
+                    {latestDeposit && latestDeposit.status !== 'PAID' && (
                       <Button size="sm" onClick={handleConfirmDeposit} isLoading={isConfirmingDeposit}>
                         Xác nhận đã nhận cọc
                       </Button>
@@ -791,12 +844,14 @@ export default function ManagerOrderDetailPage() {
                             {plan.assignees.map((a) => (
                               <span key={a.userId} className="inline-flex items-center gap-1 rounded bg-white px-2 py-0.5 ring-1 ring-inset ring-slate-200">
                                 {a.fullName} ({a.role === 'LEAD' ? 'Trưởng nhóm' : 'Kỹ thuật viên'})
-                                {a.checkInAt ? (
-                                  <span className="text-emerald-600">· Bắt đầu làm {formatTime(a.checkInAt)}</span>
-                                ) : (
-                                  <span className="italic text-slate-400">· Chưa check-in</span>
-                                )}
-                                {a.checkOutAt && <span className="text-emerald-600">· Hoàn thành {formatTime(a.checkOutAt)}</span>}
+                                {/* Chỉ giờ check-in/out của LEAD ảnh hưởng status của plan (docs/more-require.md mục (ah)) — TECHNICAL không hiện giờ để tránh gây hiểu nhầm là có tác dụng tương tự. */}
+                                {a.role === 'LEAD' &&
+                                  (a.checkInAt ? (
+                                    <span className="text-emerald-600">· Bắt đầu làm {formatTime(a.checkInAt)}</span>
+                                  ) : (
+                                    <span className="italic text-slate-400">· Chưa check-in</span>
+                                  ))}
+                                {a.role === 'LEAD' && a.checkOutAt && <span className="text-emerald-600">· Hoàn thành {formatTime(a.checkOutAt)}</span>}
                               </span>
                             ))}
                           </div>
@@ -871,7 +926,7 @@ export default function ManagerOrderDetailPage() {
                   <Button size="sm" variant="secondary" onClick={() => setIsSettlementModalOpen(true)}>
                     {settlement ? 'Điều chỉnh biên bản quyết toán' : 'Lập biên bản quyết toán'}
                   </Button>
-                  {settlement && settlement.status !== 'CONFIRMED' && order.orderStatus !== 'COMPLETED' && (
+                  {settlement && settlement.status !== 'PAID' && order.orderStatus !== 'COMPLETED' && (
                     <Button size="sm" onClick={handleConfirmSettlement} isLoading={isCompletingSettlement}>
                       <Check className="h-4 w-4" />
                       Xác nhận thu nốt & Quyết toán
@@ -915,9 +970,6 @@ export default function ManagerOrderDetailPage() {
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
                 <div>
                   <h4 className="text-sm font-bold text-slate-950">Quản lý phân bổ thiết bị & chuẩn bị kho</h4>
-                  <p className="text-xs text-slate-400">
-                    "Đã bàn giao"/"Người phụ trách" do Leader Staff ghi nhận qua mobile — web chỉ xem, không chỉnh trực tiếp.
-                  </p>
                 </div>
                 <Button size="sm" variant="secondary" onClick={handleOpenPicklist}>
                   <Package className="h-4 w-4" />
@@ -932,31 +984,56 @@ export default function ManagerOrderDetailPage() {
                       <th className="px-3 py-2.5">Hạng mục thiết bị/Dịch vụ</th>
                       <th className="px-3 py-2.5">Nguồn</th>
                       <th className="px-3 py-2.5 text-center">SL đặt</th>
-                      <th className="px-3 py-2.5 text-center">Đã bàn giao</th>
-                      <th className="px-3 py-2.5">Người phụ trách</th>
+                      <th className="px-3 py-2.5 text-center">Tồn kho khả dụng</th>
                       <th className="px-3 py-2.5 text-right">Giá tiền</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {order.items.map((item) => (
-                      <tr key={item.orderItemId}>
-                        <td className="px-3 py-3">
-                          <p className="font-semibold text-slate-900">{item.itemName}</p>
-                          <p className="text-xs text-slate-400">{item.unit}</p>
-                        </td>
-                        <td className="px-3 py-3">
-                          <Badge variant={item.source === 'INTERNAL' ? 'neutral' : 'info'}>{ORDER_ITEM_SOURCE_LABEL[item.source]}</Badge>
-                        </td>
-                        <td className="px-3 py-3 text-center font-bold text-slate-900">{item.quantity}</td>
-                        <td className="px-3 py-3 text-center text-slate-600">{item.preparedQty}/{item.quantity}</td>
-                        <td className="px-3 py-3 italic text-slate-400">Chưa cập nhật</td>
-                        <td className="px-3 py-3 text-right font-bold text-slate-900">{formatCurrency(item.subtotal ?? item.unitPrice * item.quantity)}</td>
-                      </tr>
-                    ))}
+                    {order.items.map((item) => {
+                      const inv = picklistInventory[item.itemId];
+                      const shortfall = inv ? Math.max(item.quantity - inv.quantityAvailable, 0) : 0;
+                      const isShort = item.source === 'INTERNAL' && shortfall > 0;
+                      return (
+                        <tr key={item.orderItemId}>
+                          <td className="px-3 py-3">
+                            <p className="font-semibold text-slate-900">{item.itemName}</p>
+                            <p className="text-xs text-slate-400">{item.unit}</p>
+                          </td>
+                          <td className="px-3 py-3">
+                            <Badge variant={item.source === 'INTERNAL' ? 'neutral' : 'info'}>{ORDER_ITEM_SOURCE_LABEL[item.source]}</Badge>
+                            {isShort && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  router.push(
+                                    `/manager/suppliers/purchase-orders?createFor=${order.orderId}&itemId=${item.itemId}&itemName=${encodeURIComponent(item.itemName ?? '')}&qty=${shortfall}`,
+                                  )
+                                }
+                                className="mt-1.5 flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-600 ring-1 ring-inset ring-red-200 hover:bg-red-100"
+                                title="Số lượng đặt vượt tồn kho khả dụng — tạo giao dịch thuê từ Nhà cung cấp cho phần thiếu"
+                              >
+                                Thiếu {shortfall} · Thuê từ NCC
+                              </button>
+                            )}
+                          </td>
+                          <td className="px-3 py-3 text-center font-bold text-slate-900">{item.quantity}</td>
+                          <td className="px-3 py-3 text-center">
+                            {inv ? (
+                              <span className={`font-bold ${inv.quantityAvailable < item.quantity ? 'text-red-600' : 'text-emerald-600'}`}>
+                                {inv.quantityAvailable}
+                              </span>
+                            ) : (
+                              <span className="text-slate-300">—</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-3 text-right font-bold text-slate-900">{formatCurrency(item.subtotal ?? item.unitPrice * item.quantity)}</td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                   <tfoot>
                     <tr className="border-t border-slate-200 bg-slate-50 text-sm font-bold text-slate-900">
-                      <td colSpan={5} className="px-3 py-3 text-right uppercase tracking-wide text-slate-500">
+                      <td colSpan={4} className="px-3 py-3 text-right uppercase tracking-wide text-slate-500">
                         Tổng cộng tài chính đơn hàng
                       </td>
                       <td className="px-3 py-3 text-right text-blue-600">{formatCurrency(order.totalAmount)}</td>
@@ -965,7 +1042,7 @@ export default function ManagerOrderDetailPage() {
                 </table>
               </div>
               <p className="mt-2 text-[10px] italic text-slate-400">
-                "Người phụ trách" chưa có trong response `GET /orders/:id` (chỉ nhận qua `PATCH` từ Leader Staff, chưa đọc lại được) — xem docs/more-require.md mục (w).
+                Cột "Tồn kho khả dụng" là số hiện tại tại thời điểm xem — hệ thống chưa hỗ trợ khóa tồn kho theo ngày lắp đặt (Date-based Inventory Lock).
               </p>
 
               <div className="mt-4 flex justify-end">
@@ -1009,7 +1086,6 @@ export default function ManagerOrderDetailPage() {
               ) : (
                 <div className="mt-4 space-y-3">
                   {schedulePlans.map((plan, idx) => {
-                    const canConfirm = plan.status === 'PENDING';
                     const canEdit = plan.status !== 'IN_PROGRESS' && plan.status !== 'COMPLETED' && plan.status !== 'CANCELLED';
                     const canCancel = canEdit;
                     return (
@@ -1050,8 +1126,9 @@ export default function ManagerOrderDetailPage() {
                                     {a.phone}
                                   </span>
                                 )}
-                                {a.checkInAt && <span className="text-emerald-600">· Check-in {formatTime(a.checkInAt)}</span>}
-                                {a.checkOutAt && <span className="text-emerald-600">· Check-out {formatTime(a.checkOutAt)}</span>}
+                                {/* Chỉ giờ check-in/out của LEAD ảnh hưởng status của plan (docs/more-require.md mục (ah)) — TECHNICAL không hiện giờ để tránh gây hiểu nhầm là có tác dụng tương tự. */}
+                                {a.role === 'LEAD' && a.checkInAt && <span className="text-emerald-600">· Check-in {formatTime(a.checkInAt)}</span>}
+                                {a.role === 'LEAD' && a.checkOutAt && <span className="text-emerald-600">· Check-out {formatTime(a.checkOutAt)}</span>}
                               </span>
                             ))}
                           </div>
@@ -1068,16 +1145,6 @@ export default function ManagerOrderDetailPage() {
                             <Eye className="h-3.5 w-3.5" />
                             Xem chi tiết
                           </button>
-                          {canConfirm && (
-                            <button
-                              type="button"
-                              onClick={() => setConfirmingPlanId(plan.planId)}
-                              className="inline-flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs font-semibold text-blue-700 hover:bg-blue-100"
-                            >
-                              <CheckCircle2 className="h-3.5 w-3.5" />
-                              Xác nhận kế hoạch
-                            </button>
-                          )}
                           {plan.status === 'COMPLETED' && plan.evidenceId && (
                             <button
                               type="button"
@@ -1170,29 +1237,29 @@ export default function ManagerOrderDetailPage() {
                               Xem báo giá
                             </Button>
                           </Link>
-                          <Button
-                            size="sm"
-                            variant="danger"
-                            disabled={!canUnlinkQuotation}
-                            title={canUnlinkQuotation ? undefined : 'Khách hàng chỉ có 1 báo giá đã duyệt, không thể hủy liên kết'}
-                            onClick={() => setIsUnlinkConfirmOpen(true)}
-                          >
-                            <Ban className="h-4 w-4" />
-                            Hủy liên kết
-                          </Button>
                         </div>
                       </>
                     ) : (
                       <p className="text-xs text-slate-400">Đang tải báo giá liên kết...</p>
                     )}
                   </div>
+                ) : isLinkingQuote ? (
+                  <div className="mt-4 space-y-3">
+                    <p className="rounded-lg border border-dashed border-slate-200 p-3 text-xs text-slate-500">Đang liên kết báo giá vừa tạo...</p>
+                  </div>
                 ) : (
                   <div className="mt-4 space-y-3">
                     <p className="rounded-lg border border-dashed border-slate-200 p-3 text-xs text-slate-500">Đơn này chưa liên kết báo giá nào.</p>
                     <div className="rounded-xl border border-slate-100 bg-slate-50/60 p-4">
-                      <p className="text-xs font-semibold text-slate-700">Liên kết báo giá đã duyệt</p>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-xs font-semibold text-slate-700">Liên kết báo giá có sẵn</p>
+                        <Button size="sm" variant="secondary" onClick={() => setIsCreateQuotationOpen(true)}>
+                          <Plus className="h-4 w-4" />
+                          Tạo báo giá liên kết
+                        </Button>
+                      </div>
                       {linkableQuotations.length === 0 ? (
-                        <p className="mt-2 text-xs italic text-slate-400">Khách hàng chưa có báo giá đã duyệt nào có thể liên kết.</p>
+                        <p className="mt-2 text-xs italic text-slate-400">Khách hàng chưa có báo giá nào có thể liên kết.</p>
                       ) : (
                         <div className="mt-2 flex flex-wrap items-end gap-2">
                           <div className="min-w-[220px] flex-1">
@@ -1201,19 +1268,44 @@ export default function ManagerOrderDetailPage() {
                               onChange={(e) => setSelectedLinkQuoteId(e.target.value)}
                               options={[
                                 { value: '', label: '-- Chọn báo giá --' },
-                                ...linkableQuotations.map((q) => ({ value: q.quotationId, label: `${q.code} · ${formatCurrency(q.totalAmount)}` })),
+                                ...linkableQuotations.map((q) => ({
+                                  value: q.quotationId,
+                                  label: `${q.code} · ${formatCurrency(q.totalAmount)} · ${QUOTATION_STATUS_META[q.status]?.label ?? q.status}`,
+                                })),
                               ]}
                             />
                           </div>
-                          <Button size="sm" onClick={handleLinkQuotation} disabled={!selectedLinkQuoteId} isLoading={isLinkingQuote}>
+                          <Button size="sm" onClick={() => handleLinkQuotation()} disabled={!selectedLinkQuoteId} isLoading={isLinkingQuote}>
                             <Link2 className="h-4 w-4" />
                             Liên kết ngay
                           </Button>
                         </div>
                       )}
+                      {linkQuoteError && <p className="mt-2 text-xs font-medium text-red-600">{linkQuoteError}</p>}
                     </div>
                   </div>
                 )}
+
+                <CreateQuotationWizardModal
+                  isOpen={isCreateQuotationOpen}
+                  presetCustomer={{
+                    customerId: order.customerId,
+                    customerName: order.customerName,
+                    phone: order.customerPhone,
+                    email: '',
+                    address: null,
+                    notes: null,
+                    status: 'active',
+                    totalBookings: 0,
+                    totalSpent: 0,
+                  }}
+                  autoApprove
+                  onClose={() => setIsCreateQuotationOpen(false)}
+                  onSaved={(createdQuotationId) => {
+                    setIsCreateQuotationOpen(false);
+                    if (createdQuotationId) handleLinkQuotation(createdQuotationId);
+                  }}
+                />
               </div>
             </motion.div>
           )}
@@ -1412,25 +1504,6 @@ export default function ManagerOrderDetailPage() {
       </Modal>
 
       <Modal
-        isOpen={Boolean(confirmingPlanId)}
-        onClose={() => setConfirmingPlanId(null)}
-        title="Xác nhận kế hoạch thi công?"
-        subtitle="Kế hoạch chuyển sang trạng thái Đã xác nhận, chờ Leader Staff triển khai tại hiện trường."
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setConfirmingPlanId(null)} disabled={isUpdatingPlanStatus}>
-              Đóng
-            </Button>
-            <Button onClick={() => confirmingPlanId && handleConfirmPlan(confirmingPlanId)} isLoading={isUpdatingPlanStatus}>
-              Xác nhận
-            </Button>
-          </>
-        }
-      >
-        <div />
-      </Modal>
-
-      <Modal
         isOpen={Boolean(cancelingPlanId)}
         onClose={() => setCancelingPlanId(null)}
         title="Hủy kế hoạch thi công?"
@@ -1472,32 +1545,24 @@ export default function ManagerOrderDetailPage() {
         )}
       </Modal>
 
-      <Modal
-        isOpen={isUnlinkConfirmOpen}
-        onClose={() => setIsUnlinkConfirmOpen(false)}
-        title="Hủy liên kết báo giá?"
-        subtitle="Đơn sẽ không còn báo giá liên kết — bạn có thể liên kết lại 1 báo giá đã duyệt khác của cùng khách hàng ngay sau đó."
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setIsUnlinkConfirmOpen(false)} disabled={isUnlinkingQuote}>
-              Đóng
-            </Button>
-            <Button variant="danger" onClick={handleUnlinkQuotation} isLoading={isUnlinkingQuote}>
-              Hủy liên kết
-            </Button>
-          </>
-        }
-      >
-        <div />
-      </Modal>
-
       <CreateSchedulePlanModal
         isOpen={isCreatePlanOpen}
         onClose={() => setIsCreatePlanOpen(false)}
         orderId={order.orderId}
         defaultLocation={order.location}
-        onCreated={load}
+        eventDate={order.eventDate}
+        onCreated={handleSchedulePlanCreated}
       />
     </div>
+  );
+}
+
+// useSearchParams bắt buộc bọc Suspense (node_modules/next/dist/docs/01-app/03-api-reference/
+// 04-functions/use-search-params.md) — cùng pattern với manager/field-ops/change-requests.
+export default function ManagerOrderDetailPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-sm text-slate-400">Đang tải thông tin đơn đặt...</div>}>
+      <ManagerOrderDetailContent />
+    </Suspense>
   );
 }

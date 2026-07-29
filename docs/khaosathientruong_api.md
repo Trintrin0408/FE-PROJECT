@@ -29,8 +29,7 @@
 >   `src/types/schedulePlan.ts`/`workTask.ts`/`evidence.ts`, `src/services/{schedulePlan,workTask,evidence,user}.service.ts`,
 >   `src/components/orders/SurveyResultCard.tsx` (đối chiếu nhanh, xác nhận model thật đang được dùng ở
 >   nơi khác trong repo).
-> - DB thật: đối chiếu trực tiếp qua MySQL MCP ngày 2026-07-20 — `SHOW CREATE TABLE survey_reports/
->   orders/customers/evidences/schedule_plans/work_tasks/quotations/users`; dữ liệu mẫu thật: **1 dòng**
+> - DB thật: đối chiếu trực tiếp qua MySQL MCP ngày 2026-07-20 — `SHOW CREATE TABLE survey_reports/ orders/customers/evidences/schedule_plans/work_tasks/quotations/users`; dữ liệu mẫu thật: **1 dòng**
 >   `survey_reports` duy nhất trong DB (`SUR-001`, `order_id` → `ORD-001` "Tech Summit 2026",
 >   `status = CONFIRMED`, `plan_id = NULL`, phần lớn cột đo đạc/mô tả đều `NULL` — chưa có dữ liệu mẫu
 >   thật nào minh họa đầy đủ các field).
@@ -76,16 +75,17 @@ liệu này để **bàn giao cho mobile team** tham khảo khi họ implement m
 
 ## 1. Danh sách báo cáo khảo sát — thiếu hẳn endpoint list toàn cục
 
-| Field UI | Nguồn thật | Ghi chú |
-|---|---|---|
-| Mã báo cáo (`BCKS-2026-0001`) | `survey_reports.report_code` | Khớp trực tiếp (mock đặt tiền tố khác `BCKS-` thay vì `SUR-` thật — chỉ là chuỗi tùy ý, không ảnh hưởng logic). |
-| Mã đơn đặt | `survey_reports.order_id` → `orders.order_code` | Cần Backend join `orderCode` vào response (giống các danh sách khác trong repo đã yêu cầu join tương tự). |
-| Khách hàng | `orders.customer_id` → `customers.customer_name` | 2 lượt join (`survey_reports → orders → customers`) — cần Backend join sẵn `customerName`, không bắt FE gọi round-trip 2 lần cho mỗi dòng. |
-| Sự kiện | `orders.event_name` | Khớp trực tiếp (đã có cột, chỉ cần join qua `orderId`). |
-| Ngày khảo sát | `survey_reports.survey_date` | Khớp trực tiếp. |
-| Địa điểm | `survey_reports.location` | Khớp trực tiếp (cột `text`, đã tồn tại thật, khác nhiều field khác trong bảng này còn thiếu). |
-| Người phụ trách | `survey_reports.reported_by` | **Không tự có tên** — comment đầu `types/survey.ts` đã ghi rõ "`GET /survey-reports/:id` có include evidence nhưng KHÔNG join reporter/confirmer". Cần Backend join `reportedByName` (và `confirmedByName` cho chi tiết) — xem mục 7. |
-| Trạng thái | `survey_reports.status` | Enum thật lệch hẳn so với mock — xem mục 2. |
+
+| Field UI                         | Nguồn thật                                      | Ghi chú                                                                                                                                                                                                                                                |
+| -------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Mã báo cáo (`BCKS-2026-0001`) | `survey_reports.report_code`                      | Khớp trực tiếp (mock đặt tiền tố khác`BCKS-` thay vì `SUR-` thật — chỉ là chuỗi tùy ý, không ảnh hưởng logic).                                                                                                                      |
+| Mã đơn đặt                  | `survey_reports.order_id` → `orders.order_code`  | Cần Backend join`orderCode` vào response (giống các danh sách khác trong repo đã yêu cầu join tương tự).                                                                                                                                   |
+| Khách hàng                     | `orders.customer_id` → `customers.customer_name` | 2 lượt join (`survey_reports → orders → customers`) — cần Backend join sẵn `customerName`, không bắt FE gọi round-trip 2 lần cho mỗi dòng.                                                                                                 |
+| Sự kiện                        | `orders.event_name`                               | Khớp trực tiếp (đã có cột, chỉ cần join qua`orderId`).                                                                                                                                                                                         |
+| Ngày khảo sát                 | `survey_reports.survey_date`                      | Khớp trực tiếp.                                                                                                                                                                                                                                      |
+| Địa điểm                     | `survey_reports.location`                         | Khớp trực tiếp (cột`text`, đã tồn tại thật, khác nhiều field khác trong bảng này còn thiếu).                                                                                                                                            |
+| Người phụ trách              | `survey_reports.reported_by`                      | **Không tự có tên** — comment đầu `types/survey.ts` đã ghi rõ "`GET /survey-reports/:id` có include evidence nhưng KHÔNG join reporter/confirmer". Cần Backend join `reportedByName` (và `confirmedByName` cho chi tiết) — xem mục 7. |
+| Trạng thái                     | `survey_reports.status`                           | Enum thật lệch hẳn so với mock — xem mục 2.                                                                                                                                                                                                       |
 
 **Vấn đề lớn nhất**: `survey.service.ts` hiện **chỉ có** `getOrderSurveyReports(orderId)` — bắt buộc
 truyền `orderId`, tức là chỉ đọc được báo cáo khảo sát của **1 đơn cụ thể**. Màn hình này cần liệt kê
@@ -95,11 +95,12 @@ lọc theo trạng thái, phân trang) — chưa có endpoint nào phục vụ �
 **Đã chốt cần Backend bổ sung** `GET /api/v1/survey-reports` (danh sách toàn cục, không bắt buộc
 `orderId`), tối thiểu hỗ trợ query:
 
-| Param | Dùng cho |
-|---|---|
-| `search` | Khớp mã báo cáo/mã đơn/tên khách hàng/địa điểm (thanh tìm kiếm) |
-| `status` | Lọc theo tab trạng thái (mục 2) |
-| `page`, `limit` | Phân trang (bảng đang dùng `Pagination` component, `limit = 10`) |
+
+| Param           | Dùng cho                                                                       |
+| --------------- | ------------------------------------------------------------------------------- |
+| `search`        | Khớp mã báo cáo/mã đơn/tên khách hàng/địa điểm (thanh tìm kiếm) |
+| `status`        | Lọc theo tab trạng thái (mục 2)                                             |
+| `page`, `limit` | Phân trang (bảng đang dùng`Pagination` component, `limit = 10`)             |
 
 Response mỗi dòng cần đủ field đã liệt kê ở bảng trên (join sẵn `orderCode`, `customerName`, `eventName`,
 `reportedByName`) — tránh N+1 round-trip cho từng dòng khi Frontend render bảng.
@@ -147,12 +148,13 @@ CLAUDE.md mục 4 (bullet cuối), cho riêng màn này theo yêu cầu cụ th�
 Mock hiển thị 4 dòng đo đạc tự do (key-value): diện tích sân khấu (dạng chuỗi "8m x 4m x 0.6m"), chiều
 cao trần, công suất điện, lối vận chuyển. DB thật chỉ có 3 cột số + 1 cột text:
 
-| Field UI (mock) | Cột DB gần nhất | Khớp? |
-|---|---|---|
+
+| Field UI (mock)                               | Cột DB gần nhất                                            | Khớp?                                                                                                                                                                                                                                |
+| --------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Diện tích sân khấu chính (dạng "RxSxC") | `area`/`length`/`width` (3 cột `decimal(10,2)` riêng biệt) | **Không khớp form hiển thị** — DB lưu 3 số tách rời (diện tích, dài, rộng), không có "chiều cao" trong bộ 3 này; UI cần đổi cách hiển thị thành 3 ô riêng (Diện tích/Dài/Rộng) thay vì 1 chuỗi gộp. |
-| Chiều cao trần (Clearance) | **Không có cột** | Gap thật — không có nơi nào lưu chiều cao trần/tĩnh không trong `survey_reports`. |
-| Công suất nguồn điện khả dụng | **Không có cột** | Gap thật — không có cột điện năng. |
-| Lối vận chuyển đồ | `entrance` (text) | Khớp gần đúng về ngữ nghĩa ("lối vào") — dùng được nhưng tên cột nghiêng về "lối ra vào" nói chung hơn là riêng "lối vận chuyển thiết bị". |
+| Chiều cao trần (Clearance)                  | **Không có cột**                                           | Gap thật — không có nơi nào lưu chiều cao trần/tĩnh không trong`survey_reports`.                                                                                                                                           |
+| Công suất nguồn điện khả dụng          | **Không có cột**                                           | Gap thật — không có cột điện năng.                                                                                                                                                                                            |
+| Lối vận chuyển đồ                        | `entrance` (text)                                             | Khớp gần đúng về ngữ nghĩa ("lối vào") — dùng được nhưng tên cột nghiêng về "lối ra vào" nói chung hơn là riêng "lối vận chuyển thiết bị".                                                              |
 
 **Đã chốt**: dùng đúng 3 field có thật (`area`/`length`/`width` hiển thị tách 3 ô riêng, `entrance` cho
 "Lối vận chuyển đồ"); 2 field không có cột (chiều cao trần, công suất điện) tiếp tục hiển thị **in
@@ -203,8 +205,7 @@ cho khối này.
 > có Quotation). Trường hợp này hiếm ở luồng thật (khảo sát thường diễn ra sau khi đã có Order), UI xử lý
 > bằng trạng thái "Đơn này chưa liên kết báo giá nào" thay vì lỗi.
 
-Phần phân tích gốc (giữ lại để tham chiếu lịch sử quyết định): `quoteItems: { name, quantity, unit,
-price, category }[]` kèm tổng giá trị nháp ban đầu được cho là **không có bất kỳ cột hay bảng nào**
+Phần phân tích gốc (giữ lại để tham chiếu lịch sử quyết định): `quoteItems: { name, quantity, unit, price, category }[]` kèm tổng giá trị nháp ban đầu được cho là **không có bất kỳ cột hay bảng nào**
 trong `survey_reports` hay bảng liên quan lưu được dữ liệu này. Đối chiếu với khối "Đối chiếu khảo sát
 thực tế & đề xuất báo giá" (`SurveyComparisonPanel`, dùng ở trang chi tiết báo giá — đã bị xóa theo
 Hướng B ở `docs/xemchitietbaogia_api.md`, không còn tồn tại) cũng từng phụ thuộc trực tiếp
@@ -217,8 +218,7 @@ Mock `images: string[]` hiển thị lưới nhiều ảnh (2 ảnh/báo cáo tr
 ảnh). DB thật `survey_reports.evidence_id` là **cột đơn** (FK 1-1 tới `evidences.evidence_id`), và bản
 thân bảng `evidences` cũng chỉ lưu **1 `file_url`/dòng** — không có bảng đính kèm nhiều file
 (`evidence_attachments (entity_type, entity_id)` polymorphic như mô tả ở CLAUDE.md mục "Pattern dữ liệu
-cần tái sử dụng" **không tồn tại trong DB thật hiện tại** — đã xác nhận qua `SHOW TABLES LIKE
-'%evidence%'` chỉ trả về đúng 1 bảng `evidences` dạng phẳng). Đây là **giới hạn giống hệt** đã ghi ở
+cần tái sử dụng" **không tồn tại trong DB thật hiện tại** — đã xác nhận qua `SHOW TABLES LIKE '%evidence%'` chỉ trả về đúng 1 bảng `evidences` dạng phẳng). Đây là **giới hạn giống hệt** đã ghi ở
 `docs/lichtrinhkythuat_api.md` mục 7 cho `schedule_plans.evidence_id`.
 
 **Đã chốt**: chỉ lấy đúng **1 ảnh thật** qua `GET /api/v1/evidence/:id` (dùng `evidence_id` của báo
@@ -250,9 +250,10 @@ khác tham chiếu vì không có căn cứ để suy luận đúng nội dung g
 
 ## 4. Xác nhận báo cáo khảo sát — đã có sẵn endpoint
 
-| # | Endpoint | Dùng cho | Ghi chú |
-|---|---|---|---|
-| 1 | `PUT /api/v1/survey-reports/:id/confirm` `{ "status": "CONFIRMED" }` | Nút "Đồng ý phê duyệt" ở modal xác nhận + nút "Xác nhận báo cáo khảo sát" trong `SurveyDetailDrawer` | **Đã có sẵn** (`surveyApiService.confirmSurveyReport`, payload `ConfirmSurveyReportPayload = { status: SurveyStatus }`). Chỉ hiện nút khi `status === 'NEEDS_REVIEW'` (đổi từ `'PENDING_CONFIRM'` theo mục 2 — **không phải** `'SUBMITTED'`). |
+
+| # | Endpoint                                                             | Dùng cho                                                                                                           | Ghi chú                                                                                                                                                                                                                                                    |
+| - | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 | `PUT /api/v1/survey-reports/:id/confirm` `{ "status": "CONFIRMED" }` | Nút "Đồng ý phê duyệt" ở modal xác nhận + nút "Xác nhận báo cáo khảo sát" trong`SurveyDetailDrawer` | **Đã có sẵn** (`surveyApiService.confirmSurveyReport`, payload `ConfirmSurveyReportPayload = { status: SurveyStatus }`). Chỉ hiện nút khi `status === 'NEEDS_REVIEW'` (đổi từ `'PENDING_CONFIRM'` theo mục 2 — **không phải** `'SUBMITTED'`). |
 
 Không cần endpoint mới cho hành động này — chỉ cần đổi điều kiện hiện nút theo đúng enum thật.
 
@@ -263,19 +264,20 @@ Theo quyết định đã chốt ở mục 0, `SurveyCreateDrawer` **bỏ khỏi
 bảng dưới map field form hiện tại sang payload thật, giữ lại **chỉ để bàn giao cho mobile team** khi họ
 implement màn tạo báo cáo phía Leader Staff:
 
-| Field form (`SurveyCreateDrawer`) | Field payload thật | Ghi chú |
-|---|---|---|
-| Mã đơn đặt & báo giá (`orderId`) | `orderId` | Khớp trực tiếp — nhưng nguồn danh sách chọn cần đổi, xem mục 6. |
-| Ngày thực hiện khảo sát (`surveyDate`) | `surveyDate` (ISO datetime) | Khớp, đổi từ `YYYY-MM-DD` sang ISO đầy đủ. |
-| Ngày diễn ra sự kiện (`eventDate`) | **Không có trong payload** | `eventDate` là thuộc tính của `orders.event_date`, không lưu lặp lại ở `survey_reports` — bỏ field này khỏi payload gửi lên (chỉ dùng hiển thị tham khảo, đọc từ `orders`). |
-| Nhân viên thực hiện khảo sát (`assignee`, chọn tên từ `SURVEY_ASSIGNEE_OPTIONS`) | **Không có trong payload** | `reportedBy` lấy từ **user đang đăng nhập** (JWT), không phải field chọn tay trong form — mock đang cho chọn tự do từ danh sách tên cứng (`FIELD_OPS_STAFF`, không gắn `userId` thật) là sai mô hình. Bỏ hẳn dropdown này — người nộp báo cáo luôn là chính Leader Staff đang đăng nhập trên mobile. |
-| Nội dung khảo sát tổng quan (`content`) | `siteConstraints` | Theo hướng đã chốt ở mục 3.2. |
-| Lưu ý thi công quan trọng (`notes`) | `notes` | Khớp trực tiếp. |
-| 4 ô đo đạc (`measurement1..4`) | `area`/`length`/`width`/`entrance` | Chỉ 3/4 khớp được, xem mục 3.1 — đổi form thành đúng field số (`area`, `length`, `width` dạng number input) + `entrance` (text), bỏ 2 field không có cột (chiều cao trần, công suất điện) khỏi payload cho tới khi Backend bổ sung cột theo mục 3.6. |
-| Bảng thiết bị đề xuất thuê (`rentalItems[]`) | `proposedItems` (string) | Theo hướng đã chốt ở mục 3.3: đổi từ bảng nhiều dòng thành 1 textarea tự do, gửi thẳng thành 1 chuỗi `proposedItems`. |
-| Bảng thiết bị báo giá nháp (`quoteItems[]`) | **Không có trong payload** | Theo mục 3.4 — bỏ hẳn khối này khỏi payload/form tạo cho tới khi Backend xác nhận có bảng lưu tương ứng hay không. |
-| Ảnh minh chứng | `evidenceId` (1 ảnh, upload trước qua `POST /evidence/upload` rồi gắn `evidenceId` vào payload tạo) | Form hiện tại (`SurveyCreateDrawer`) **chưa có** ô upload ảnh nào — cần bổ sung ở bản mobile, chỉ hỗ trợ 1 ảnh do giới hạn cột đơn (mục 3.5). |
-| `planId` (không có ở form) | `planId` (optional) | Payload thật hỗ trợ gắn báo cáo vào 1 `schedule_plans` cụ thể (buổi khảo sát đã lên lịch) — form hiện tại bỏ qua field này hoàn toàn. Nên gắn khi tạo từ 1 buổi khảo sát đã có lịch (mục 6) để giữ liên kết kế hoạch ↔ kết quả. |
+
+| Field form (`SurveyCreateDrawer`)                                                         | Field payload thật                                                                                        | Ghi chú                                                                                                                                                                                                                                                                                                                                     |
+| ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Mã đơn đặt & báo giá (`orderId`)                                                   | `orderId`                                                                                                  | Khớp trực tiếp — nhưng nguồn danh sách chọn cần đổi, xem mục 6.                                                                                                                                                                                                                                                                  |
+| Ngày thực hiện khảo sát (`surveyDate`)                                               | `surveyDate` (ISO datetime)                                                                                | Khớp, đổi từ`YYYY-MM-DD` sang ISO đầy đủ.                                                                                                                                                                                                                                                                                            |
+| Ngày diễn ra sự kiện (`eventDate`)                                                    | **Không có trong payload**                                                                               | `eventDate` là thuộc tính của `orders.event_date`, không lưu lặp lại ở `survey_reports` — bỏ field này khỏi payload gửi lên (chỉ dùng hiển thị tham khảo, đọc từ `orders`).                                                                                                                                           |
+| Nhân viên thực hiện khảo sát (`assignee`, chọn tên từ `SURVEY_ASSIGNEE_OPTIONS`) | **Không có trong payload**                                                                               | `reportedBy` lấy từ **user đang đăng nhập** (JWT), không phải field chọn tay trong form — mock đang cho chọn tự do từ danh sách tên cứng (`FIELD_OPS_STAFF`, không gắn `userId` thật) là sai mô hình. Bỏ hẳn dropdown này — người nộp báo cáo luôn là chính Leader Staff đang đăng nhập trên mobile. |
+| Nội dung khảo sát tổng quan (`content`)                                               | `siteConstraints`                                                                                          | Theo hướng đã chốt ở mục 3.2.                                                                                                                                                                                                                                                                                                         |
+| Lưu ý thi công quan trọng (`notes`)                                                   | `notes`                                                                                                    | Khớp trực tiếp.                                                                                                                                                                                                                                                                                                                           |
+| 4 ô đo đạc (`measurement1..4`)                                                        | `area`/`length`/`width`/`entrance`                                                                         | Chỉ 3/4 khớp được, xem mục 3.1 — đổi form thành đúng field số (`area`, `length`, `width` dạng number input) + `entrance` (text), bỏ 2 field không có cột (chiều cao trần, công suất điện) khỏi payload cho tới khi Backend bổ sung cột theo mục 3.6.                                                            |
+| Bảng thiết bị đề xuất thuê (`rentalItems[]`)                                       | `proposedItems` (string)                                                                                   | Theo hướng đã chốt ở mục 3.3: đổi từ bảng nhiều dòng thành 1 textarea tự do, gửi thẳng thành 1 chuỗi`proposedItems`.                                                                                                                                                                                                      |
+| Bảng thiết bị báo giá nháp (`quoteItems[]`)                                         | **Không có trong payload**                                                                               | Theo mục 3.4 — bỏ hẳn khối này khỏi payload/form tạo cho tới khi Backend xác nhận có bảng lưu tương ứng hay không.                                                                                                                                                                                                         |
+| Ảnh minh chứng                                                                          | `evidenceId` (1 ảnh, upload trước qua `POST /evidence/upload` rồi gắn `evidenceId` vào payload tạo) | Form hiện tại (`SurveyCreateDrawer`) **chưa có** ô upload ảnh nào — cần bổ sung ở bản mobile, chỉ hỗ trợ 1 ảnh do giới hạn cột đơn (mục 3.5).                                                                                                                                                                          |
+| `planId` (không có ở form)                                                             | `planId` (optional)                                                                                        | Payload thật hỗ trợ gắn báo cáo vào 1`schedule_plans` cụ thể (buổi khảo sát đã lên lịch) — form hiện tại bỏ qua field này hoàn toàn. Nên gắn khi tạo từ 1 buổi khảo sát đã có lịch (mục 6) để giữ liên kết kế hoạch ↔ kết quả.                                                                  |
 
 `report_code` (mã báo cáo, mock tự sinh phía client qua `nextAdminSurveyReportId()`) — payload thật
 **không có field này**, để Backend tự sinh (giống cách `order_code`/`plan_code` các domain khác đều do
@@ -312,17 +314,18 @@ phụ trách" (bảng danh sách), dòng "Khảo sát viên: ..." (chân drawer 
 
 ## 8. Tổng hợp — trạng thái quyết định
 
-| # | Việc | Trạng thái |
-|---|---|---|
-| 1 | Bỏ nút "+ Tạo báo cáo khảo sát" khỏi web, giữ `POST /survey-reports` cho mobile Leader Staff | **Đã chốt** (mục 0) |
-| 2 | Bổ sung `GET /api/v1/survey-reports` (danh sách toàn cục, `search`/`status`/`page`/`limit`, join sẵn `orderCode`/`customerName`/`eventName`/`reportedByName`) | **Đã chốt cần làm** — Backend triển khai (mục 1) |
-| 3 | Enum `SurveyReportStatus` phía FE đổi khớp 4 giá trị thật; `PENDING_CONFIRM` (mock) = `NEEDS_REVIEW` (thật) | **Đã chốt** (mục 2) — `SUBMITTED` tạm gộp hiển thị chung nhóm "Chờ xác nhận" tới khi có làm rõ thêm |
-| 4 | 2 field đo đạc thiếu (chiều cao trần, công suất điện): hiển thị in nghiêng bằng mock, ghi `docs/more-require.md` | **Đã chốt hướng xử lý UI** — còn vướng: `docs/more-require.md` chưa tồn tại trong repo, cần tạo trước (mục 3.6) |
-| 5 | "Mô tả tổng quan" dùng `site_constraints`, không thêm cột mới | **Đã chốt** (mục 3.2) |
-| 6 | "Đồ đạc/thiết bị đề xuất thuê" hiển thị dạng văn bản (`proposedItems` thật), không cần bảng con mới | **Đã chốt** (mục 3.3) |
-| 7 | "Thiết bị báo giá nháp" (`quoteItems`) — đọc thật từ báo giá liên kết đơn (`orders.quotationId` → `GET /quotations/:id`) | **ĐÃ GIẢI QUYẾT (2026-07-21)** — không cần bảng mới, không cần Backend làm gì (mục 3.4) |
-| 8 | Đa ảnh minh chứng — chỉ 1 ảnh thật, phần dư là mock có chú thích, ghi `docs/more-require.md` | **Đã chốt hướng xử lý UI**, nghiệp vụ gốc còn mở (mục 3.5) |
-| 9 | Bổ sung filter `taskId`/`taskName` vào `GET /api/v1/schedule-plans` | **Đã chốt cần làm** — Backend triển khai (mục 6) |
-| 10 | Join `reportedByName`/`confirmedByName` vào response list + detail | **Đã chốt cần làm** — Backend triển khai (mục 7) |
-| 11 | Seed thêm `work_tasks` row "Khảo sát hiện trường" | **Đã chốt cần làm** — Backend triển khai, nhắc lại từ 2 tài liệu trước (mục 6) |
-| 12 | Tạo/khôi phục file `docs/more-require.md` (hiện không tồn tại trong repo dù được 20+ file tham chiếu) | **Còn mở — cần xử lý trước khi ghi tiếp mục (a)(b)(c)...** (mục 3.6) |
+
+| #  | Việc                                                                                                                                                             | Trạng thái                                                                                                                       |
+| -- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| 1  | Bỏ nút "+ Tạo báo cáo khảo sát" khỏi web, giữ`POST /survey-reports` cho mobile Leader Staff                                                              | **Đã chốt** (mục 0)                                                                                                            |
+| 2  | Bổ sung`GET /api/v1/survey-reports` (danh sách toàn cục, `search`/`status`/`page`/`limit`, join sẵn `orderCode`/`customerName`/`eventName`/`reportedByName`) | **Đã chốt cần làm** — Backend triển khai (mục 1)                                                                           |
+| 3  | Enum`SurveyReportStatus` phía FE đổi khớp 4 giá trị thật; `PENDING_CONFIRM` (mock) = `NEEDS_REVIEW` (thật)                                                | **Đã chốt** (mục 2) — `SUBMITTED` tạm gộp hiển thị chung nhóm "Chờ xác nhận" tới khi có làm rõ thêm              |
+| 4  | 2 field đo đạc thiếu (chiều cao trần, công suất điện): hiển thị in nghiêng bằng mock, ghi`docs/more-require.md`                                     | **Đã chốt hướng xử lý UI** — còn vướng: `docs/more-require.md` chưa tồn tại trong repo, cần tạo trước (mục 3.6) |
+| 5  | "Mô tả tổng quan" dùng`site_constraints`, không thêm cột mới                                                                                              | **Đã chốt** (mục 3.2)                                                                                                          |
+| 6  | "Đồ đạc/thiết bị đề xuất thuê" hiển thị dạng văn bản (`proposedItems` thật), không cần bảng con mới                                           | **Đã chốt** (mục 3.3)                                                                                                          |
+| 7  | "Thiết bị báo giá nháp" (`quoteItems`) — đọc thật từ báo giá liên kết đơn (`orders.quotationId` → `GET /quotations/:id`)                         | **ĐÃ GIẢI QUYẾT (2026-07-21)** — không cần bảng mới, không cần Backend làm gì (mục 3.4)                              |
+| 8  | Đa ảnh minh chứng — chỉ 1 ảnh thật, phần dư là mock có chú thích, ghi`docs/more-require.md`                                                          | **Đã chốt hướng xử lý UI**, nghiệp vụ gốc còn mở (mục 3.5)                                                            |
+| 9  | Bổ sung filter`taskId`/`taskName` vào `GET /api/v1/schedule-plans`                                                                                              | **Đã chốt cần làm** — Backend triển khai (mục 6)                                                                           |
+| 10 | Join`reportedByName`/`confirmedByName` vào response list + detail                                                                                                | **Đã chốt cần làm** — Backend triển khai (mục 7)                                                                           |
+| 11 | Seed thêm`work_tasks` row "Khảo sát hiện trường"                                                                                                            | **Đã chốt cần làm** — Backend triển khai, nhắc lại từ 2 tài liệu trước (mục 6)                                      |
+| 12 | Tạo/khôi phục file`docs/more-require.md` (hiện không tồn tại trong repo dù được 20+ file tham chiếu)                                                  | **Còn mở — cần xử lý trước khi ghi tiếp mục (a)(b)(c)...** (mục 3.6)                                                    |

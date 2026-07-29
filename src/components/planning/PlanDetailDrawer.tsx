@@ -11,18 +11,22 @@ interface PlanDetailDrawerProps {
   group: OrderPlanGroup;
   onClose: () => void;
   onEdit: (group: OrderPlanGroup) => void;
+  /** planId của thẻ công việc cụ thể vừa nhấn (từ lịch tháng/lịch ngày) — khi có, ưu tiên hiển thị công
+   * việc đó ở tiêu đề & tô nổi bật đúng dòng trong danh sách, thay vì chỉ hiện chung theo mã đơn. */
+  focusPlanId?: string | null;
 }
 
 // Kết nối backend thật (2026-07-21, GET /schedule-plans?orderId=) — xem docs/chitietkehoach_api.md.
 // Theo quyết định đã chốt ở mục 6 tài liệu đó: gộp "Các hoạt động chính" + "Danh sách công việc &
 // phân công" (mock cũ tách 2 mảng activities[]/tasks[]) thành 1 danh sách duy nhất, vì DB thật không
 // phân biệt 2 khái niệm này — mỗi phần tử là 1 dòng schedule_plans thật.
-export default function PlanDetailDrawer({ group, onClose, onEdit }: Readonly<PlanDetailDrawerProps>) {
+export default function PlanDetailDrawer({ group, onClose, onEdit, focusPlanId }: Readonly<PlanDetailDrawerProps>) {
   const statusInfo = getGroupStatusInfo(group.rows);
   const staff = unionAssignees(group.rows);
   // "Ghi chú" cấp nhóm — quyết định đã chốt ở docs/chitietkehoach_api.md mục 6.2: lấy notes của dòng
   // có start_time sớm nhất trong nhóm (schedule_plans.notes là cột per-row, không có "notes cấp nhóm").
   const earliestNotes = [...group.rows].sort((a, b) => a.startTime.localeCompare(b.startTime))[0]?.notes;
+  const focusRow = focusPlanId ? group.rows.find((r) => r.planId === focusPlanId) : undefined;
 
   return (
     <>
@@ -37,10 +41,24 @@ export default function PlanDetailDrawer({ group, onClose, onEdit }: Readonly<Pl
         <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 p-5">
           <div>
             <div className="flex items-center gap-2.5">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Chi tiết kế hoạch vận hành</span>
-              <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${statusInfo.badgeClass}`}>{statusInfo.label}</span>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                {focusRow ? 'Chi tiết công việc' : 'Chi tiết kế hoạch vận hành'}
+              </span>
+              <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${focusRow ? SCHEDULE_STATUS_BADGE[focusRow.status] : statusInfo.badgeClass}`}>
+                {focusRow ? SCHEDULE_STATUS_LABEL[focusRow.status] : statusInfo.label}
+              </span>
             </div>
-            <h3 className="mt-1 text-base font-bold text-slate-900">{group.orderCode}</h3>
+            {focusRow ? (
+              <>
+                <h3 className="mt-1 text-base font-bold text-slate-900">{focusRow.taskName ?? focusRow.planCode}</h3>
+                <p className="mt-0.5 text-xs text-slate-400">
+                  <span className="font-mono font-semibold text-slate-500">{focusRow.planCode}</span> — Thuộc đơn{' '}
+                  <span className="font-mono font-semibold text-slate-500">{group.orderCode}</span>
+                </p>
+              </>
+            ) : (
+              <h3 className="mt-1 text-base font-bold text-slate-900">{group.orderCode}</h3>
+            )}
           </div>
           <button type="button" onClick={onClose} className="rounded-xl p-2 text-slate-400 transition-all hover:bg-slate-200/50 hover:text-slate-600">
             <X className="h-5 w-5" />
@@ -75,13 +93,21 @@ export default function PlanDetailDrawer({ group, onClose, onEdit }: Readonly<Pl
             </h4>
             <div className="space-y-2">
               {group.rows.map((row) => (
-                <div key={row.planId} className="flex items-start gap-3 rounded-xl border border-slate-150 bg-white p-3">
+                <div
+                  key={row.planId}
+                  className={`flex items-start gap-3 rounded-xl border p-3 ${
+                    row.planId === focusPlanId ? 'border-blue-400 bg-blue-50/40 ring-1 ring-blue-200' : 'border-slate-150 bg-white'
+                  }`}
+                >
                   <div className="rounded-lg bg-slate-50 p-2 text-slate-600">
                     <ActivityIcon className="h-4 w-4 text-blue-500" />
                   </div>
                   <div className="flex-1 space-y-1.5 text-xs">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="font-bold text-slate-800">{row.taskName ?? row.taskId}</span>
+                      <span className="flex items-center gap-1.5">
+                        <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] font-bold text-slate-500">{row.planCode}</span>
+                        <span className="font-bold text-slate-800">{row.taskName ?? row.taskId}</span>
+                      </span>
                       <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${SCHEDULE_STATUS_BADGE[row.status]}`}>
                         {SCHEDULE_STATUS_LABEL[row.status]}
                       </span>

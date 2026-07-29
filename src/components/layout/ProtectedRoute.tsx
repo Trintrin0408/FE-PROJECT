@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { ROLE_DASHBOARD_PATH } from '@/constants/roles';
 
 interface ProtectedRouteProps {
-  requiredRole?: string;
+  requiredRole?: string | string[];
   children: ReactNode;
 }
 
@@ -14,7 +14,8 @@ export default function ProtectedRoute({ requiredRole, children }: ProtectedRout
   const { user, isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const isRoleMismatch = Boolean(requiredRole) && user?.role.roleName !== requiredRole;
+  const allowedRoles = requiredRole === undefined ? undefined : Array.isArray(requiredRole) ? requiredRole : [requiredRole];
+  const isRoleMismatch = Boolean(allowedRoles) && !allowedRoles!.includes(user?.role.roleName ?? '');
 
   useEffect(() => {
     if (isLoading) return;

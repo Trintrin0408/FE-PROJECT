@@ -82,6 +82,34 @@ export function confirmFieldHandover(id: string, confirmedBy: string): void {
   );
 }
 
+/** Leader Staff ghi nhận 1 biên bản mới tại hiện trường (mobile) — Manager xác nhận sau trên web
+ * qua confirmFieldHandover(). */
+export function createFieldHandover(input: {
+  orderId: string;
+  customerName: string;
+  eventName: string;
+  type: HandoverType;
+  submittedBy: string;
+  location: string;
+  notes: string;
+  evidencePhotoName?: string;
+}): FieldHandoverRecord {
+  const record: FieldHandoverRecord = {
+    ...input,
+    id: `BB-${input.orderId}-${handoverStore.length + 1}-${Date.now().toString(36)}`,
+    submittedAt: new Date().toISOString().slice(0, 10),
+    status: 'PENDING_CONFIRM',
+  };
+  handoverStore = [record, ...handoverStore];
+  return record;
+}
+
+/** Danh sách biên bản do 1 Leader Staff cụ thể ghi nhận — dùng cho trang "Ghi nhận hiện trường" của
+ * staff-mobile (chỉ hiện việc do chính người đó submit, không phải toàn bộ như trang Manager). */
+export function getFieldHandoversBySubmitter(submittedBy: string): FieldHandoverRecord[] {
+  return handoverStore.filter((h) => h.submittedBy === submittedBy);
+}
+
 // ---------------------------------------------------------------------------
 // Change Request — thêm/bớt/đổi thiết bị tại hiện trường (mục 1 CLAUDE.md: quy tắc tính lại hóa đơn)
 // ---------------------------------------------------------------------------
@@ -202,4 +230,25 @@ export function reviewFieldChangeRequest(id: string, decision: 'APPROVED' | 'REJ
   changeRequestStore = changeRequestStore.map((cr) =>
     cr.id === id ? { ...cr, status: decision, reviewedBy, reviewedAt: new Date().toISOString().slice(0, 10) } : cr,
   );
+}
+
+/** Leader Staff tạo 1 Change Request mới tại hiện trường (mobile) — Manager duyệt sau trên web qua
+ * reviewFieldChangeRequest(). */
+export function createFieldChangeRequest(
+  input: Omit<FieldChangeRequest, 'id' | 'requestedAt' | 'status'>,
+): FieldChangeRequest {
+  const record: FieldChangeRequest = {
+    ...input,
+    id: `CR-${input.orderId}-${changeRequestStore.length + 1}-${Date.now().toString(36)}`,
+    requestedAt: new Date().toISOString().slice(0, 10),
+    status: 'PENDING',
+  };
+  changeRequestStore = [record, ...changeRequestStore];
+  return record;
+}
+
+/** Danh sách Change Request do 1 Leader Staff cụ thể tạo — dùng cho trang "Ghi nhận hiện trường" của
+ * staff-mobile. */
+export function getFieldChangeRequestsBySubmitter(requestedBy: string): FieldChangeRequest[] {
+  return changeRequestStore.filter((cr) => cr.requestedBy === requestedBy);
 }

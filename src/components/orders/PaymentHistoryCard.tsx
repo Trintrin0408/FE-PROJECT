@@ -7,9 +7,8 @@ import { formatDate } from '@/utils/formatDate';
 import type { Deposit } from '@/types/payment';
 
 const STATUS_LABEL: Record<Deposit['status'], string> = {
-  PENDING: 'Chờ xử lý',
-  SUCCESS: 'Đã xác nhận',
-  OVERDUE: 'Quá hạn',
+  UNPAID: 'Chờ xử lý',
+  PAID: 'Đã xác nhận',
   CANCELLED: 'Đã hủy',
 };
 
@@ -26,7 +25,7 @@ export default function PaymentHistoryCard({
   isLoading,
   onOpenRequestPayment,
 }: Readonly<PaymentHistoryCardProps>) {
-  const totalCollected = deposits.filter((d) => d.status === 'SUCCESS').reduce((sum, d) => sum + Number(d.amount), 0);
+  const totalCollected = deposits.filter((d) => d.status === 'PAID').reduce((sum, d) => sum + Number(d.amount), 0);
   const progressPercent = totalDue > 0 ? Math.min(100, Math.round((totalCollected / totalDue) * 100)) : 0;
 
   const columns: TableColumn<Deposit>[] = [

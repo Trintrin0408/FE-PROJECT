@@ -48,8 +48,12 @@ export interface QuotationDetail extends Quotation {
 }
 
 // POST /api/v1/customers/:customerId/quotations, PUT /api/v1/quotations/:id
+// ĐÍNH CHÍNH 2026-07-21 (curl thật): `version` khai `?` (optional) nhưng backend bắt buộc có mặt ở
+// CẢ 2 trường hợp tạo mới lẫn update — thiếu field này khi PUT sẽ luôn bị 400 VALIDATION_ERROR
+// ("version: expected string, received undefined"), dù comment cũ ghi "không dùng khi update". Khi
+// update, gửi lại đúng version hiện tại của báo giá (không đổi version chỉ vì sửa hạng mục).
 export interface SaveQuotationPayload {
-  version?: string; // bắt buộc khi tạo mới, không dùng khi update
+  version: string;
   notes?: string;
   items: { itemId: string; quantity: number; price: number; discount?: number }[]; // tối thiểu 1
 }

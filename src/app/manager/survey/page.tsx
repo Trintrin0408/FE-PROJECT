@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle2, Clock, Compass, Eye, FileText, MapPin, Search, User } from 'lucide-react';
+import { CheckCircle2, Clock, Compass, Eye, FileText, MapPin, Plus, Search, User } from 'lucide-react';
 import { Badge, type BadgeVariant } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
@@ -11,17 +11,22 @@ import type { PaginationState } from '@/hooks/usePagination';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatDate } from '@/utils/formatDate';
 import SurveyDetailDrawer from '@/components/survey-reports/SurveyDetailDrawer';
+import SurveyReportCreateDrawer from '@/components/survey-reports/SurveyReportCreateDrawer';
 import { surveyApiService } from '@/services/survey.service';
 import type { SurveyReport, SurveyReportListItem, SurveyReportListMeta, SurveyStatus } from '@/types/survey';
 
-// Nối API thật theo docs/khaosathientruong_api.md (2026-07-20, mọi quyết định đã chốt — mục 8) —
-// mirror 1:1 với src/app/admin/reports/survey/page.tsx. GET /api/v1/survey-reports (danh sách toàn
-// cục, MỚI — trước đây chỉ có bản theo 1 đơn) đã join sẵn orderCode/customerName/eventName/
-// reportedByName + meta.counts đúng 4 giá trị enum thật, dùng thẳng cho 4 thẻ KPI + tab lọc.
-// Đã BỎ nút "+ Tạo báo cáo khảo sát" (và SurveyCreateDrawer) — theo mục 0, đây là hành động của
-// Leader Staff qua mobile (POST /survey-reports giữ nguyên, chỉ đổi phía gọi), không phải Manager
-// trên web. `PENDING_CONFIRM` (mock) = `NEEDS_REVIEW` (thật, theo mục 2) — `SUBMITTED` tạm gộp hiển
-// thị cùng nhóm "Chờ xác nhận" tới khi Backend làm rõ thêm sự khác biệt.
+// Nối API thật theo docs/khaosathientruong_api.md (2026-07-20, mọi quyết định đã chốt — mục 8).
+// GET /api/v1/survey-reports (danh sách toàn cục, MỚI — trước đây chỉ có bản theo 1 đơn) đã join sẵn
+// orderCode/customerName/eventName/reportedByName + meta.counts đúng 4 giá trị enum thật, dùng thẳng
+// cho 4 thẻ KPI + tab lọc. `PENDING_CONFIRM` (mock) = `NEEDS_REVIEW` (thật, theo mục 2) —
+// `SUBMITTED` tạm gộp hiển thị cùng nhóm "Chờ xác nhận" tới khi Backend làm rõ thêm sự khác biệt.
+// 2026-07-21 (theo yêu cầu người dùng): đã thêm lại nút "+ Tạo báo cáo khảo sát" (đã bỏ trước đó vì
+// mặc định coi là hành động Leader Staff/mobile) — chỉ gắn ở trang Manager này, KHÔNG gắn ở
+// src/app/admin/reports/survey/page.tsx vì Admin không xử lý vận hành hằng ngày (mục 1). Form tạo
+// mới nằm ở SurveyReportCreateDrawer.tsx (bám shape thật, không tái dùng SurveyCreateDrawer cũ/mock).
+// 2026-07-22: Backend xác nhận `POST /api/v1/survey-reports` hiện CHỈ cho role LEADER gọi — nút này
+// sẽ nhận 403 khi Manager bấm cho tới khi Backend nới lỏng thêm role MANAGER. Người dùng chọn giữ
+// nguyên nút (chờ Backend), không revert — chi tiết + yêu cầu Backend xem docs/more-require.md mục (ai).
 
 const STATUS_TABS: { value: SurveyStatus | 'ALL'; label: string }[] = [
   { value: 'ALL', label: 'Tất cả' },
@@ -61,6 +66,8 @@ export default function ManagerSurveyReportsPage() {
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [isConfirming, setIsConfirming] = useState(false);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [refreshToken, setRefreshToken] = useState(0);
 
   useEffect(() => {
     setPage(1);
@@ -93,7 +100,13 @@ export default function ManagerSurveyReportsPage() {
     return () => {
       cancelled = true;
     };
-  }, [page, search, statusFilter]);
+  }, [page, search, statusFilter, refreshToken]);
+
+  const handleCreated = () => {
+    setIsCreateOpen(false);
+    setPage(1);
+    setRefreshToken((t) => t + 1);
+  };
 
   const paginationState: PaginationState = {
     currentPage: meta.page,
@@ -141,8 +154,12 @@ export default function ManagerSurveyReportsPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Khảo sát hiện trường</h1>
-          <p className="mt-1 text-sm text-slate-500">Xem lại báo cáo khảo sát hiện trường do Leader Staff ghi nhận và xác nhận trước khi lập kế hoạch & báo giá.</p>
+          <p className="mt-1 text-sm text-slate-500">Xem lại báo cáo khảo sát hiện trường do Leader Staff ghi nhận, hoặc tự tạo báo cáo, và xác nhận trước khi lập kế hoạch & báo giá.</p>
         </div>
+        <Button onClick={() => setIsCreateOpen(true)}>
+          <Plus className="h-4 w-4" />
+          Tạo báo cáo khảo sát
+        </Button>
       </div>
 
       <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-4">
@@ -326,6 +343,10 @@ export default function ManagerSurveyReportsPage() {
         {selectedReport && (
           <SurveyDetailDrawer report={selectedReport} onClose={() => setSelectedReport(null)} onConfirm={handleConfirm} />
         )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {isCreateOpen && <SurveyReportCreateDrawer onClose={() => setIsCreateOpen(false)} onCreated={handleCreated} />}
       </AnimatePresence>
 
       <Modal

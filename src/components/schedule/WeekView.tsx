@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight, Clock, MapPin } from 'lucide-react';
 import { SCHEDULE_STATUS_LABEL } from '@/constants/work-task';
+import { VN_TIME_ZONE } from '@/utils/formatDate';
 import type { SchedulePlan } from '@/types/schedulePlan';
 import type { Order } from '@/types/order';
 import type { Customer } from '@/types/customer';
@@ -67,6 +68,7 @@ export default function WeekView({
   const monthYearLabel = anchorDate.toLocaleDateString('vi-VN', {
     month: 'long',
     year: 'numeric',
+    timeZone: VN_TIME_ZONE,
   });
   const today = new Date();
 
@@ -233,6 +235,7 @@ export default function WeekView({
                             {start.toLocaleTimeString('vi-VN', {
                               hour: '2-digit',
                               minute: '2-digit',
+                              timeZone: VN_TIME_ZONE,
                             })}
                           </span>
                           <span className="flex items-center gap-1 truncate">

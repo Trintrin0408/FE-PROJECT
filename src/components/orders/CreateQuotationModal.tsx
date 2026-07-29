@@ -142,7 +142,7 @@ export default function CreateQuotationModal({
     }
     setItemsError(null);
 
-    const payload = {
+    const itemsAndNotes = {
       notes: notes.trim() || undefined,
       items: items.map((item) => ({ itemId: item.itemId, quantity: item.quantity, price: item.price, discount: item.discount })),
     };
@@ -152,10 +152,12 @@ export default function CreateQuotationModal({
     try {
       let targetId = editingQuotation?.quotationId;
       if (isEditMode && editingQuotation) {
-        await quotationApiService.updateQuotation(editingQuotation.quotationId, payload);
+        // Backend bắt buộc gửi kèm `version` ở mọi lần PUT (thiếu sẽ luôn 400 VALIDATION_ERROR) — gửi
+        // lại đúng version hiện tại, không đổi version chỉ vì sửa hạng mục (xem types/quotation.ts).
+        await quotationApiService.updateQuotation(editingQuotation.quotationId, { ...itemsAndNotes, version: editingQuotation.version });
       } else {
         const res = await quotationApiService.createQuotation(customerId, {
-          ...payload,
+          ...itemsAndNotes,
           version: 'v1.0',
         });
         targetId = res.data?.quotationId;

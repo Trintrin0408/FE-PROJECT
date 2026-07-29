@@ -4,7 +4,6 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-  Heart,
   LayoutGrid,
   Package,
   FileText,
@@ -145,7 +144,7 @@ const MANAGER_NAV_SECTIONS: NavSection[] = [
         icon: Calendar,
         children: [
           { label: 'Kế hoạch điều phối', href: '/manager/schedule/plans', icon: Calendar },
-          { label: 'Công việc (Work Task)', href: '/manager/schedule/tasks', icon: ClipboardList },
+          // { label: 'Công việc (Work Task)', href: '/manager/schedule/tasks', icon: ClipboardList },
         ],
       },
       {
@@ -168,17 +167,17 @@ const MANAGER_NAV_SECTIONS: NavSection[] = [
           { label: 'Trả thiết bị NCC', href: '/manager/suppliers/returns', icon: RotateCcw },
         ],
       },
-      {
-        label: 'Hiện trường',
-        href: '/manager/field-ops/handovers',
-        icon: HardHat,
-        children: [
-          { label: 'Nghiệm thu & bàn giao', href: '/manager/field-ops/handovers', icon: FileCheck2 },
-          { label: 'Vận chuyển & thi công', href: '/manager/field-ops/progress', icon: Activity },
-          { label: 'Change Request', href: '/manager/field-ops/change-requests', icon: AlertTriangle },
-        ],
-      },
-      { label: 'Công & lương', href: '/manager/wages', icon: Wallet },
+      // {
+      //   label: 'Hiện trường',
+      //   href: '/manager/field-ops/handovers',
+      //   icon: HardHat,
+      //   children: [
+      //     { label: 'Nghiệm thu & bàn giao', href: '/manager/field-ops/handovers', icon: FileCheck2 },
+      //     { label: 'Vận chuyển & thi công', href: '/manager/field-ops/progress', icon: Activity },
+      //     { label: 'Change Request', href: '/manager/field-ops/change-requests', icon: AlertTriangle },
+      //   ],
+      // },
+      // { label: 'Công & lương', href: '/manager/wages', icon: Wallet },
     ],
   },
   {
@@ -297,8 +296,8 @@ export default function Sidebar() {
       }`}
     >
       <div className="flex items-center gap-3 border-b border-slate-800 p-6">
-        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-blue-600/15 text-blue-400 ring-1 ring-inset ring-blue-500/30">
-          <Heart className="h-5 w-5" />
+        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-blue-600/15 text-sm font-bold text-blue-400 ring-1 ring-inset ring-blue-500/30">
+          BN
         </div>
         {!isCollapsed && (
           <div className="min-w-0">

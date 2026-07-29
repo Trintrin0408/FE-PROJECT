@@ -22,11 +22,10 @@ interface CreateTaskModalProps {
   onCreated: () => void;
 }
 
-const STAFF_ROLES = new Set(['MANAGER', 'STAFF']);
-
 // Tạo 1 SchedulePlan mới — thay thế "Tạo công việc" (WorkTask instance) cũ. Chọn đơn hàng + loại
 // việc (danh mục WorkTask tĩnh) + nhân sự phụ trách + thời gian trong 1 bước duy nhất (không còn
-// bước "Phân công" riêng vì assignedTo là field bắt buộc lúc tạo).
+// bước "Phân công" riêng vì assignedTo là field bắt buộc lúc tạo). Backend refactor 2026-07-26 gộp
+// LEADER/TECHNICAL thành 1 role STAFF chung, không còn phân biệt được ở tài khoản.
 export default function CreateTaskModal({ isOpen, onClose, onCreated }: Readonly<CreateTaskModalProps>) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -56,7 +55,7 @@ export default function CreateTaskModal({ isOpen, onClose, onCreated }: Readonly
     workTaskApiService.getWorkTasks({ isActive: true }).then((res) => setWorkTasks(res.data ?? []));
     userApiService
       .getUsers({ limit: 100 })
-      .then((res) => setStaff((res.data ?? []).filter((u: AdminUser) => STAFF_ROLES.has(u.role))));
+      .then((res) => setStaff((res.data ?? []).filter((u: AdminUser) => u.role === 'STAFF')));
   }, [isOpen]);
 
   const customerById = new Map(customers.map((c) => [c.customerId, c]));

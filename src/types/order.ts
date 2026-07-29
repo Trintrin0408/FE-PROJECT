@@ -82,8 +82,10 @@ export interface OrderDetail extends Order {
   settlements?: OrderSettlementSummary[];
 }
 
-// Các shape rút gọn nhúng trong OrderDetail — xem type đầy đủ ở types/orderWarning.ts,
-// services/payment.service.ts (Deposit), services/settlement.service.ts (Settlement)
+// Các shape rút gọn nhúng trong OrderDetail — xem services/payment.service.ts (Deposit),
+// services/settlement.service.ts (Settlement). Không còn service riêng cho OrderWarning (endpoint
+// GET/POST /orders/{id}/warnings đã bị bỏ khỏi frontend — docs/more-require.md mục (an.2)), type này
+// chỉ còn phục vụ field nhúng sẵn trong OrderDetail.
 export interface OrderWarningSummary {
   warningId: string;
   orderId: string;
@@ -99,7 +101,7 @@ export interface OrderDepositSummary {
   depositCode: string;
   orderId: string;
   amount: number;
-  status: 'PENDING' | 'SUCCESS' | 'OVERDUE' | 'CANCELLED';
+  status: 'UNPAID' | 'PAID' | 'CANCELLED';
   createdAt: string;
 }
 
@@ -107,7 +109,7 @@ export interface OrderSettlementSummary {
   settlementId: string;
   orderId: string;
   finalAmount: number;
-  status: 'DRAFT' | 'AGREED' | 'REQUESTED' | 'PAID' | 'CONFIRMED';
+  status: 'UNPAID' | 'PAID' | 'CANCELLED';
   createdAt: string;
 }
 
@@ -178,4 +180,40 @@ export interface CloseOrderPayload {
 // (không phải chỉ {orderId}). Dùng cho nút "Liên kết"/"Hủy liên kết" báo giá ở tab "Báo giá & Hợp đồng".
 export interface UpdateOrderQuotationPayload {
   quotationId: string | null;
+}
+
+// POST /api/v1/orders/:orderId/export-equipment — docs/xuatthietbi_tubaogia_api.md mục 4.3 (bản v2:
+// reconcile theo báo giá liên kết — đồng bộ order_items theo quotation_items rồi xuất bù OUTBOUND /
+// thu hồi chênh lệch INBOUND; bấm lặp lại hợp lệ, no-op trả unchanged: true). Chỉ dòng source=INTERNAL
+// mới đụng kho; dòng SUPPLIER trả về ở skippedSupplierItems.
+export interface ExportEquipmentPayload {
+  notes?: string;
+}
+
+export interface ExportEquipmentMovement {
+  itemId: string;
+  itemName: string;
+  quantity: number;
+  movementType: 'OUTBOUND' | 'INBOUND';
+}
+
+export interface ExportEquipmentResult {
+  orderId: string;
+  orderCode: string;
+  syncedQuotationId: string;
+  syncedQuotationCode: string;
+  pickedUpAt: string | null;
+  pickedUpBy: string | null;
+  movements: ExportEquipmentMovement[];
+  skippedSupplierItems: { itemId: string; itemName: string; quantity: number }[];
+  unchanged: boolean;
+}
+
+// Shape `details.items` của lỗi 400 "Tồn kho không đủ để xuất thiết bị" (envelope lỗi chung
+// { error: { code, message, details } }).
+export interface ExportEquipmentShortageItem {
+  itemId: string;
+  itemName: string;
+  required: number;
+  available: number;
 }

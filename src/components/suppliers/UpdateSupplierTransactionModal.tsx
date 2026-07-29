@@ -47,7 +47,7 @@ export default function UpdateSupplierTransactionModal({
       if (transaction) {
         // Fallback or partial load from prop
         setOrderId(transaction.orderId || '');
-        setTransactionType(transaction.transactionType || 'RENTAL');
+        setTransactionType((transaction.transactionType as 'RENTAL' | 'PURCHASE') || 'RENTAL');
         setServiceTitle(transaction.serviceTitle || '');
         setDepositAmount(transaction.depositAmount || 0);
         setStatus(transaction.status || 'PENDING');
@@ -56,7 +56,7 @@ export default function UpdateSupplierTransactionModal({
         // Fetch full details to get items
         supplierApiService.getTransactionById(transaction.transactionId)
           .then(res => {
-            const detailTx = res.data || res;
+            const detailTx = (res as any).data || res;
             if (detailTx.items && detailTx.items.length > 0) {
               setItems(detailTx.items.map((i: any) => ({
                 itemId: i.itemId || '',
@@ -82,7 +82,7 @@ export default function UpdateSupplierTransactionModal({
       }
       
       supplierApiService.getSupplierItems(supplierId)
-        .then(res => setSupplierItems(res.data || res || []))
+        .then(res => setSupplierItems((res as any).data || res || []))
         .catch(err => console.error('Failed to load items:', err));
 
       orderApiService.getOrders({ limit: 100 })
@@ -110,7 +110,7 @@ export default function UpdateSupplierTransactionModal({
       newItems[index] = {
         ...newItems[index],
         itemId: value,
-        unitCost: selectedSupplierItem ? (transactionType === 'RENTAL' ? selectedSupplierItem.rentalPrice : selectedSupplierItem.purchasePrice) : 0
+        unitCost: selectedSupplierItem ? (transactionType === 'RENTAL' ? selectedSupplierItem.rentalPrice : selectedSupplierItem.purchasePrice) ?? undefined : 0
       };
     } else {
       newItems[index] = {
@@ -265,7 +265,7 @@ export default function UpdateSupplierTransactionModal({
               onChange={(e) => setServiceTitle(e.target.value)}
               placeholder="Vd: Thuê âm thanh ánh sáng cho sự kiện..."
               required
-              disabled={mode === 'view' || (transaction?.status && transaction.status !== 'PENDING')}
+              disabled={mode === 'view' || Boolean(transaction?.status && transaction.status !== 'PENDING')}
             />
           </div>
 
@@ -277,7 +277,7 @@ export default function UpdateSupplierTransactionModal({
               value={depositAmount || ''}
               onChange={(e) => setDepositAmount(Number(e.target.value))}
               placeholder="0"
-              disabled={mode === 'view' || (transaction?.status && transaction.status !== 'PENDING')}
+              disabled={mode === 'view' || Boolean(transaction?.status && transaction.status !== 'PENDING')}
             />
           </div>
         </div>
@@ -302,7 +302,7 @@ export default function UpdateSupplierTransactionModal({
                     onChange={(e) => handleItemChange(index, 'itemId', e.target.value)}
                     className="w-full rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none disabled:bg-slate-50 disabled:text-slate-500"
                     required
-                    disabled={mode === 'view' || (transaction?.status && transaction.status !== 'PENDING')}
+                    disabled={mode === 'view' || Boolean(transaction?.status && transaction.status !== 'PENDING')}
                   >
                     <option value="">
                       {(!item.itemId && item.itemName) ? `${item.itemName} (Hạng mục đã bị xoá)` : '-- Chọn hạng mục --'}
@@ -325,7 +325,7 @@ export default function UpdateSupplierTransactionModal({
                     min="1"
                     value={item.quantity?.toString() ?? '1'}
                     onChange={(e) => handleItemChange(index, 'quantity', e.target.value === '' ? '' : Number(e.target.value))}
-                    disabled={mode === 'view' || (transaction?.status && transaction.status !== 'PENDING')}
+                    disabled={mode === 'view' || Boolean(transaction?.status && transaction.status !== 'PENDING')}
                   />
                 </div>
                 
@@ -336,7 +336,7 @@ export default function UpdateSupplierTransactionModal({
                     min="0"
                     value={item.unitCost?.toString() ?? '0'}
                     onChange={(e) => handleItemChange(index, 'unitCost', e.target.value === '' ? '' : Number(e.target.value))}
-                    disabled={mode === 'view' || (transaction?.status && transaction.status !== 'PENDING')}
+                    disabled={mode === 'view' || Boolean(transaction?.status && transaction.status !== 'PENDING')}
                   />
                 </div>
 
@@ -345,7 +345,7 @@ export default function UpdateSupplierTransactionModal({
                     <button
                       type="button"
                       onClick={() => handleRemoveItem(index)}
-                      disabled={items.length === 1 || (transaction?.status && transaction.status !== 'PENDING')}
+                      disabled={items.length === 1 || Boolean(transaction?.status && transaction.status !== 'PENDING')}
                       className="p-1.5 text-red-500 hover:bg-red-50 rounded-md disabled:opacity-50"
                     >
                       <Trash2 className="h-5 w-5" />

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Calendar, ChevronLeft, ChevronRight, ClipboardList, MapPin } from 'lucide-react';
 import { SCHEDULE_STATUS_LABEL } from '@/constants/work-task';
+import { VN_TIME_ZONE } from '@/utils/formatDate';
 import type { SchedulePlan } from '@/types/schedulePlan';
 import type { Order } from '@/types/order';
 
@@ -18,7 +19,7 @@ function isSameDay(a: Date, b: Date): boolean {
 }
 
 function formatTime(value: string): string {
-  return new Date(value).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+  return new Date(value).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', timeZone: VN_TIME_ZONE });
 }
 
 function getMonthGrid(viewDate: Date): Date[] {
@@ -64,11 +65,12 @@ export default function ScheduleTimeline({
   scheduleHref,
 }: Readonly<ScheduleTimelineProps>) {
   const monthGrid = getMonthGrid(viewDate);
-  const monthLabel = viewDate.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' });
+  const monthLabel = viewDate.toLocaleDateString('vi-VN', { month: 'long', year: 'numeric', timeZone: VN_TIME_ZONE });
   const selectedDateLabel = selectedDate.toLocaleDateString('vi-VN', {
     weekday: 'long',
     day: '2-digit',
     month: 'long',
+    timeZone: VN_TIME_ZONE,
   });
 
   // Nhóm theo startTime — ngày/giờ dự kiến thật.

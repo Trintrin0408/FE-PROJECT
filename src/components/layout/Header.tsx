@@ -1,14 +1,23 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Bell, HelpCircle, UserCircle, KeyRound, LogOut } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { computeApproachingEvents, type ApproachingEvent } from '@/utils/approachingEvents';
+import { orderApiService } from '@/services/order.service';
+import { schedulePlanApiService } from '@/services/schedulePlan.service';
+import { changeRequestApiService } from '@/services/changeRequest.service';
+import type { Order } from '@/types/order';
+import type { ChangeRequest } from '@/types/changeRequest';
 
-import { getApproachingEvents, type ApproachingEvent } from '@/mocks/db/approachingEvents';
-import { getFieldChangeRequests, reviewFieldChangeRequest, CHANGE_REQUEST_TYPE_META } from '@/mocks/db/changeRequests';
+const CHANGE_REQUEST_TYPE_LABEL: Record<ChangeRequest['type'], string> = {
+  add: 'Thêm thiết bị',
+  remove: 'Bớt thiết bị',
+  replace: 'Thay thiết bị',
+};
 
 export default function Header() {
   const { user, logout } = useAuth();
@@ -21,22 +30,61 @@ export default function Header() {
   const isAdmin = user?.role.roleName === 'Admin';
   const basePath = isAdmin ? '/admin' : '/manager';
 
-  const approachingEvents = useMemo<ApproachingEvent[]>(() => getApproachingEvents(7), []);
-  // Duyệt Change Request là việc của Manager (CLAUDE.md mục 1 — Admin không trực tiếp phê duyệt change
-  // request), và trang danh sách chỉ tồn tại ở `/manager/field-ops/change-requests` — nên chỉ tính/hiện
-  // mục này cho Manager, không hiện cho Admin.
-  //
-  // Set các id vừa duyệt ngay trong dropdown (nút "Duyệt ngay") — lọc thêm vào useMemo bên dưới để ẩn
-  // ngay lập tức khỏi danh sách mà không cần điều hướng sang trang Change Request mới thấy cập nhật.
-  const [locallyApprovedIds, setLocallyApprovedIds] = useState<Set<string>>(new Set());
-  const pendingChangeRequests = useMemo(
-    () => (isAdmin ? [] : getFieldChangeRequests().filter((cr) => cr.status === 'PENDING' && !locallyApprovedIds.has(cr.id))),
-    [isAdmin, locallyApprovedIds],
-  );
+  const [approachingEvents, setApproachingEvents] = useState<ApproachingEvent[]>([]);
 
-  const handleApproveChangeRequest = (id: string) => {
-    reviewFieldChangeRequest(id, 'APPROVED', user?.fullName ?? 'Quản lý vận hành');
-    setLocallyApprovedIds((prev) => new Set(prev).add(id));
+  useEffect(() => {
+    let cancelled = false;
+    const withinDays = 7;
+    const today = new Date();
+    const referenceDate = today.toISOString().slice(0, 10);
+    const dateTo = new Date(today.getTime() + withinDays * 86_400_000).toISOString().slice(0, 10);
+
+    Promise.all([
+      // Backend chặn cứng limit tối đa 100 (listOrdersQuerySchema `.max(100)`) — 200 luôn bị 400.
+      orderApiService.getOrders({ limit: 100 }).catch(() => ({ data: [] })),
+      schedulePlanApiService.getSchedulePlans({ dateFrom: referenceDate, dateTo }).catch(() => ({ data: [] })),
+    ]).then(([ordersRes, plansRes]) => {
+      if (cancelled) return;
+      const orders: Order[] = ordersRes.data ?? [];
+      setApproachingEvents(computeApproachingEvents(orders, plansRes.data ?? [], withinDays, referenceDate));
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Yêu cầu thay đổi chờ duyệt (ChangeRequest — UC 2.27) — backend đã có đủ route thật (docs/more-require.md
+  // mục (an)): GET /change-requests, PUT /change-requests/:id/approve.
+  const [pendingChangeRequests, setPendingChangeRequests] = useState<ChangeRequest[]>([]);
+
+  useEffect(() => {
+    if (isAdmin) {
+      setPendingChangeRequests([]);
+      return;
+    }
+    let cancelled = false;
+
+    changeRequestApiService
+      .getChangeRequests({ status: 'pending' })
+      .then((res) => {
+        if (cancelled) return;
+        setPendingChangeRequests(res.data ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setPendingChangeRequests([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAdmin]);
+
+  const handleReviewChangeRequest = (changeRequestId: string, status: 'approved' | 'rejected') => {
+    changeRequestApiService
+      .approveChangeRequest(changeRequestId, status)
+      .then(() => setPendingChangeRequests((prev) => prev.filter((cr) => cr.changeRequestId !== changeRequestId)))
+      .catch(() => {});
   };
 
   const totalNotifications = approachingEvents.length + pendingChangeRequests.length;
@@ -144,7 +192,7 @@ export default function Header() {
                     <div className="flex items-center justify-between px-3.5 py-2.5">
                       <p className="text-sm font-semibold text-slate-900">Yêu cầu thay đổi chờ duyệt</p>
                       {pendingChangeRequests.length > 0 && (
-                        <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-600">
+                        <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-600">
                           {pendingChangeRequests.length}
                         </span>
                       )}
@@ -153,35 +201,42 @@ export default function Header() {
                     <div className="max-h-80 overflow-y-auto">
                       {pendingChangeRequests.length === 0 ? (
                         <p className="px-3.5 py-6 text-center text-xs text-slate-400">
-                          Không có yêu cầu thay đổi nào đang chờ duyệt.
+                          Không có yêu cầu thay đổi nào chờ duyệt.
                         </p>
                       ) : (
                         pendingChangeRequests.map((cr) => (
                           <div
-                            key={cr.id}
+                            key={cr.changeRequestId}
                             className="flex items-start gap-2 px-3.5 py-2.5 text-sm transition-colors duration-150 hover:bg-slate-50"
                           >
-                            <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-amber-500" />
+                            <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-blue-500" />
                             <Link
-                              href={`/manager/field-ops/change-requests?id=${cr.id}`}
+                              href={orderDetailPath(cr.orderId)}
                               onClick={() => setIsNotifOpen(false)}
                               className="min-w-0 flex-1"
                             >
-                              <span className="block truncate font-medium text-slate-800">
-                                {cr.customerName} — {CHANGE_REQUEST_TYPE_META[cr.type].label}
-                              </span>
-                              <span className="block truncate text-xs text-slate-500">{cr.reason}</span>
-                              <span className="text-xs font-semibold text-amber-600">
-                                {cr.orderId} · {cr.requestedBy}
+                              <span className="block truncate font-medium text-slate-800">{cr.customerName}</span>
+                              <span className="block truncate text-xs text-slate-500">
+                                {CHANGE_REQUEST_TYPE_LABEL[cr.type]}
+                                {cr.items[0] ? ` · ${cr.items[0].itemName} x${cr.items[0].quantity}` : ''}
                               </span>
                             </Link>
-                            <button
-                              type="button"
-                              onClick={() => handleApproveChangeRequest(cr.id)}
-                              className="mt-0.5 shrink-0 rounded-md bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-700 transition-colors duration-150 hover:bg-emerald-100"
-                            >
-                              Duyệt ngay
-                            </button>
+                            <div className="mt-0.5 flex shrink-0 gap-1">
+                              <button
+                                type="button"
+                                onClick={() => handleReviewChangeRequest(cr.changeRequestId, 'approved')}
+                                className="rounded-md bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-700 transition-colors duration-150 hover:bg-emerald-100"
+                              >
+                                Duyệt
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleReviewChangeRequest(cr.changeRequestId, 'rejected')}
+                                className="rounded-md bg-rose-50 px-2 py-1 text-[11px] font-bold text-rose-700 transition-colors duration-150 hover:bg-rose-100"
+                              >
+                                Từ chối
+                              </button>
+                            </div>
                           </div>
                         ))
                       )}
@@ -192,13 +247,6 @@ export default function Header() {
             )}
           </AnimatePresence>
         </div>
-        <button
-          type="button"
-          aria-label="Trợ giúp"
-          className="flex h-10 w-10 items-center justify-center rounded-full text-slate-400 transition-colors duration-150 hover:bg-slate-50 hover:text-slate-600"
-        >
-          <HelpCircle className="h-5 w-5" />
-        </button>
 
         <div ref={menuRef} className="relative ml-1">
           <button

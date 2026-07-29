@@ -2,6 +2,8 @@
 
 # BNWEMS Web Frontend — Hướng dẫn cho Claude
 
+## Lưu ý: không tự ý sửa UI, và BE
+
 ## 0. ƯU TIÊN HIỆN TẠI: Giai đoạn dựng giao diện thuần (tạm thời)
 
 > **Trạng thái: đang áp dụng.** Gỡ bỏ mục này (và khôi phục lại đầy đủ ràng buộc bên dưới) ngay khi dự án quay lại giai đoạn nối API/backend thật.

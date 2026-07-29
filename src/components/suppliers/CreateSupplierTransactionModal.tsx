@@ -52,7 +52,7 @@ export default function CreateSupplierTransactionModal({
         
         return {
           ...item,
-          unitCost: transactionType === 'RENTAL' ? selectedSupplierItem.rentalPrice : selectedSupplierItem.purchasePrice
+          unitCost: (transactionType === 'RENTAL' ? selectedSupplierItem.rentalPrice : selectedSupplierItem.purchasePrice) ?? undefined
         };
       })
     );
@@ -75,7 +75,7 @@ export default function CreateSupplierTransactionModal({
       
       setOrders(ordersRes.data || []);
       // Only keep active items
-      setSupplierItems((itemsRes.data || itemsRes || []).filter((i: SupplierItem) => i.isActive));
+      setSupplierItems(((itemsRes as any).data || itemsRes || []).filter((i: SupplierItem) => i.isActive));
     } catch (error) {
       toast.error('Lỗi khi tải dữ liệu ban đầu');
     }
@@ -100,7 +100,7 @@ export default function CreateSupplierTransactionModal({
       newItems[index] = {
         ...newItems[index],
         itemId: value,
-        unitCost: selectedSupplierItem ? (transactionType === 'RENTAL' ? selectedSupplierItem.rentalPrice : selectedSupplierItem.purchasePrice) : 0
+        unitCost: selectedSupplierItem ? (transactionType === 'RENTAL' ? selectedSupplierItem.rentalPrice : selectedSupplierItem.purchasePrice) ?? undefined : 0
       };
     } else {
       newItems[index] = {

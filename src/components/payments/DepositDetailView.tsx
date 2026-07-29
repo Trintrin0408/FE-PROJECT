@@ -4,8 +4,10 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import type { AxiosError } from 'axios';
-import { Ban, Calendar, Check, ChevronLeft, Copy, Download, MapPin, Phone, Plus } from 'lucide-react';
+import { Ban, Calendar, Check, Copy, Download, MapPin, Phone, Plus } from 'lucide-react';
+import { BackButton } from '@/components/ui/BackButton';
 import { Badge, getStatusBadgeVariant } from '@/components/ui/Badge';
+import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
@@ -15,7 +17,7 @@ import { formatCurrency } from '@/utils/formatCurrency';
 import { formatDate } from '@/utils/formatDate';
 import { orderApiService } from '@/services/order.service';
 import { paymentApiService } from '@/services/payment.service';
-import { DEPOSIT_STATUS_LABEL, PAYMENT_METHOD_OPTIONS, paymentMethodLabel } from '@/constants/deposit-status';
+import { DEPOSIT_STATUS_LABEL, paymentMethodLabel } from '@/constants/deposit-status';
 import { ORDER_PAYMENT_STATUS_LABEL } from '@/constants/order-status';
 import { COMPANY_BANK_ACCOUNT, buildVietQrImageUrl } from '@/constants/company-bank';
 import type { Order } from '@/types/order';
@@ -34,11 +36,19 @@ import type { Deposit } from '@/types/payment';
 // THẬT qua "Quick Link" công khai của img.vietqr.io (constants/company-bank.ts, không cần đăng ký/API
 // key) — quét được thật bằng app ngân hàng, chuyển đúng tài khoản/số tiền/nội dung. Tài khoản ngân
 // hàng công ty hiện hardcode ở FE (do người dùng cung cấp trực tiếp) vì backend chưa có bảng cấu hình
-// nào cho việc này — đã ghi yêu cầu bổ sung vào docs/api_can_them.md. Gắn theo hồ sơ cọc PENDING gần
-// nhất (hoặc hồ sơ mới nhất nếu không còn cái nào PENDING).
+// nào cho việc này — đã ghi yêu cầu bổ sung vào docs/api_can_them.md. Gắn theo hồ sơ cọc UNPAID gần
+// nhất (hoặc hồ sơ mới nhất nếu không còn cái nào UNPAID).
 
 function getDepositTransferContent(depositCode: string, orderCode: string): string {
   return `${depositCode} CHUYEN KHOAN DAT COC ${orderCode}`;
+}
+
+function getTodayDateInputValue(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 interface DepositDetailViewProps {
@@ -60,11 +70,12 @@ export default function DepositDetailView({ canManage, backHref }: Readonly<Depo
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [amount, setAmount] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [notes, setNotes] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+
+  const todayDateInputValue = getTodayDateInputValue();
 
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [cancelingId, setCancelingId] = useState<string | null>(null);
@@ -109,11 +120,11 @@ export default function DepositDetailView({ canManage, backHref }: Readonly<Depo
     );
   }
 
-  const totalReceived = deposits.filter((d) => d.status === 'SUCCESS').reduce((sum, d) => sum + d.amount, 0);
-  const hasPendingDeposit = deposits.some((d) => d.status === 'PENDING');
-  // QR minh họa gắn theo hồ sơ cọc còn đang chờ thanh toán (ưu tiên) — nếu không còn cái nào PENDING
+  const totalReceived = deposits.filter((d) => d.status === 'PAID').reduce((sum, d) => sum + d.amount, 0);
+  const hasPendingDeposit = deposits.some((d) => d.status === 'UNPAID');
+  // QR minh họa gắn theo hồ sơ cọc còn đang chờ thanh toán (ưu tiên) — nếu không còn cái nào UNPAID
   // (đã xác nhận/hủy hết) thì hiện theo hồ sơ mới nhất để vẫn có nội dung tham khảo.
-  const primaryDeposit = deposits.find((d) => d.status === 'PENDING') ?? deposits[0] ?? null;
+  const primaryDeposit = deposits.find((d) => d.status === 'UNPAID') ?? deposits[0] ?? null;
 
   const handleCopy = (depositId: string, content: string) => {
     navigator.clipboard?.writeText(content).catch(() => undefined);
@@ -140,7 +151,6 @@ export default function DepositDetailView({ canManage, backHref }: Readonly<Depo
 
   const openCreateForm = () => {
     setAmount('');
-    setPaymentMethod('');
     setDueDate('');
     setNotes('');
     setCreateError(null);
@@ -158,7 +168,6 @@ export default function DepositDetailView({ canManage, backHref }: Readonly<Depo
     try {
       await paymentApiService.createOrderDeposit(orderId, {
         amount: amountNum,
-        paymentMethod: paymentMethod || undefined,
         dueDate: dueDate ? new Date(dueDate).toISOString() : undefined,
         notes: notes.trim() || undefined,
       });
@@ -175,7 +184,7 @@ export default function DepositDetailView({ canManage, backHref }: Readonly<Depo
   const handleConfirm = async (depositId: string) => {
     setIsUpdatingStatus(true);
     try {
-      await paymentApiService.updateDepositStatus(depositId, { status: 'SUCCESS' });
+      await paymentApiService.updateDepositStatus(depositId, { status: 'PAID' });
       setConfirmingId(null);
       load();
     } finally {
@@ -196,10 +205,16 @@ export default function DepositDetailView({ canManage, backHref }: Readonly<Depo
 
   return (
     <div className="p-6">
-      <Link href={backHref} className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-blue-600">
-        <ChevronLeft className="h-4 w-4" />
-        Quay lại danh sách
-      </Link>
+      <div className="mb-4 flex items-center gap-3">
+        <BackButton href={backHref} />
+        <Breadcrumb
+          items={[
+            { label: 'Đặt cọc' },
+            { label: 'Danh sách đặt cọc', href: backHref },
+            { label: order.orderCode },
+          ]}
+        />
+      </div>
 
       <Reveal className="rounded-2xl bg-[#0F172A] p-6 text-white">
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_auto]">
@@ -329,7 +344,7 @@ export default function DepositDetailView({ canManage, backHref }: Readonly<Depo
                     {copiedId === d.depositId && <p className="mt-1 text-xs text-emerald-600">Đã sao chép!</p>}
                   </div>
 
-                  {canManage && d.status === 'PENDING' && (
+                  {canManage && d.status === 'UNPAID' && (
                     <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-3">
                       <Button size="sm" onClick={() => setConfirmingId(d.depositId)}>
                         <Check className="h-4 w-4" />
@@ -420,14 +435,7 @@ export default function DepositDetailView({ canManage, backHref }: Readonly<Depo
       >
         <div className="space-y-4">
           <Input type="number" label="Số tiền cọc (đ)" required min={1} step={100_000} value={amount} onChange={(e) => setAmount(e.target.value)} />
-          <Select
-            label="Phương thức (nếu đã biết trước)"
-            placeholder="-- Chưa chọn --"
-            value={paymentMethod}
-            onChange={(e) => setPaymentMethod(e.target.value)}
-            options={PAYMENT_METHOD_OPTIONS}
-          />
-          <Input type="date" label="Hạn thanh toán" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+          <Input type="date" label="Hạn thanh toán" min={todayDateInputValue} value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
           <div className="flex flex-col gap-1">
             <label htmlFor="deposit-notes" className="text-sm font-medium text-gray-700">
               Ghi chú

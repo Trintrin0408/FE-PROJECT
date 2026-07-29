@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
@@ -40,7 +41,8 @@ export default function SupplierDetailPage() {
 
   const handleUpdateSupplier = async (values: SupplierFormValues) => {
     try {
-      await supplierApiService.updateSupplier(id, values);
+      const payload = { ...values, rating: values.rating ? Number(values.rating) : undefined };
+      await supplierApiService.updateSupplier(id, payload);
       toast.success('Cập nhật thông tin nhà cung cấp thành công');
       setIsSupplierFormOpen(false);
       fetchSupplierData();
@@ -59,7 +61,7 @@ export default function SupplierDetailPage() {
       ]);
       
       setSupplier(supplierRes.data || supplierRes); // Handle depending on exact envelope
-      setItems(itemsRes.data || itemsRes || []);
+      setItems((itemsRes as any).data || itemsRes || []);
       setTransactions(transactionsRes.data || []);
     } catch (error: any) {
       console.error('Failed to fetch supplier details:', error);
@@ -532,4 +534,5 @@ export default function SupplierDetailPage() {
       )}
     </div>
   );
+
 }

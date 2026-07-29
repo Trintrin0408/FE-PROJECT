@@ -85,6 +85,12 @@ export function getEarliestRowLead(rows: SchedulePlan[]): string | undefined {
   return earliest.assignees?.find((a) => a.role === 'LEAD')?.fullName;
 }
 
+/** true nếu nhóm còn ít nhất 1 dòng kế hoạch chưa bị hủy — đơn có nhóm nhưng toàn bộ dòng đã CANCELLED
+ * vẫn cần coi như "chưa có kế hoạch" để chọn lại được ở PlanFormDrawer (Section 1). */
+export function groupHasActivePlan(group: OrderPlanGroup): boolean {
+  return group.rows.some((r) => r.status !== 'CANCELLED');
+}
+
 export function distinctAssigneeCount(rows: SchedulePlan[]): number {
   const ids = new Set<string>();
   for (const r of rows) for (const a of r.assignees ?? []) ids.add(a.userId);
