@@ -34,13 +34,20 @@ export default function LoginPage() {
       const response = await authApiService.login({ username, password });
       const { token, user } = response.data;
 
+      login(token, user);
+
       const dashboardPath = ROLE_DASHBOARD_PATH[user.role.roleName];
       if (!dashboardPath) {
         setError('Vai trò tài khoản không được hỗ trợ trên web.');
         return;
       }
 
-      login(token, user);
+      if (user.mustChangePassword) {
+        const basePath = user.role.roleName === 'Admin' ? '/admin' : '/manager';
+        router.replace(`${basePath}/profile/change-password`);
+        return;
+      }
+
       router.replace(dashboardPath);
     } catch (err) {
       const message = isAxiosError(err) ? err.response?.data?.error?.message : undefined;

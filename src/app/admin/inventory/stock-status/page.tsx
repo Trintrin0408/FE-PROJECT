@@ -1,9 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Eye, MoreHorizontal, Search, SlidersHorizontal, Wrench } from 'lucide-react';
+import { Eye, MoreHorizontal, Search, SlidersHorizontal } from 'lucide-react';
 import { Table, TableColumn } from '@/components/ui/Table';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
@@ -34,8 +33,6 @@ export default function AdminStockStatusPage() {
   const [searchInput, setSearchInput] = useState('');
   const search = useDebounce(searchInput, 300);
   const [categoryFilter, setCategoryFilter] = useState('');
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-  const [onlyDamaged, setOnlyDamaged] = useState(false);
   const [page, setPage] = useState(1);
   const limit = 10;
 
@@ -43,6 +40,7 @@ export default function AdminStockStatusPage() {
 
   useEffect(() => {
     let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loading flag toggled before/after the fetch below, not a render loop
     setIsLoading(true);
     setLoadError(null);
     inventoryApiService
@@ -65,8 +63,9 @@ export default function AdminStockStatusPage() {
   }, [search, reloadToken]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset trang khi đổi bộ lọc/tìm kiếm
     setPage(1);
-  }, [search, categoryFilter, onlyDamaged]);
+  }, [search, categoryFilter]);
 
   const categoryOptions = useMemo(
     () => Array.from(new Set(rows.map((r) => r.categoryName).filter((v): v is string => Boolean(v)))),
@@ -77,10 +76,9 @@ export default function AdminStockStatusPage() {
     () =>
       rows.filter((r) => {
         if (categoryFilter && r.categoryName !== categoryFilter) return false;
-        if (onlyDamaged && r.quantityDamaged <= 0) return false;
         return true;
       }),
-    [rows, categoryFilter, onlyDamaged],
+    [rows, categoryFilter],
   );
 
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / limit));
@@ -160,12 +158,6 @@ export default function AdminStockStatusPage() {
           <h1 className="text-2xl font-bold text-slate-900">Tồn kho doanh nghiệp</h1>
           <p className="mt-1 text-sm text-slate-500">Quản lý số lượng tồn kho sản phẩm và thiết bị trong doanh nghiệp</p>
         </div>
-        <Link href="/admin/inventory/maintenance">
-          <Button variant="secondary">
-            <Wrench className="h-4 w-4" />
-            Thiết bị đang bảo trì
-          </Button>
-        </Link>
       </div>
 
       <motion.div
@@ -173,7 +165,7 @@ export default function AdminStockStatusPage() {
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: '-40px' }}
         transition={{ duration: 0.25 }}
-        className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs sm:p-6"
+        className="mt-6 sm:p-6 rounded-xl border border-slate-200 bg-white p-4 shadow-xs"
       >
         <h2 className="text-base font-bold text-slate-900">Danh sách tồn kho doanh nghiệp</h2>
 
@@ -193,26 +185,7 @@ export default function AdminStockStatusPage() {
               options={[{ value: '', label: 'Nhóm sản phẩm' }, ...categoryOptions.map((c) => ({ value: c, label: c }))]}
             />
           </div>
-          <Button type="button" variant={showAdvancedFilters ? 'primary' : 'secondary'} onClick={() => setShowAdvancedFilters((v) => !v)}>
-            <SlidersHorizontal className="h-4 w-4" />
-            Bộ lọc
-          </Button>
         </div>
-
-        {showAdvancedFilters && (
-          <div className="mt-3 flex items-center gap-2 border-t border-slate-100 pt-3">
-            <input
-              id="only-maintenance"
-              type="checkbox"
-              checked={onlyDamaged}
-              onChange={(e) => setOnlyDamaged(e.target.checked)}
-              className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-            />
-            <label htmlFor="only-maintenance" className="text-sm font-medium text-slate-600">
-              Chỉ hiển thị sản phẩm đang có hàng hỏng / bảo trì
-            </label>
-          </div>
-        )}
 
         <div className="mt-4">
           {isLoading ? (

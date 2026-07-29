@@ -175,7 +175,7 @@ export default function Page() {
         </Button>
       </div>
 
-      <Reveal className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
+      <Reveal className="mt-6 rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
         <div className="flex flex-wrap items-center gap-3">
           <div className="min-w-[240px] flex-1">
             <Input
@@ -228,7 +228,7 @@ export default function Page() {
         </div>
       </Reveal>
 
-      <SupplierDetailModal supplier={detailSupplier} onClose={() => setDetailSupplier(null)} />
+      <SupplierDetailModal supplier={(detailSupplier as any) ?? null} onClose={() => setDetailSupplier(null)} />
 
       <OrderDetailModal transaction={detailTransaction} onClose={() => setDetailTransaction(null)} />
 

@@ -201,7 +201,7 @@ export default function ManagerOrdersPage() {
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: '-40px' }}
         transition={{ duration: 0.25 }}
-        className="mt-6 flex flex-col items-center justify-between gap-3 rounded-xl border border-slate-200/80 bg-white p-4 shadow-xs md:flex-row"
+        className="mt-6 flex flex-col items-center justify-between gap-3 md:flex-row rounded-xl border border-slate-200 bg-white p-4 shadow-xs"
       >
         <div className="flex w-full flex-wrap gap-2.5 md:w-auto">
           <div className="relative w-full sm:w-56">
@@ -254,7 +254,7 @@ export default function ManagerOrdersPage() {
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: '-40px' }}
         transition={{ duration: 0.25, delay: 0.05 }}
-        className="mt-6 overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-xs"
+        className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white p-4 shadow-xs"
       >
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-left text-sm">

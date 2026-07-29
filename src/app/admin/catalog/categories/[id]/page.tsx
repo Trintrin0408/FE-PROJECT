@@ -176,7 +176,7 @@ export default function Page() {
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <Reveal className="rounded-xl bg-white p-5 shadow-sm lg:col-span-2">
+        <Reveal className="lg:col-span-2 rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
           <h3 className="text-sm font-semibold text-slate-900">Thông tin cơ bản</h3>
           <div className="mt-4 grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
             <div>
@@ -194,7 +194,7 @@ export default function Page() {
           </div>
         </Reveal>
 
-        <Reveal delay={0.05} className="rounded-xl bg-white p-5 shadow-sm">
+        <Reveal delay={0.05} className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
           <h3 className="text-sm font-semibold text-slate-900">Thống kê</h3>
           <div className="mt-4 grid grid-cols-3 gap-3">
             <StatTile icon={Boxes} iconClassName="bg-blue-100 text-blue-600" value={stats.total} label="Tổng số" />
@@ -204,7 +204,7 @@ export default function Page() {
         </Reveal>
       </div>
 
-      <Reveal className="mt-6 rounded-xl bg-white p-5 shadow-sm">
+      <Reveal className="mt-6 rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h3 className="text-sm font-semibold text-slate-900">Danh sách thiết bị</h3>
           <div className="w-full sm:w-64">

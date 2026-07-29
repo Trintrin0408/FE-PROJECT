@@ -14,6 +14,7 @@ import { catalogApiService } from '@/services/catalog.service';
 import { orderApiService } from '@/services/order.service';
 import type { InventoryMovement, InventoryRow } from '@/types/inventory';
 import type { Item } from '@/types/catalog';
+import { useAuthContext } from '@/context/AuthContext';
 
 // Nối API thật theo docs/tonkhodoanhnghiep_api.md (2026-07-20) — component RIÊNG cho màn "Tồn kho
 // doanh nghiệp" (`/manager/inventory/stock-check`, `/admin/inventory/stock-status`), KHÔNG dùng chung
@@ -42,6 +43,9 @@ export function InventoryDetailModal({ isOpen, onClose, itemId, onAdjusted }: Re
   const [movements, setMovements] = useState<InventoryMovement[]>([]);
   const [orderCodes, setOrderCodes] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
+
+  const { user } = useAuthContext();
+  const isAdmin = user?.role?.roleName === 'Admin';
 
   const [adjustKind, setAdjustKind] = useState<AdjustKind>('INBOUND');
   const [adjustQty, setAdjustQty] = useState('');
@@ -176,7 +180,8 @@ export function InventoryDetailModal({ isOpen, onClose, itemId, onAdjusted }: Re
             <p className="mt-2 text-xs italic text-slate-400">Vị trí kho: {MOCK_LOCATION} (dữ liệu fix cứng — `inventory` chưa có cột `location`)</p>
           </div>
 
-          <div className="rounded-lg border border-slate-200 p-4">
+          {isAdmin && (
+            <div className="rounded-lg border border-slate-200 p-4">
             <h3 className="text-sm font-semibold text-slate-900">Điều chỉnh tồn kho</h3>
             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-4">
               <Select
@@ -207,6 +212,7 @@ export function InventoryDetailModal({ isOpen, onClose, itemId, onAdjusted }: Re
               </Button>
             </div>
           </div>
+          )}
 
           <div>
             <h3 className="text-sm font-semibold text-slate-900">Nhật ký biến động kho ({movements.length})</h3>

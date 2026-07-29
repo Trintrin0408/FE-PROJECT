@@ -1,15 +1,20 @@
 import React, { SelectHTMLAttributes } from 'react';
 
-interface SelectOption {
+export interface SelectOption {
   value: string;
   label: string;
 }
 
-interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
+export interface SelectOptionGroup {
+  label: string;
+  options: SelectOption[];
+}
+
+export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;
   error?: string;
   helpText?: string;
-  options: SelectOption[];
+  options: (SelectOption | SelectOptionGroup)[];
   placeholder?: string;
 }
 
@@ -43,11 +48,24 @@ export const Select: React.FC<SelectProps> = ({
             {placeholder}
           </option>
         )}
-        {options.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
-          </option>
-        ))}
+        {options.map((opt, i) => {
+          if ('options' in opt) {
+            return (
+              <optgroup key={i} label={opt.label}>
+                {opt.options.map((subOpt) => (
+                  <option key={subOpt.value} value={subOpt.value}>
+                    {subOpt.label}
+                  </option>
+                ))}
+              </optgroup>
+            );
+          }
+          return (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          );
+        })}
       </select>
       {error && <p className="text-xs text-red-600 mt-0.5">{error}</p>}
       {helpText && !error && <p className="text-xs text-gray-500 mt-0.5">{helpText}</p>}

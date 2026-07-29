@@ -168,7 +168,7 @@ export default function ManagerSurveyReportsPage() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-40px' }}
           transition={{ duration: 0.25 }}
-          className="flex items-center justify-between rounded-xl border border-slate-100 bg-white p-4 shadow-xs"
+          className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-xs"
         >
           <div>
             <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Tổng số báo cáo</p>
@@ -183,7 +183,7 @@ export default function ManagerSurveyReportsPage() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-40px' }}
           transition={{ duration: 0.25, delay: 0.05 }}
-          className="flex items-center justify-between rounded-xl border border-amber-100/60 bg-amber-50/60 p-4 shadow-xs"
+          className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-xs"
         >
           <div>
             <p className="text-[10px] font-bold uppercase tracking-wider text-amber-500">Chờ xác nhận</p>
@@ -198,7 +198,7 @@ export default function ManagerSurveyReportsPage() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-40px' }}
           transition={{ duration: 0.25, delay: 0.1 }}
-          className="flex items-center justify-between rounded-xl border border-emerald-100/60 bg-emerald-50/60 p-4 shadow-xs"
+          className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-xs"
         >
           <div>
             <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-500">Đã xác nhận</p>
@@ -213,7 +213,7 @@ export default function ManagerSurveyReportsPage() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-40px' }}
           transition={{ duration: 0.25, delay: 0.15 }}
-          className="flex items-center justify-between rounded-xl border border-slate-200/60 bg-slate-50 p-4 shadow-xs"
+          className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-xs"
         >
           <div>
             <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Bản nháp/Khác</p>

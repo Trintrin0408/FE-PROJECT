@@ -193,28 +193,53 @@ Body: { "status": "active" | "inactive" }
 
 1. **Tên miền nghiệp vụ & route**: dùng `/api/v1/employees` (không phải `/api/v1/users`, tránh đụng API
    RBAC đã có); đổi route FE từ `/admin/settings/users` sang `/admin/settings/employees` khi nối API thật
-   (FE code chưa đổi, chỉ mới ghi nhận quyết định).
-2. **Vai trò chuyên môn (`role`)**: độc lập hoàn toàn với 4 role RBAC (Admin/Manager/Leader Staff/Technical
-   Staff) — không mapping. Lưu dạng danh mục (catalog) `employee_roles` cho Admin tự thêm/sửa/xóa, không
-   hardcode ENUM cố định (xem mục 1.1).
+   (FE code chưa đổi, chỉ mới ghi nhận quyết định). **Vẫn giữ nguyên** sau cập nhật mục 3.1 bên dưới — chỉ
+   route/base path FE nhìn thấy, không phụ thuộc bảng DB phía sau.
+2. ~~**Vai trò chuyên môn (`role`)**: độc lập hoàn toàn với 4 role RBAC... Lưu dạng danh mục (catalog)
+   `employee_roles` cho Admin tự thêm/sửa/xóa, không hardcode ENUM cố định~~ — **đã bị ghi đè**, xem mục 3.1.
 3. **Ý nghĩa `status`**: trạng thái làm việc tĩnh (đang hoạt động/ngừng hoạt động), không phải trạng thái
-   trực ca real-time — set thủ công bởi Admin.
+   trực ca real-time — set thủ công bởi Admin. **Vẫn giữ nguyên**, nhưng lưu ý dưới Hướng A, cột thật là
+   `users.status` (`ACTIVE`/`INACTIVE`/`SUSPENDED` — 3 giá trị) chứ không phải cột `status` riêng 2 giá trị
+   như giả định ban đầu; cần map `inactive` (FE) → `INACTIVE` hoặc `SUSPENDED` (DB) — **chưa chốt map giá
+   trị nào**, xem mục 3.1.
 4. **`assignedBookings`**: cần đổi các bảng phân công nhân sự khác (Schedule Plan, Work Task, người khảo
    sát...) sang tham chiếu `employee_id` thật thay vì lưu tên chuỗi tự do — ghi thành 1 mục riêng ở
    `docs/more-require.md` trước khi implement trường này đúng nghĩa (chưa thực hiện, nằm ngoài phạm vi
-   sửa lần này).
-5. **Mã `id` (`NV###`)**: backend sinh và lưu trực tiếp làm PK dạng mã nghiệp vụ `NV###`, không đổi sang
-   UUID — theo đúng tiền lệ `customerId` ở `docs/khach_hang_api.md`.
+   sửa lần này). **Vẫn giữ nguyên** dưới Hướng A, chỉ đổi `employee_id` thành `user_id` thật (đã tồn tại
+   sẵn trên `users`, không cần cột mới cho việc này).
+5. ~~**Mã `id` (`NV###`)**: backend sinh và lưu trực tiếp làm PK dạng mã nghiệp vụ `NV###`, không đổi sang
+   UUID~~ — **đã bị ghi đè**, xem mục 3.1: PK thật là `user_id` (uuid), `NV###` chỉ là cột hiển thị
+   `employee_code` riêng.
 6. **Rule xóa**: không có xóa cứng — chỉ vô hiệu hóa qua `PATCH /api/v1/employees/:id/status` (mục 2.5).
+   **Vẫn giữ nguyên** ý nghĩa, nhưng dưới Hướng A endpoint này set `users.status`, cần chốt lại map
+   `inactive` → giá trị nào trong 3 giá trị thật (xem điểm 3).
 7. **Quyền đọc**: Admin đọc + ghi đầy đủ; Manager, Leader Staff, Technical Staff chỉ đọc (không tạo/sửa/vô
-   hiệu hóa).
+   hiệu hóa). **Vẫn giữ nguyên**.
+
+### 3.1. ✅ Cập nhật quan trọng — đã chốt Hướng A ngày 2026-07-21
+
+Sau khi đối chiếu schema DB thật (xem [`docs/admin_themnhansu_api.md`](admin_themnhansu_api.md) mục 2),
+xác nhận **không có bảng `employees`/`employee_roles`** — toàn bộ actor nằm trong bảng `users` duy nhất.
+Product đã chốt **Hướng A** (`admin_themnhansu_api.md` mục 3.3): nhân sự vận hành sự kiện = tài khoản
+`LEADER`/`TECHNICAL` thật trong `users`, ghi đè các quyết định 2 và 5 ở trên. Tóm tắt thay đổi:
+
+- PK thật: `user_id` (uuid), **không phải** `NV###`. `NV###` giờ là cột hiển thị `employee_code varchar
+  UNIQUE` riêng, sinh bằng Postgres `SEQUENCE` (không dùng `SELECT MAX+1`).
+- "Vai trò chuyên môn" lưu ở cột mới `job_title varchar(100)` trên `users`, **không phải** FK tới danh mục
+  `employee_roles` — validate bằng constant list 6 giá trị cố định phía backend, Admin **không** tự
+  thêm/sửa/xóa được (thu hẹp so với quyết định 2 gốc, Product đã chấp nhận).
+- Tạo nhân sự = insert vào `users` (tự sinh `username` + mật khẩu tạm) — đảo ngược ý "không đăng nhập" ở
+  quyết định gốc; cần thêm UI hiển thị/giao mật khẩu tạm (chưa có trong ảnh mẫu).
+- Chi tiết đầy đủ (schema, request/response, câu hỏi còn mở) xem `admin_themnhansu_api.md` mục 2, 3.1–3.4.
 
 > Bước tiếp theo:
-> - Backend xác nhận lại tên bảng/cột thật (tài liệu này chưa đối chiếu được DB do thiếu MCP truy vấn —
->   xem cảnh báo ở đầu file) trước khi implement.
+> - **Câu hỏi còn mở, cần Backend/Product chốt tiếp**: (1) map `status` FE (`active`/`inactive`) sang giá
+>   trị nào trong 3 giá trị thật `users.status` (`ACTIVE`/`INACTIVE`/`SUSPENDED`) — điểm 3 ở trên; (2)
+>   `role` khi tạo nhân sự mặc định `TECHNICAL` hay cho Admin chọn `LEADER`/`TECHNICAL` (xem
+>   `admin_themnhansu_api.md` mục 5.3).
 > - Thêm 1 mục mới ở `docs/more-require.md` cho quyết định 4 (danh sách cụ thể các bảng/service cần đổi
->   sang tham chiếu `employee_id`) trước khi FE bắt đầu code `employee.service.ts` dựa vào trường
+>   sang tham chiếu `user_id`) trước khi FE bắt đầu code `employee.service.ts` dựa vào trường
 >   `assignedBookings`.
 > - Khi nối API thật: di chuyển route FE sang `/admin/settings/employees`, đổi nút "Xóa nhân sự" thành "Vô
 >   hiệu hóa nhân sự", đổi nhãn trạng thái "Đang trực"/"Ngoại tuyến" thành "Đang hoạt động"/"Ngừng hoạt
->   động".
+>   động", thêm UI hiển thị mật khẩu tạm khi tạo nhân sự mới.

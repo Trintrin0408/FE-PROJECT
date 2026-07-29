@@ -140,7 +140,7 @@ export default function ManagerHandoversPage() {
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: '-40px' }}
         transition={{ duration: 0.25 }}
-        className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs"
+        className="mt-6 rounded-xl border border-slate-200 bg-white p-4 shadow-xs"
       >
         <div className="flex flex-wrap items-center gap-3">
           <div className="min-w-[240px] flex-1">

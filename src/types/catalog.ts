@@ -145,3 +145,22 @@ export interface UpdateItemPayload {
 export interface UpdateItemStatusPayload {
   status: ItemStatus;
 }
+
+export interface ItemSupplierDetails {
+  itemId: string;
+  supplierId: string;
+  supplierCode: string;
+  supplierName: string;
+  serviceType: string;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  rentalPrice: number;
+  purchasePrice: number | null;
+  isActive: boolean;
+  minQuantity: number | null;
+  supplierItemCode: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+

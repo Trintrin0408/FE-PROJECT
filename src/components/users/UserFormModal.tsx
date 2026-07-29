@@ -7,13 +7,16 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
 import { USER_ROLE_OPTIONS } from '@/constants/roles';
-import type { AdminUser, UserRole } from '@/types/user';
+import type { AdminUser, UserRole, UserStatus } from '@/types/user';
 
 export interface UserFormValues {
   username: string;
-  password: string;
+  password?: string;
   fullName: string;
   role: UserRole;
+  email: string;
+  phone: string;
+  status: UserStatus;
 }
 
 interface UserFormModalProps {
@@ -31,6 +34,9 @@ const EMPTY_VALUES: UserFormValues = {
   password: '',
   fullName: '',
   role: 'MANAGER',
+  email: '',
+  phone: '',
+  status: 'ACTIVE',
 };
 
 export function UserFormModal({
@@ -52,7 +58,15 @@ export function UserFormModal({
     if (isOpen) {
       setValues(
         mode === 'edit' && user
-          ? { username: user.username, password: '', fullName: user.fullName, role: user.role }
+          ? { 
+              username: user.username, 
+              password: '', 
+              fullName: user.fullName, 
+              role: user.role,
+              email: (user as any).email ?? '',
+              phone: (user as any).phone ?? '',
+              status: user.status ?? 'ACTIVE'
+            }
           : EMPTY_VALUES
       );
       setConfirmPassword('');
@@ -88,7 +102,7 @@ export function UserFormModal({
       size="lg"
       footer={footer}
     >
-      <form id="user-form" onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <form id="user-form" onSubmit={handleSubmit} className="flex flex-col gap-4" autoComplete="off">
         <Input
           label="Họ và tên"
           required
@@ -103,6 +117,7 @@ export function UserFormModal({
             disabled={mode === 'edit'}
             value={values.username}
             onChange={(e) => setValues((v) => ({ ...v, username: e.target.value }))}
+            autoComplete="off"
           />
           <Select
             label="Vai trò"
@@ -113,26 +128,46 @@ export function UserFormModal({
           />
         </div>
 
+        <div className="grid grid-cols-2 gap-4">
+          <Input
+            label="Số điện thoại"
+            value={values.phone}
+            onChange={(e) => setValues((v) => ({ ...v, phone: e.target.value }))}
+            pattern="^0[0-9]{9}$"
+            title="Số điện thoại phải bắt đầu bằng số 0 và có đúng 10 chữ số"
+          />
+          <Input
+            label="Email"
+            required
+            type="email"
+            value={values.email}
+            onChange={(e) => setValues((v) => ({ ...v, email: e.target.value }))}
+            autoComplete="off"
+          />
+        </div>
+
         {mode === 'create' && (
           <div className="grid grid-cols-2 gap-4">
             <Input
               label="Mật khẩu"
               type={showPassword ? 'text' : 'password'}
               required
-              minLength={8}
+              minLength={6}
               value={values.password}
               onChange={(e) => setValues((v) => ({ ...v, password: e.target.value }))}
               trailingIcon={showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               onTrailingIconClick={() => setShowPassword((s) => !s)}
+              autoComplete="new-password"
             />
             <Input
               label="Xác nhận mật khẩu"
               type={showPassword ? 'text' : 'password'}
               required
-              minLength={8}
+              minLength={6}
               error={passwordMismatch ? 'Mật khẩu xác nhận không khớp' : undefined}
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
+              autoComplete="new-password"
             />
           </div>
         )}

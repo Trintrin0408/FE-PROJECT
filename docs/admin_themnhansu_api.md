@@ -22,8 +22,18 @@
 > khuyến nghị") nhưng đây là **quyết định nghiệp vụ cần Product xác nhận lại**, không phải việc code tự
 > quyết một mình — xem cảnh báo ở mục 3.3.
 >
+> ✅ **Đã chốt với Product ngày 2026-07-21**: chọn **Hướng A** ở mục 3.3 — nhân sự vận hành sự kiện là tài
+> khoản `LEADER`/`TECHNICAL` thật trong bảng `users` (không tạo bảng `employees` riêng). Điều này **ghi đè**
+> quyết định 1 & 2 ở `docs/admin_danhsachnguoidung__api.md` mục 3 (đã cập nhật lại ở đó): giữ nguyên base
+> path FE gọi là `/api/v1/employees` (route riêng, dễ đọc), nhưng backend implement bằng cách insert/đọc từ
+> `users` (role `LEADER`/`TECHNICAL`) thay vì bảng `employees` không tồn tại. "Vai trò chuyên môn" lưu ở cột
+> `job_title` mới trên `users` (danh sách tĩnh 6 giá trị cố định, **không phải** danh mục Admin tự thêm được
+> — thu hẹp so với quyết định gốc, xem mục 3.2/3.4). Backend/Product cần xác nhận thêm 2 câu hỏi còn mở ở
+> mục 3.3 (chọn `role` mặc định `TECHNICAL` hay cho phép chọn `LEADER`/`TECHNICAL`) trước khi implement.
+>
 > Vì dự án đang ở giai đoạn UI-first (CLAUDE.md mục 0), mâu thuẫn này **không chặn việc code UI** — FE vẫn
-> dùng mock. Tài liệu này chỉ cập nhật để backend có thông tin đúng khi tới lượt nối API thật.
+> dùng mock cho tới khi Backend implement xong endpoint theo Hướng A. Tài liệu này chỉ cập nhật để backend
+> có thông tin đúng khi tới lượt nối API thật.
 
 ## 1. Bối cảnh UI
 
@@ -85,28 +95,26 @@ trí) **không map 1-1 với `users.role` RBAC** (4 giá trị, dùng cho quyề
 - **Bỏ khả năng Admin tự thêm/sửa/xóa vai trò** (phần "danh mục mở rộng được" ở
   `docs/admin_danhsachnguoidung__api.md` mục 1.1) cho tới khi có nhu cầu thật — trước mắt `job_title` chỉ
   nhận 1 trong 6 giá trị cố định, validate ở backend bằng constant list (không phải FK). Đây là **thu hẹp
-  phạm vi so với quyết định đã chốt trước đó** — cần Product xác nhận lại có chấp nhận không, hay vẫn muốn
-  tạo bảng `employee_roles` thật (khả thi nhưng tốn thêm 1 bảng + migration).
+  phạm vi so với quyết định đã chốt trước đó** — ✅ **đã chốt với Product ngày 2026-07-21: chấp nhận thu hẹp
+  phạm vi này**, không tạo bảng `employee_roles` thật.
 
 ### 3.3. `POST /api/v1/employees` — impl trên bảng `users`
 
-**Đây là điểm mâu thuẫn cần Product quyết định trước khi code**, không nên tự chọn ngầm: quyết định gốc ghi
-nhân sự "không đăng nhập hệ thống, không username/password/role RBAC", nhưng bảng thật `users` bắt buộc
-`username` (UK, NOT NULL) và `role` (NOT NULL, enum 4 giá trị) cho mọi dòng.
+✅ **Đã chốt với Product ngày 2026-07-21: chọn Hướng A** — nhân sự vận hành sự kiện là tài khoản
+`LEADER`/`TECHNICAL` thật trong bảng `users` (không tạo bảng `employees` riêng, không giữ "không đăng
+nhập" như quyết định gốc ở `docs/admin_danhsachnguoidung__api.md`).
 
-Khuyến nghị (2 hướng, đề xuất chọn hướng A vì không cần thêm bảng và tận dụng được tài khoản mobile có
-sẵn):
+- **Hướng A (đã chọn) — nhân sự = tài khoản `LEADER`/`TECHNICAL` thật**: `POST /api/v1/employees` insert
+  thẳng vào `users` với `role` mặc định `TECHNICAL` (hoặc cho chọn `LEADER`/`TECHNICAL` — **câu hỏi còn mở**,
+  cần Backend/Product chốt tiếp trước khi implement, xem mục 5), tự sinh `username` (ví dụ từ số điện
+  thoại) + mật khẩu tạm, bắt đổi mật khẩu ở lần đăng nhập mobile đầu tiên. Ưu điểm: nhân sự tạo ra dùng
+  được ngay trên mobile app, không tốn bảng mới. Đánh đổi đã được Product chấp nhận: đảo ngược quyết định
+  "không đăng nhập" đã chốt trước đó — modal FE cần thêm luồng hiển thị/giao mật khẩu tạm cho nhân sự
+  (chưa có trong ảnh mẫu hiện tại, cần thiết kế bổ sung khi tới lượt code FE).
+- ~~Hướng B — giữ nguyên "không đăng nhập"~~ — **không chọn** (yêu cầu tạo bảng `employees` riêng, mâu
+  thuẫn với schema thật hiện có).
 
-- **Hướng A — nhân sự = tài khoản `LEADER`/`TECHNICAL` thật**: `POST /api/v1/employees` insert thẳng vào
-  `users` với `role` mặc định `TECHNICAL` (hoặc cho chọn `LEADER`/`TECHNICAL` nếu Product muốn), tự sinh
-  `username` (ví dụ từ số điện thoại) + mật khẩu tạm, bắt đổi mật khẩu ở lần đăng nhập mobile đầu tiên. Ưu
-  điểm: nhân sự tạo ra dùng được ngay trên mobile app, không tốn bảng mới. Nhược điểm: đảo ngược quyết định
-  "không đăng nhập" đã chốt — modal FE cần thêm luồng hiển thị/giao mật khẩu tạm cho nhân sự.
-- **Hướng B — giữ nguyên "không đăng nhập"**: phải tạo lại một bảng `employees` riêng (mâu thuẫn với dữ
-  liệu "không có bảng employees" hiện tại) — chỉ hợp lý nếu Product xác nhận thật sự cần hồ sơ nhân sự
-  không gắn tài khoản đăng nhập.
-
-**Request/response đề xuất nếu chọn Hướng A**:
+**Request/response đề xuất cho Hướng A**:
 
 ```json
 // Request
@@ -142,8 +150,8 @@ sẵn):
 **Validate tối thiểu (backend)**
 
 - `name`, `phone` không rỗng; `jobTitle` thuộc 6 giá trị cố định (mục 3.2).
-- Nếu chọn Hướng A: `username` tự sinh phải đảm bảo unique (retry với hậu tố nếu trùng); validate định dạng
-  số điện thoại VN, định dạng email nếu có nhập (FE hiện chưa có, nên bổ sung ở backend).
+- `username` tự sinh phải đảm bảo unique (retry với hậu tố nếu trùng); validate định dạng số điện thoại
+  VN, định dạng email nếu có nhập (FE hiện chưa có, nên bổ sung ở backend).
 
 **Permission**: chỉ **Admin** (Manager/Leader Staff/Technical Staff không có quyền tạo nhân sự — theo
 CLAUDE.md mục 1 và quyết định 7 ở file gốc).
@@ -175,7 +183,7 @@ nâng cấp thành bảng thật + CRUD (mục 1.1 ở file gốc).
   `jobTitle` (string) thay vì `roleId` (không còn là FK sau khi bỏ bảng danh mục — xem mục 3.2).
 - Bỏ `nextAdminEmployeeId()` phía client khỏi luồng submit (chỉ giữ lại để hiển thị preview mã dự kiến,
   không gửi lên server) — mã thật (`employeeCode`) do backend sinh theo mục 3.1.
-- Nếu Product chọn Hướng A (mục 3.3): cần thêm UI hiển thị/giao mật khẩu tạm cho nhân sự mới tạo — chưa có
+- Theo Hướng A đã chốt (mục 3.3): cần thêm UI hiển thị/giao mật khẩu tạm cho nhân sự mới tạo — chưa có
   trong ảnh mẫu hiện tại, cần thiết kế bổ sung.
 - Gọi qua `services/employee.service.ts` (chưa tồn tại — cần tạo mới theo đúng pattern
   `services/*.service.ts` ở CLAUDE.md mục 4), không gọi axios trực tiếp trong `EmployeeFormModal.tsx`.
@@ -183,12 +191,14 @@ nâng cấp thành bảng thật + CRUD (mục 1.1 ở file gốc).
 ## 5. Việc cần làm ở Backend
 
 1. ~~Xác nhận lại tên bảng/cột thật cho `employees` và `employee_roles`~~ — **đã xác nhận (mục 2)**: không
-   có bảng `employees`/`employee_roles`, toàn bộ actor nằm trong `users`. **Cần Product xác nhận hướng hòa
-   giải ở mục 3.3 (Hướng A vs B) trước khi implement** — đây là quyết định nghiệp vụ (đảo ngược hay giữ
-   quyết định "nhân sự không đăng nhập" đã chốt trước đó), không chỉ là chi tiết kỹ thuật.
-2. Implement `POST /api/v1/employees` và `GET /api/v1/employee-roles` theo khuyến nghị ở mục 3.3/3.4
-   (Hướng A: insert vào `users` + trả danh sách vai trò tĩnh) — điều chỉnh lại nếu Product chọn khác.
-3. Sinh mã `employeeCode` dạng `NV###` an toàn với concurrent request bằng Postgres `SEQUENCE` (mục 3.1),
+   có bảng `employees`/`employee_roles`, toàn bộ actor nằm trong `users`.
+2. ~~Product xác nhận hướng hòa giải (Hướng A vs B)~~ — **✅ đã chốt 2026-07-21: Hướng A**. Implement
+   `POST /api/v1/employees` và `GET /api/v1/employee-roles` theo mục 3.3/3.4 (insert vào `users` + trả
+   danh sách vai trò tĩnh).
+3. **Câu hỏi còn mở, cần Backend/Product chốt tiếp trước khi implement**: `role` khi tạo nhân sự luôn mặc
+   định `TECHNICAL`, hay cho Admin chọn `LEADER`/`TECHNICAL` ngay trên modal "Thêm nhân sự"? (mục 3.3 chưa
+   chốt điểm này).
+4. Sinh mã `employeeCode` dạng `NV###` an toàn với concurrent request bằng Postgres `SEQUENCE` (mục 3.1),
    không dùng `SELECT MAX+1`.
-4. Thêm 2 cột mới trên `users`: `employee_code varchar(10) UNIQUE`, `job_title varchar(100) NULL`
+5. Thêm 2 cột mới trên `users`: `employee_code varchar(10) UNIQUE`, `job_title varchar(100) NULL`
    (migration nhỏ, không cần bảng mới).

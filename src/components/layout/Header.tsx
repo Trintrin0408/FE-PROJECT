@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Bell, UserCircle, KeyRound, LogOut } from 'lucide-react';
+import { Bell, HelpCircle, UserCircle, KeyRound, LogOut } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { computeApproachingEvents, type ApproachingEvent } from '@/utils/approachingEvents';
 import { orderApiService } from '@/services/order.service';

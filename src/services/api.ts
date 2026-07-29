@@ -1,20 +1,12 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
-import mockAdapter from './mockAdapter';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001/api/v1';
-
-// Chế độ demo không cần backend thật (CLAUDE.md mục 0) — mặc định BẬT trừ khi set
-// NEXT_PUBLIC_MOCK_MODE=false trong .env.local. Khi bật, mọi request đi qua mockAdapter
-// (src/services/mockAdapter.ts) thay vì gọi network thật — xem file đó để biết route nào có mock.
-const MOCK_MODE = process.env.NEXT_PUBLIC_MOCK_MODE !== 'false';
-
 const api: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
   timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
   },
-  ...(MOCK_MODE ? { adapter: mockAdapter } : {}),
 });
 
 // Request interceptor — attach JWT token from localStorage
@@ -35,9 +27,9 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
-    const isLoginRequest = error.config?.url === '/auth/login';
+    const isAuthRoute = error.config?.url?.startsWith('/auth/');
 
-    if (error.response?.status === 401 && !isLoginRequest) {
+    if (error.response?.status === 401 && !isAuthRoute) {
       if (globalThis.window !== undefined) {
         localStorage.removeItem('bnwems_token');
         localStorage.removeItem('bnwems_user');
@@ -56,8 +48,8 @@ api.interceptors.response.use(
       return api.request(config);
     }
 
-    // Log remaining 4xx/5xx in dev (excludes login — its errors are shown inline).
-    if (process.env.NODE_ENV !== 'production' && error.response && error.response.status >= 400 && !isLoginRequest) {
+    // Log remaining 4xx/5xx in dev (excludes auth routes like login/forgot-password — their errors are shown inline).
+    if (process.env.NODE_ENV !== 'production' && error.response && error.response.status >= 400 && !isAuthRoute) {
       console.error(
         `[API ${error.response.status}] ${error.config?.method?.toUpperCase()} ${error.config?.url}`,
         error.response.data,

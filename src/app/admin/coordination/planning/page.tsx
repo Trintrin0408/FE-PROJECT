@@ -342,7 +342,7 @@ export default function AdminPlanningPage() {
       )}
 
       {activeTab === 'list' && (
-        <Reveal className="mt-6 flex flex-col gap-4 rounded-xl border border-slate-200/80 bg-white p-4 shadow-2xs md:flex-row md:items-center md:justify-between">
+        <Reveal className="mt-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
           <div className="relative flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <input
@@ -382,7 +382,7 @@ export default function AdminPlanningPage() {
 
       {activeTab === 'calendar' && (
         <div className="mt-6 grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
-          <Reveal className="space-y-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs lg:col-span-7">
+          <Reveal className="space-y-5 lg:col-span-7 rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <h3 className="text-sm font-extrabold tracking-tight text-slate-800">
                 Lịch tháng {calendarMonth + 1}/{calendarYear}
@@ -465,7 +465,7 @@ export default function AdminPlanningPage() {
             </div>
           </Reveal>
 
-          <Reveal delay={0.05} className="flex min-h-[500px] flex-col space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs lg:col-span-5">
+          <Reveal delay={0.05} className="flex min-h-[500px] flex-col space-y-4 lg:col-span-5 rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div className="flex items-center gap-2">
                 <div className="rounded-lg bg-blue-50 p-1.5 text-blue-600">
@@ -545,7 +545,7 @@ export default function AdminPlanningPage() {
       )}
 
       {activeTab === 'timeline' && (
-        <Reveal className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
+        <Reveal className="mt-6 rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
             <div>
               <h3 className="text-sm font-extrabold tracking-tight text-slate-800">
@@ -649,7 +649,7 @@ export default function AdminPlanningPage() {
       )}
 
       {activeTab === 'list' && (
-        <Reveal className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs">
+        <Reveal className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-left">
               <thead>

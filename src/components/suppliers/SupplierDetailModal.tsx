@@ -4,10 +4,11 @@ import { Building2, Coins, Mail, MapPin, Package, User, X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { formatDate } from '@/utils/formatDate';
-import { AdminSupplier, SUPPLIER_TRANSACTION_STATUS_META } from '@/mocks/db/suppliers';
+import { SUPPLIER_TRANSACTION_STATUS_META } from '@/mocks/db/suppliers';
+import type { Supplier } from '@/types/supplier';
 
 interface SupplierDetailModalProps {
-  supplier: AdminSupplier | null;
+  supplier: Supplier | null;
   onClose: () => void;
 }
 
@@ -78,7 +79,7 @@ export function SupplierDetailModal({ supplier, onClose }: Readonly<SupplierDeta
 
             <p className="mt-4 text-xs font-bold uppercase tracking-wide text-slate-500">Lịch sử giao dịch thuê/mua ngoài</p>
             <div className="mt-2 overflow-hidden rounded-xl border border-slate-200">
-              {(supplier.transactions ?? []).length === 0 ? (
+              {((supplier as any).transactions ?? []).length === 0 ? (
                 <p className="px-3 py-4 text-center text-sm text-slate-400">Chưa có giao dịch nào.</p>
               ) : (
                 <div className="overflow-x-auto">
@@ -93,7 +94,7 @@ export function SupplierDetailModal({ supplier, onClose }: Readonly<SupplierDeta
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {(supplier.transactions ?? []).map((t) => (
+                    {((supplier as any).transactions ?? []).map((t: any) => (
                       <tr key={t.requestCode}>
                         <td className="px-3 py-3 font-semibold text-blue-600">{t.requestCode}</td>
                         <td className="px-3 py-3">
@@ -103,8 +104,8 @@ export function SupplierDetailModal({ supplier, onClose }: Readonly<SupplierDeta
                         <td className="px-3 py-3 text-slate-500">{formatDate(t.executionDate)}</td>
                         <td className="px-3 py-3 font-bold text-slate-900">{formatCurrency(t.value)}</td>
                         <td className="px-3 py-3">
-                          <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${SUPPLIER_TRANSACTION_STATUS_META[t.status].badgeClass}`}>
-                            {SUPPLIER_TRANSACTION_STATUS_META[t.status].label}
+                          <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${(SUPPLIER_TRANSACTION_STATUS_META as any)[t.status]?.badgeClass}`}>
+                            {(SUPPLIER_TRANSACTION_STATUS_META as any)[t.status]?.label}
                           </span>
                         </td>
                       </tr>
@@ -121,11 +122,11 @@ export function SupplierDetailModal({ supplier, onClose }: Readonly<SupplierDeta
               <Package className="h-4 w-4 text-slate-500" />
               Danh mục hạng mục &amp; giá thiết bị cung cấp
             </p>
-            {(supplier.catalogItems ?? []).length === 0 ? (
+            {((supplier as any).catalogItems ?? []).length === 0 ? (
               <p className="mt-2 text-sm text-slate-400">Chưa cập nhật hạng mục cung cấp.</p>
             ) : (
               <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {(supplier.catalogItems ?? []).map((item) => (
+                {((supplier as any).catalogItems ?? []).map((item: any) => (
                   <div key={item.itemCode} className="flex items-center justify-between rounded-xl border border-slate-200 p-3">
                     <div>
                       <p className="font-semibold text-slate-800">{item.itemName}</p>

@@ -36,7 +36,7 @@ export function EmployeeFormModal({ isOpen, onClose, editingEmployee, onSubmit }
   }
 
   const handleSubmit = () => {
-    if (!values.name.trim() || !values.phone.trim()) return;
+    if (!values.name.trim() || !values.email.trim()) return;
     onSubmit(values);
   };
 
@@ -58,10 +58,17 @@ export function EmployeeFormModal({ isOpen, onClose, editingEmployee, onSubmit }
       footer={footer}
     >
       <div className="flex flex-col gap-4">
-        <Input label="Họ và tên *" value={values.name} onChange={(e) => setValues((v) => ({ ...v, name: e.target.value }))} />
-        <Input label="Số điện thoại di động *" value={values.phone} onChange={(e) => setValues((v) => ({ ...v, phone: e.target.value }))} />
+        <Input label="Họ và tên *" required value={values.name} onChange={(e) => setValues((v) => ({ ...v, name: e.target.value }))} />
+        <Input 
+          label="Số điện thoại di động" 
+          value={values.phone} 
+          onChange={(e) => setValues((v) => ({ ...v, phone: e.target.value }))} 
+          pattern="^0[0-9]{9}$" 
+          title="Số điện thoại phải bắt đầu bằng số 0 và có đúng 10 chữ số"
+        />
         <Input
-          label="Thư điện tử doanh nghiệp (Email)"
+          label="Thư điện tử doanh nghiệp (Email) *"
+          required
           type="email"
           value={values.email}
           onChange={(e) => setValues((v) => ({ ...v, email: e.target.value }))}

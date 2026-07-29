@@ -143,7 +143,7 @@ export default function CreateOrderFromQuotationPage() {
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: '-40px' }}
         transition={{ duration: 0.25 }}
-        className="mx-auto mt-6 flex max-w-3xl items-center justify-around rounded-xl border border-slate-200/80 bg-white p-4 shadow-xs"
+        className="mx-auto mt-6 flex max-w-3xl items-center justify-around rounded-xl border border-slate-200 bg-white p-4 shadow-xs"
       >
         {STEPS.map((item) => (
           <div key={item.step} className="flex items-center gap-2">
@@ -167,7 +167,7 @@ export default function CreateOrderFromQuotationPage() {
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: '-40px' }}
         transition={{ duration: 0.25, delay: 0.05 }}
-        className="mx-auto mt-4 max-w-4xl overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-md"
+        className="mx-auto mt-4 max-w-4xl overflow-hidden rounded-xl border border-slate-200 bg-white p-4 shadow-xs"
       >
         {currentStep === 1 && (
           <div className="space-y-5 p-6">

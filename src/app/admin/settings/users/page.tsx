@@ -1,8 +1,8 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Mail, Pencil, Phone, Plus, Search, Trash2 } from 'lucide-react';
+import { Eye, Mail, Pencil, Phone, Plus, Search, Trash2 } from 'lucide-react';
 import { Table, TableColumn } from '@/components/ui/Table';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -10,151 +10,200 @@ import { Modal } from '@/components/ui/Modal';
 import { Pagination } from '@/components/ui/Pagination';
 import type { PaginationState } from '@/hooks/usePagination';
 import { useDebounce } from '@/hooks/useDebounce';
-import EmployeeFormModal, { randomAvatarColor } from '@/components/employees/EmployeeFormModal';
-import {
-  AdminEmployee,
-  EMPLOYEE_ROLES,
-  EMPLOYEE_ROLE_BADGE,
-  EMPLOYEE_STATUS_META,
-  EmployeeRole,
-  addAdminEmployee,
-  deleteAdminEmployee,
-  getAdminEmployees,
-  nextAdminEmployeeId,
-  updateAdminEmployee,
-} from '@/mocks/db/employees';
+import UserFormModal, { UserFormValues } from '@/components/users/UserFormModal';
+import UserDetailModal from '@/components/users/UserDetailModal';
+import { userApiService } from '@/services/user.service';
+import type { AdminUser, UserRole } from '@/types/user';
+import { USER_ROLE_OPTIONS } from '@/constants/roles';
 
-// Trang thuần giao diện — xem giải thích ở đầu src/mocks/adminEmployeesMock.ts (trang này thay
-// thế trang quản lý tài khoản/RBAC thật theo quyết định của người dùng).
+// Mapping role colors matching employee mock style
+const ROLE_BADGE: Record<string, 'neutral' | 'info' | 'success' | 'warning' | 'error'> = {
+  ADMIN: 'warning',
+  MANAGER: 'info',
+  STAFF: 'neutral',
+};
 
-export default function AdminEmployeesPage() {
-  const [employees, setEmployees] = useState<AdminEmployee[]>(() => getAdminEmployees());
+const STATUS_META: Record<string, { label: string; variant: 'success' | 'neutral' | 'warning' | 'error' }> = {
+  ACTIVE: { label: 'Đang hoạt động', variant: 'success' },
+  INACTIVE: { label: 'Vô hiệu hóa', variant: 'neutral' },
+  SUSPENDED: { label: 'Đình chỉ', variant: 'error' },
+};
+
+function randomAvatarColor(): string {
+  const AVATAR_COLOR_POOL = ['bg-blue-600', 'bg-emerald-600', 'bg-amber-600', 'bg-rose-600', 'bg-violet-600', 'bg-slate-600'];
+  return AVATAR_COLOR_POOL[Math.floor(Math.random() * AVATAR_COLOR_POOL.length)];
+}
+
+export default function AdminUsersPage() {
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [totalItems, setTotalItems] = useState(0);
+
   const [searchInput, setSearchInput] = useState('');
-  const search = useDebounce(searchInput, 300);
-  const [roleTab, setRoleTab] = useState<EmployeeRole | 'all'>('all');
+  const search = useDebounce(searchInput, 500);
+  const [roleTab, setRoleTab] = useState<UserRole | 'all'>('all');
   const [page, setPage] = useState(1);
   const limit = 10;
 
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingEmployee, setEditingEmployee] = useState<AdminEmployee | null>(null);
-  const [deletingEmployee, setDeletingEmployee] = useState<AdminEmployee | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string>();
+  const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
+  const [deactivatingUser, setDeactivatingUser] = useState<AdminUser | null>(null);
+  const [viewingUser, setViewingUser] = useState<AdminUser | null>(null);
 
-  const roleTabs: { value: EmployeeRole | 'all'; label: string; count: number }[] = [
-    { value: 'all', label: 'Tất cả', count: employees.length },
-    ...EMPLOYEE_ROLES.map((role) => ({ value: role, label: role, count: employees.filter((e) => e.role === role).length })),
-  ];
+  const loadUsers = async () => {
+    setIsLoading(true);
+    try {
+      const res = await userApiService.getUsers({
+        page,
+        limit,
+        search: search.trim() || undefined,
+        role: roleTab === 'all' ? undefined : roleTab,
+      });
+      if (res.success && res.data) {
+        setUsers(res.data);
+        setTotalItems(res.meta?.totalItems || res.data.length);
+      }
+    } catch (err) {
+      console.error('Failed to load users', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-  const filteredEmployees = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    return employees.filter((e) => {
-      if (roleTab !== 'all' && e.role !== roleTab) return false;
-      if (!term) return true;
-      return (
-        e.name.toLowerCase().includes(term) ||
-        e.id.toLowerCase().includes(term) ||
-        e.phone.includes(term) ||
-        e.email.toLowerCase().includes(term) ||
-        e.role.toLowerCase().includes(term)
-      );
-    });
-  }, [employees, search, roleTab]);
+  useEffect(() => {
+    loadUsers();
+  }, [page, limit, search, roleTab]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredEmployees.length / limit));
-  const safePage = Math.min(page, totalPages);
-  const pageRows = filteredEmployees.slice((safePage - 1) * limit, safePage * limit);
-  const paginationState: PaginationState = { currentPage: safePage, totalPages, totalItems: filteredEmployees.length, limit };
+  const totalPages = Math.max(1, Math.ceil(totalItems / limit));
+  const paginationState: PaginationState = { currentPage: page, totalPages, totalItems, limit };
 
   const openCreateModal = () => {
-    setEditingEmployee(null);
+    setEditingUser(null);
+    setFormError(undefined);
     setIsFormOpen(true);
   };
 
-  const openEditModal = (employee: AdminEmployee) => {
-    setEditingEmployee(employee);
+  const openEditModal = (user: AdminUser) => {
+    setEditingUser(user);
+    setFormError(undefined);
     setIsFormOpen(true);
   };
 
-  const handleSubmit = (values: Omit<AdminEmployee, 'id' | 'avatarColor' | 'assignedBookings'>) => {
-    if (editingEmployee) {
-      updateAdminEmployee(editingEmployee.id, values);
-    } else {
-      addAdminEmployee({ id: nextAdminEmployeeId(), avatarColor: randomAvatarColor(), assignedBookings: 0, ...values });
+  const handleFormSubmit = async (values: UserFormValues) => {
+    setIsSubmitting(true);
+    setFormError(undefined);
+    try {
+      if (editingUser) {
+        await userApiService.updateUser(editingUser.userId, {
+          fullName: values.fullName,
+          role: values.role,
+          email: values.email || null,
+          phone: values.phone || null,
+        });
+      } else {
+        await userApiService.createUser({
+          username: values.username,
+          password: values.password!,
+          fullName: values.fullName,
+          role: values.role,
+          email: values.email || undefined,
+          phone: values.phone || undefined,
+        });
+      }
+      setIsFormOpen(false);
+      loadUsers();
+    } catch (err: any) {
+      setFormError(err.response?.data?.error?.message || err.response?.data?.message || 'Có lỗi xảy ra khi lưu thông tin');
+    } finally {
+      setIsSubmitting(false);
     }
-    setEmployees(getAdminEmployees());
-    setIsFormOpen(false);
-    setEditingEmployee(null);
   };
 
-  const handleDeleteConfirm = () => {
-    if (!deletingEmployee) return;
-    deleteAdminEmployee(deletingEmployee.id);
-    setEmployees((prev) => prev.filter((e) => e.id !== deletingEmployee.id));
-    setDeletingEmployee(null);
+  const handleDeactivateConfirm = async () => {
+    if (!deactivatingUser) return;
+    try {
+      await userApiService.updateUserStatus(deactivatingUser.userId, { status: 'INACTIVE' });
+      loadUsers();
+    } catch (err) {
+      console.error('Failed to deactivate user', err);
+    } finally {
+      setDeactivatingUser(null);
+    }
   };
 
-  const columns: TableColumn<AdminEmployee>[] = [
+  const roleTabs = [
+    { value: 'all', label: 'Tất cả' },
+    { value: 'ADMIN', label: 'Quản trị viên' },
+    { value: 'MANAGER', label: 'Quản lý' },
+    { value: 'STAFF', label: 'Nhân viên' },
+  ];
+
+  const columns: TableColumn<AdminUser>[] = [
     {
-      key: 'id',
-      label: 'Mã NV',
-      render: (row) => <span className="font-mono text-xs font-semibold text-slate-500">{row.id}</span>,
+      key: 'username',
+      label: 'Tên đăng nhập',
+      render: (row) => <span className="font-mono text-xs font-semibold text-slate-500">{row.username}</span>,
     },
     {
-      key: 'name',
+      key: 'fullName',
       label: 'Họ và tên',
       render: (row) => (
         <div className="flex items-center gap-2.5">
-          <span className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white ${row.avatarColor}`}>
-            {row.name
-              .split(' ')
-              .slice(-2)
-              .map((p) => p[0])
-              .join('')
-              .toUpperCase()}
+          <span className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white ${randomAvatarColor()}`}>
+            {(() => {
+              const parts = row.fullName.trim().split(/\s+/);
+              if (!parts.length || !parts[0]) return 'U';
+              if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+              return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+            })()}
           </span>
           <div className="min-w-0">
-            <p className="truncate font-medium text-slate-800">{row.name}</p>
-            <p className="truncate text-xs text-slate-400">ID: {row.id}</p>
+            <p className="truncate font-medium text-slate-800">{row.fullName}</p>
+            <p className="truncate text-xs text-slate-400">ID: {row.userId.split('-')[0]}</p>
           </div>
         </div>
       ),
     },
     {
       key: 'role',
-      label: 'Vai trò / Bộ phận',
-      render: (row) => <Badge variant={EMPLOYEE_ROLE_BADGE[row.role]}>{row.role}</Badge>,
+      label: 'Vai trò',
+      render: (row) => <Badge variant={ROLE_BADGE[row.role]}>{USER_ROLE_OPTIONS.find(o => o.value === row.role)?.label || row.role}</Badge>,
     },
     {
       key: 'contact',
       label: 'Thông tin liên hệ',
-      render: (row) => (
+      render: (row) => {
+        const anyRow = row as any;
+        return (
         <div className="text-xs text-slate-500">
-          <p className="flex items-center gap-1.5">
-            <Phone className="h-3 w-3" /> {row.phone}
-          </p>
-          {row.email && (
-            <p className="mt-0.5 flex items-center gap-1.5">
-              <Mail className="h-3 w-3" /> {row.email}
+          {anyRow.phone && (
+            <p className="flex items-center gap-1.5">
+              <Phone className="h-3 w-3" /> {anyRow.phone}
             </p>
           )}
+          {anyRow.email && (
+            <p className="mt-0.5 flex items-center gap-1.5">
+              <Mail className="h-3 w-3" /> {anyRow.email}
+            </p>
+          )}
+          {!anyRow.phone && !anyRow.email && <span className="italic text-slate-400">Chưa cập nhật</span>}
         </div>
-      ),
-    },
-    {
-      key: 'assignedBookings',
-      label: 'Sự kiện phụ trách',
-      className: 'text-center',
-      render: (row) => <span className="font-semibold text-slate-800">{row.assignedBookings}</span>,
+      )},
     },
     {
       key: 'status',
       label: 'Trạng thái',
       className: 'text-center',
-      render: (row) => (
+      render: (row) => {
+        const meta = STATUS_META[row.status] || STATUS_META['ACTIVE'];
+        return (
         <span className="inline-flex items-center gap-1.5">
-          <span className={`h-1.5 w-1.5 rounded-full ${row.status === 'active' ? 'bg-green-500' : 'bg-slate-300'}`} />
-          <Badge variant={EMPLOYEE_STATUS_META[row.status].variant}>{EMPLOYEE_STATUS_META[row.status].label}</Badge>
+          <span className={`h-1.5 w-1.5 rounded-full ${row.status === 'ACTIVE' ? 'bg-green-500' : 'bg-slate-300'}`} />
+          <Badge variant={meta.variant}>{meta.label}</Badge>
         </span>
-      ),
+      )},
     },
     {
       key: 'actions',
@@ -163,22 +212,30 @@ export default function AdminEmployeesPage() {
         <div className="flex items-center gap-1">
           <button
             type="button"
+            onClick={() => setViewingUser(row)}
+            title="Xem chi tiết"
+            className="inline-flex rounded-md p-1.5 text-slate-400 hover:bg-blue-50 hover:text-blue-600"
+          >
+            <Eye className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
             onClick={() => openEditModal(row)}
-            aria-label="Sửa nhân sự"
-            title="Sửa nhân sự"
+            title="Sửa tài khoản"
             className="inline-flex rounded-md p-1.5 text-slate-400 hover:bg-amber-50 hover:text-amber-600"
           >
             <Pencil className="h-4 w-4" />
           </button>
-          <button
-            type="button"
-            onClick={() => setDeletingEmployee(row)}
-            aria-label="Xóa nhân sự"
-            title="Xóa nhân sự"
-            className="inline-flex rounded-md p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
+          {row.status === 'ACTIVE' && (
+            <button
+              type="button"
+              onClick={() => setDeactivatingUser(row)}
+              title="Khóa tài khoản"
+              className="inline-flex rounded-md p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
         </div>
       ),
     },
@@ -188,12 +245,12 @@ export default function AdminEmployeesPage() {
     <div className="p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Nhân viên</h1>
-          <p className="mt-1 text-sm text-slate-500">Quản lý nhân sự vận hành sự kiện và phân công phụ trách.</p>
+          <h1 className="text-2xl font-bold text-slate-900">Tài khoản người dùng</h1>
+          <p className="mt-1 text-sm text-slate-500">Quản lý tài khoản đăng nhập hệ thống và phân quyền truy cập.</p>
         </div>
         <Button onClick={openCreateModal}>
           <Plus className="h-4 w-4" />
-          Thêm nhân sự
+          Thêm tài khoản
         </Button>
       </div>
 
@@ -210,12 +267,12 @@ export default function AdminEmployeesPage() {
               <button
                 key={tab.value}
                 type="button"
-                onClick={() => setRoleTab(tab.value)}
+                onClick={() => { setRoleTab(tab.value as UserRole | 'all'); setPage(1); }}
                 className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
                   roleTab === tab.value ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 }`}
               >
-                {tab.label} ({tab.count})
+                {tab.label}
               </button>
             ))}
           </div>
@@ -224,48 +281,58 @@ export default function AdminEmployeesPage() {
             <input
               type="text"
               value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Tìm theo tên, SĐT, email, vai trò..."
+              onChange={(e) => { setSearchInput(e.target.value); setPage(1); }}
+              placeholder="Tìm theo tên đăng nhập, tên..."
               className="w-full rounded-md border border-slate-200 bg-white py-2 pl-8 pr-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
         </div>
 
-        <div className="mt-4 overflow-x-auto">
-          <Table columns={columns} rows={pageRows} rowKey={(row) => row.id} />
+        <div className="mt-4 overflow-x-auto min-h-[300px]">
+          {isLoading ? (
+            <div className="flex justify-center items-center h-full py-10">Đang tải dữ liệu...</div>
+          ) : (
+            <Table columns={columns} rows={users} rowKey={(row) => row.userId} />
+          )}
         </div>
 
         <Pagination pagination={paginationState} onPageChange={setPage} />
       </motion.div>
 
-      <EmployeeFormModal
+      <UserFormModal
         isOpen={isFormOpen}
-        editingEmployee={editingEmployee}
-        onClose={() => {
-          setIsFormOpen(false);
-          setEditingEmployee(null);
-        }}
-        onSubmit={handleSubmit}
+        mode={editingUser ? 'edit' : 'create'}
+        user={editingUser}
+        isSubmitting={isSubmitting}
+        errorMessage={formError}
+        onClose={() => setIsFormOpen(false)}
+        onSubmit={handleFormSubmit}
       />
 
       <Modal
-        isOpen={Boolean(deletingEmployee)}
-        onClose={() => setDeletingEmployee(null)}
-        title="Xóa nhân sự"
-        subtitle={deletingEmployee ? `Bạn có chắc muốn xóa hồ sơ "${deletingEmployee.name}"? Hành động này không thể hoàn tác.` : undefined}
+        isOpen={Boolean(deactivatingUser)}
+        onClose={() => setDeactivatingUser(null)}
+        title="Khóa tài khoản"
+        subtitle={deactivatingUser ? `Bạn có chắc muốn vô hiệu hóa tài khoản "@${deactivatingUser.username}"?` : undefined}
         footer={
           <>
-            <Button variant="secondary" onClick={() => setDeletingEmployee(null)}>
+            <Button variant="secondary" onClick={() => setDeactivatingUser(null)}>
               Hủy
             </Button>
-            <Button variant="danger" onClick={handleDeleteConfirm}>
-              Xóa nhân sự
+            <Button variant="danger" onClick={handleDeactivateConfirm}>
+              Xác nhận khóa
             </Button>
           </>
         }
       >
         <div />
       </Modal>
+
+      <UserDetailModal
+        isOpen={Boolean(viewingUser)}
+        onClose={() => setViewingUser(null)}
+        user={viewingUser}
+      />
     </div>
   );
 }

@@ -59,21 +59,45 @@ interface NavSection {
 const ADMIN_NAV_SECTIONS: NavSection[] = [
   {
     title: 'TỔNG QUAN',
-    items: [{ label: 'Bảng điều khiển', href: '/admin/dashboard', icon: LayoutGrid }],
+    items: [
+      { label: 'Bảng điều khiển', href: '/admin/dashboard', icon: LayoutGrid }
+  ],
   },
   {
     title: 'QUẢN LÝ NGƯỜI DÙNG',
     items: [
       { label: 'Danh sách người dùng', href: '/admin/settings/users', icon: Users },
-      { label: 'Phân quyền vai trò', href: '/admin/settings/roles', icon: IdCard },
     ],
   },
   {
     title: 'THIẾT BỊ & TỒN KHO',
     items: [
-      { label: 'Danh mục thiết bị', href: '/admin/catalog', icon: Package },
-      { label: 'Tồn kho', href: '/admin/inventory/stock-status', icon: Warehouse },
-      { label: 'Bảo trì thiết bị', href: '/admin/inventory/maintenance', icon: Wrench },
+      {
+        label: 'Danh mục & Thiết bị',
+        href: '/admin/catalog',
+        icon: Package,
+        children: [
+          { label: 'Danh mục lớn', href: '/admin/catalog/categories' },
+          { label: 'Nhóm thiết bị', href: '/admin/catalog/types' },
+          { label: 'Danh sách thiết bị', href: '/admin/catalog' },
+          { label: 'Tồn kho', href: '/admin/inventory/stock-status' },
+        ],
+      },
+    ],
+  },
+  {
+    title: 'ĐỐI TÁC',
+    items: [
+      {
+        label: 'Nhà cung cấp',
+        href: '/admin/suppliers',
+        icon: Truck,
+        children: [
+          { label: 'Danh sách nhà cung cấp', href: '/admin/suppliers', icon: Building2 },
+          // { label: 'Đơn thuê/mua', href: '/admin/suppliers/purchase-orders', icon: FileSignature },
+          // { label: 'Trả thiết bị NCC', href: '/admin/suppliers/returns', icon: RotateCcw },
+        ],
+      },
     ],
   },
   {
@@ -83,10 +107,16 @@ const ADMIN_NAV_SECTIONS: NavSection[] = [
   {
     title: 'BÁO CÁO & KIỂM TOÁN',
     items: [
-      { label: 'Báo cáo doanh thu', href: '/admin/reports/revenue', icon: TrendingUp },
-      { label: 'Thống kê đơn hàng', href: '/admin/reports/orders', icon: BarChart3 },
-      { label: 'Báo cáo tồn kho', href: '/admin/reports/inventory', icon: Boxes },
-      { label: 'Nhật ký hệ thống', href: '/admin/settings/audit-log', icon: History },
+      // { label: 'Báo cáo doanh thu', href: '/admin/reports/revenue', icon: TrendingUp },
+      // { label: 'Thống kê đơn hàng', href: '/admin/reports/orders', icon: BarChart3 },
+      // { label: 'Báo cáo tồn kho', href: '/admin/reports/inventory', icon: Boxes },
+      // { label: 'Nhật ký hệ thống', href: '/admin/settings/audit-log', icon: History },
+    ],
+  },
+    {
+    title: 'PROFILE',
+    items: [
+      { label: 'Hồ sơ cá nhân', href: '/admin/profile', icon: User },
     ],
   },
 ];
@@ -148,6 +178,12 @@ const MANAGER_NAV_SECTIONS: NavSection[] = [
       //   ],
       // },
       // { label: 'Công & lương', href: '/manager/wages', icon: Wallet },
+    ],
+  },
+  {
+    title: 'PROFILE',
+    items: [
+      { label: 'Hồ sơ cá nhân', href: '/manager/profile', icon: User },
     ],
   },
 ];

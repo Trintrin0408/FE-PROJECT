@@ -18,6 +18,7 @@ export interface AuthUser {
   bio?: string;
   role: AuthUserRole;
   status: AuthUserStatus;
+  mustChangePassword?: boolean;
 }
 
 // GET /api/v1/auth/profile
@@ -32,6 +33,7 @@ export interface AuthProfile extends AuthUser {
 export interface UpdateProfilePayload {
   fullName?: string;
   phone?: string;
+  email?: string;
   bio?: string;
   avatarUrl?: string;
 }

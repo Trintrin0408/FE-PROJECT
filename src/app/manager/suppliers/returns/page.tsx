@@ -120,7 +120,7 @@ export default function Page() {
 
   return (
     <div className="p-6">
-      <Reveal className="flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-5">
+      <Reveal className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
         <div>
           <span className="inline-flex rounded-full bg-rose-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-rose-500">
             Đối tác &amp; thiết bị
@@ -134,7 +134,7 @@ export default function Page() {
         </Button>
       </Reveal>
 
-      <Reveal delay={0.05} className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
+      <Reveal delay={0.05} className="mt-4 rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
         <div className="flex flex-wrap items-center gap-3">
           <div className="min-w-[220px] flex-1">
             <Input placeholder="Tìm kiếm ID, mã đơn, tên đơn..." icon={<Search className="h-4 w-4" />} value={search} onChange={(e) => setSearch(e.target.value)} />

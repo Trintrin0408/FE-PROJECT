@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
 import { PermissionProvider } from "@/context/PermissionContext";
+import { Toaster } from "react-hot-toast";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -30,6 +31,7 @@ export default function RootLayout({
         <AuthProvider>
           <PermissionProvider>{children}</PermissionProvider>
         </AuthProvider>
+        <Toaster position="top-right" />
       </body>
     </html>
   );

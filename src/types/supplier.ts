@@ -30,6 +30,7 @@ export interface CreateSupplierPayload {
   serviceType: string;
   contactPerson?: string;
   phone?: string;
+  email?: string;
   address?: string;
   rating?: number;
 }
@@ -39,6 +40,7 @@ export interface UpdateSupplierPayload {
   serviceType?: string;
   contactPerson?: string;
   phone?: string;
+  email?: string;
   address?: string;
   rating?: number;
   status?: SupplierStatus;
@@ -50,3 +52,99 @@ export interface GetSuppliersQuery {
   search?: string;
   status?: SupplierStatus;
 }
+
+export interface SupplierItem {
+  itemId: string;
+  itemName: string;
+  typeId: string;
+  rentalPrice: number;
+  purchasePrice: number | null;
+  isActive: boolean;
+  minQuantity: number | null;
+  supplierItemCode: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SupplierTransaction {
+  transactionId: string;
+  transactionCode: string;
+  supplierId: string;
+  supplierName: string;
+  orderId: string | null;
+  orderCode: string | null;
+  transactionType: string;
+  serviceTitle: string;
+  estimatedCost: number;
+  depositAmount: number;
+  paymentStatus: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  updatedBy?: string;
+  updater?: { fullName: string };
+}
+
+export interface SupplierTransactionListResult {
+  data: SupplierTransaction[];
+  meta: {
+    totalItems: number;
+    itemCount: number;
+    itemsPerPage: number;
+    totalPages: number;
+    currentPage: number;
+  };
+}
+
+export interface AssignSupplierItemPayload {
+  itemId: string;
+  rentalPrice: number;
+  purchasePrice: number;
+  isActive?: boolean;
+  minQuantity?: number | null;
+  supplierItemCode?: string | null;
+}
+
+export interface TransactionItemInput {
+  itemId: string;
+  quantity: number;
+  unitCost?: number;
+  notes?: string;
+  itemName?: string;
+}
+
+export interface CreateSupplierTransactionPayload {
+  supplierId: string;
+  orderId?: string;
+  transactionType: 'PURCHASE' | 'RENTAL';
+  serviceTitle: string;
+  depositAmount?: number;
+  items: TransactionItemInput[];
+}
+
+export interface UpdateSupplierTransactionPayload {
+  serviceTitle?: string;
+  depositAmount?: number;
+  items?: TransactionItemInput[];
+}
+
+export interface UpdateSupplierItemPayload {
+  rentalPrice?: number;
+  purchasePrice?: number;
+  isActive?: boolean;
+  minQuantity?: number | null;
+  supplierItemCode?: string | null;
+}
+
+export interface UpdateSupplierStatusPayload {
+  status: SupplierStatus;
+}
+
+export interface ListSupplierTransactionsQuery {
+  supplierId?: string;
+  orderId?: string;
+  status?: string;
+  page?: number;
+  limit?: number;
+}
+

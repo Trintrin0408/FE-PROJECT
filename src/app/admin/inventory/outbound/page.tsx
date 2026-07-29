@@ -108,7 +108,7 @@ export default function AdminWarehouseOutboundPage() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-40px' }}
           transition={{ duration: 0.25 }}
-          className="mt-5 grid grid-cols-1 gap-6 rounded-xl border border-slate-200 bg-white p-5 shadow-xs xl:grid-cols-12 xl:items-center"
+          className="mt-5 grid grid-cols-1 gap-6 xl:grid-cols-12 xl:items-center rounded-xl border border-slate-200 bg-white p-4 shadow-xs"
         >
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 xl:col-span-9">
             <div className="flex items-start gap-3">
@@ -180,7 +180,7 @@ export default function AdminWarehouseOutboundPage() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: '-40px' }}
           transition={{ duration: 0.25, delay: 0.05 }}
-          className="mt-6 rounded-xl border border-slate-200 bg-white p-5 shadow-xs"
+          className="mt-6 rounded-xl border border-slate-200 bg-white p-4 shadow-xs"
         >
           <h2 className="text-sm font-semibold text-slate-900">Danh sách thiết bị cần xuất</h2>
           <p className="mt-0.5 text-xs text-slate-400">
