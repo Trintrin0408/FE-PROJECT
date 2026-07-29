@@ -97,8 +97,8 @@ export default function SupplierDetailPage() {
       await supplierApiService.removeSupplierItem(id, itemId);
       toast.success('Đã xóa hạng mục');
       fetchSupplierData();
-    } catch (error) {
-      toast.error('Lỗi khi xóa hạng mục');
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Lỗi khi xóa hạng mục');
     }
   };
 
@@ -108,8 +108,8 @@ export default function SupplierDetailPage() {
       await supplierApiService.deleteSupplierTransaction(txId);
       toast.success('Đã xóa giao dịch');
       fetchSupplierData();
-    } catch (error) {
-      toast.error('Lỗi khi xóa giao dịch');
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Lỗi khi xóa giao dịch');
     }
   };
 

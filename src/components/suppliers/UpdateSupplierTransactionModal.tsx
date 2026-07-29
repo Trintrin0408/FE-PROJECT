@@ -186,7 +186,7 @@ export default function UpdateSupplierTransactionModal({
             <Button variant="secondary" onClick={onClose} disabled={isSubmitting}>
               Đóng
             </Button>
-            {mode === 'edit' && (
+            {mode === 'edit' && transaction?.status !== 'COMPLETED' && transaction?.status !== 'CANCELLED' && (
               <Button onClick={handleSubmit} disabled={isSubmitting}>
                 {isSubmitting ? 'Đang lưu...' : 'Lưu thay đổi'}
               </Button>
@@ -229,13 +229,35 @@ export default function UpdateSupplierTransactionModal({
                 <select
                   value={status}
                   onChange={(e) => setStatus(e.target.value)}
-                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-500 focus:outline-none"
+                  disabled={transaction?.status === 'COMPLETED' || transaction?.status === 'CANCELLED'}
+                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-500 focus:outline-none disabled:bg-slate-50 disabled:text-slate-500"
                 >
-                  <option value="PENDING">Chờ duyệt</option>
-                  <option value="APPROVED">Đã duyệt</option>
-                  <option value="RECEIVED">Đã nhận</option>
-                  <option value="COMPLETED">Hoàn thành</option>
-                  <option value="CANCELLED">Đã hủy</option>
+                  {(!transaction || transaction.status === 'PENDING') && (
+                    <>
+                      <option value="PENDING">Chờ duyệt</option>
+                      <option value="APPROVED">Đã duyệt</option>
+                      <option value="CANCELLED">Đã hủy</option>
+                    </>
+                  )}
+                  {transaction?.status === 'APPROVED' && (
+                    <>
+                      <option value="APPROVED">Đã duyệt</option>
+                      <option value="RECEIVED">Đã nhận</option>
+                      <option value="CANCELLED">Đã hủy</option>
+                    </>
+                  )}
+                  {transaction?.status === 'RECEIVED' && (
+                    <>
+                      <option value="RECEIVED">Đã nhận</option>
+                      <option value="COMPLETED">Hoàn thành</option>
+                    </>
+                  )}
+                  {transaction?.status === 'COMPLETED' && (
+                    <option value="COMPLETED">Hoàn thành</option>
+                  )}
+                  {transaction?.status === 'CANCELLED' && (
+                    <option value="CANCELLED">Đã hủy</option>
+                  )}
                 </select>
               </div>
               <div className="space-y-1">
@@ -243,7 +265,8 @@ export default function UpdateSupplierTransactionModal({
                 <select
                   value={paymentStatus}
                   onChange={(e) => setPaymentStatus(e.target.value)}
-                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-500 focus:outline-none"
+                  disabled={transaction?.status === 'COMPLETED' || transaction?.status === 'CANCELLED'}
+                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 focus:border-blue-500 focus:outline-none disabled:bg-slate-50 disabled:text-slate-500"
                 >
                   <option value="UNPAID">Chưa thanh toán</option>
                   <option value="DEPOSITED">Đã đặt cọc</option>
@@ -285,7 +308,7 @@ export default function UpdateSupplierTransactionModal({
         <div className="pt-4 border-t border-slate-100">
           <div className="flex justify-between items-center mb-4">
             <h4 className="font-semibold text-slate-900">Chi tiết hạng mục</h4>
-            {mode === 'edit' && (
+            {mode === 'edit' && (!transaction || transaction.status === 'PENDING') && (
               <Button type="button" variant="secondary" size="sm" onClick={handleAddItem} className="h-8">
                 <Plus className="h-4 w-4 mr-1" /> Thêm hạng mục
               </Button>
