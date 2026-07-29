@@ -49,6 +49,7 @@ export default function AdminUsersPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string>();
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
+  const [loadingEditUserId, setLoadingEditUserId] = useState<string | null>(null);
   const [deactivatingUser, setDeactivatingUser] = useState<AdminUser | null>(null);
   const [viewingUser, setViewingUser] = useState<AdminUser | null>(null);
 
@@ -85,9 +86,19 @@ export default function AdminUsersPage() {
     setIsFormOpen(true);
   };
 
-  const openEditModal = (user: AdminUser) => {
-    setEditingUser(user);
+  const openEditModal = async (user: AdminUser) => {
     setFormError(undefined);
+    setLoadingEditUserId(user.userId);
+    try {
+      const res = await userApiService.getUserById(user.userId);
+      const detail: AdminUser = res.data ?? res;
+      setEditingUser(detail);
+    } catch {
+      // Fallback về object list nếu fetch detail thất bại
+      setEditingUser(user);
+    } finally {
+      setLoadingEditUserId(null);
+    }
     setIsFormOpen(true);
   };
 
@@ -174,23 +185,21 @@ export default function AdminUsersPage() {
     {
       key: 'contact',
       label: 'Thông tin liên hệ',
-      render: (row) => {
-        const anyRow = row as any;
-        return (
+      render: (row) => (
         <div className="text-xs text-slate-500">
-          {anyRow.phone && (
+          {row.phone && (
             <p className="flex items-center gap-1.5">
-              <Phone className="h-3 w-3" /> {anyRow.phone}
+              <Phone className="h-3 w-3" /> {row.phone}
             </p>
           )}
-          {anyRow.email && (
+          {row.email && (
             <p className="mt-0.5 flex items-center gap-1.5">
-              <Mail className="h-3 w-3" /> {anyRow.email}
+              <Mail className="h-3 w-3" /> {row.email}
             </p>
           )}
-          {!anyRow.phone && !anyRow.email && <span className="italic text-slate-400">Chưa cập nhật</span>}
+          {!row.phone && !row.email && <span className="italic text-slate-400">Chưa cập nhật</span>}
         </div>
-      )},
+      ),
     },
     {
       key: 'status',
@@ -222,9 +231,17 @@ export default function AdminUsersPage() {
             type="button"
             onClick={() => openEditModal(row)}
             title="Sửa tài khoản"
-            className="inline-flex rounded-md p-1.5 text-slate-400 hover:bg-amber-50 hover:text-amber-600"
+            disabled={loadingEditUserId !== null}
+            className="inline-flex rounded-md p-1.5 text-slate-400 hover:bg-amber-50 hover:text-amber-600 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Pencil className="h-4 w-4" />
+            {loadingEditUserId === row.userId ? (
+              <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+              </svg>
+            ) : (
+              <Pencil className="h-4 w-4" />
+            )}
           </button>
           {row.status === 'ACTIVE' && (
             <button
@@ -303,7 +320,7 @@ export default function AdminUsersPage() {
         isOpen={isFormOpen}
         mode={editingUser ? 'edit' : 'create'}
         user={editingUser}
-        isSubmitting={isSubmitting}
+        isSubmitting={isSubmitting || loadingEditUserId !== null}
         errorMessage={formError}
         onClose={() => setIsFormOpen(false)}
         onSubmit={handleFormSubmit}

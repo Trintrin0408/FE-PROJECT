@@ -154,8 +154,12 @@ export default function UpdateSupplierTransactionModal({
       }
 
       if (transaction) {
-        await supplierApiService.updateTransactionStatus(transaction.transactionId, status);
-        await supplierApiService.updateTransactionPaymentStatus(transaction.transactionId, paymentStatus);
+        if (status !== transaction.status) {
+          await supplierApiService.updateTransactionStatus(transaction.transactionId, status);
+        }
+        if (paymentStatus !== transaction.paymentStatus) {
+          await supplierApiService.updateTransactionPaymentStatus(transaction.transactionId, paymentStatus);
+        }
       }
 
       toast.success('Đã cập nhật giao dịch thành công');

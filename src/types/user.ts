@@ -10,15 +10,15 @@
 export type UserRole = 'ADMIN' | 'MANAGER' | 'STAFF';
 export type UserStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
 
-// GET /api/v1/users — KHÔNG có email/phone/bio/avatarUrl (chỉ có ở GET /auth/profile)
+// GET /api/v1/users — có email/phone để hiển thị bảng danh sách; chi tiết thêm (bio/avatarUrl) ở GET /users/:id
 export interface AdminUser {
   userId: string;
   username: string;
   fullName: string;
   role: UserRole;
   status: UserStatus;
-  email?: string | null;
-  phone?: string | null;
+  email: string | null;
+  phone: string | null;
   createdAt: string;
   updatedAt: string;
 }
