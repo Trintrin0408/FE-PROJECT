@@ -36,6 +36,7 @@ export default function AdminStockStatusPage() {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [onlyReserved, setOnlyReserved] = useState(false);
   const [onlyLowStock, setOnlyLowStock] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<string>('');
   const [page, setPage] = useState(1);
   const limit = 10;
 
@@ -47,7 +48,7 @@ export default function AdminStockStatusPage() {
     setIsLoading(true);
     setLoadError(null);
     inventoryApiService
-      .getInventory({ search: search.trim() || undefined, limit: 100 })
+      .getInventory({ search: search.trim() || undefined, limit: 100, date: selectedDate || undefined })
       .then((res) => {
         if (cancelled) return;
         setRows(res.data ?? []);
@@ -68,7 +69,7 @@ export default function AdminStockStatusPage() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reset trang khi đổi bộ lọc/tìm kiếm
     setPage(1);
-  }, [search, categoryFilter, onlyReserved, onlyLowStock]);
+  }, [search, categoryFilter, onlyReserved, onlyLowStock, selectedDate]);
 
   const categoryOptions = useMemo(
     () => Array.from(new Set(rows.map((r) => r.categoryName).filter((v): v is string => Boolean(v)))),
@@ -210,6 +211,14 @@ export default function AdminStockStatusPage() {
               options={[{ value: '', label: 'Nhóm sản phẩm' }, ...categoryOptions.map((c) => ({ value: c, label: c }))]}
             />
           </div>
+          <div className="w-full md:w-48">
+            <Input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              placeholder="Chọn ngày xem kho"
+            />
+          </div>
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -255,6 +264,7 @@ export default function AdminStockStatusPage() {
         isOpen={Boolean(viewingItemId)}
         onClose={() => setViewingItemId(null)}
         itemId={viewingItemId}
+        selectedDate={selectedDate}
         onAdjusted={() => setReloadToken((t) => t + 1)}
       />
     </div>

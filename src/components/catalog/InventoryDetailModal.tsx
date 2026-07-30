@@ -33,10 +33,11 @@ interface InventoryDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
   itemId: string | null;
+  selectedDate?: string;
   onAdjusted?: () => void;
 }
 
-export function InventoryDetailModal({ isOpen, onClose, itemId, onAdjusted }: Readonly<InventoryDetailModalProps>) {
+export function InventoryDetailModal({ isOpen, onClose, itemId, selectedDate, onAdjusted }: Readonly<InventoryDetailModalProps>) {
   const [row, setRow] = useState<InventoryRow | null>(null);
   const [item, setItem] = useState<Item | null>(null);
   const [movements, setMovements] = useState<InventoryMovement[]>([]);
@@ -56,7 +57,7 @@ export function InventoryDetailModal({ isOpen, onClose, itemId, onAdjusted }: Re
     // docs/more-require.md mục (u)) — chỉ GET /catalog/items (danh sách) hoạt động, nên tự lọc theo
     // itemId phía client thay vì gọi endpoint chi tiết không tồn tại.
     Promise.all([
-      inventoryApiService.getInventory({ itemId: id, limit: 1 }),
+      inventoryApiService.getInventory({ itemId: id, limit: 1, date: selectedDate || undefined }),
       catalogApiService.getItems({ limit: 100 }).catch(() => ({ data: [] })),
       inventoryApiService.getMovements({ itemId: id, limit: 20 }),
     ])
@@ -80,7 +81,7 @@ export function InventoryDetailModal({ isOpen, onClose, itemId, onAdjusted }: Re
     setAdjustReason('');
     setSaveError(null);
     load(itemId);
-  }, [isOpen, itemId]);
+  }, [isOpen, itemId, selectedDate]);
 
   if (!isOpen || !itemId) return null;
 
@@ -117,10 +118,17 @@ export function InventoryDetailModal({ isOpen, onClose, itemId, onAdjusted }: Re
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={row?.itemName ?? item?.itemName ?? 'Chi tiết thiết bị'}
+      title={item ? `${item.itemName} (${row?.itemCode ?? item.itemCode})` : row?.itemName ?? 'Chi tiết thiết bị'}
       subtitle={`Mã: ${row?.itemCode ?? item?.itemCode ?? itemId} · Danh mục: ${row?.categoryName ?? '—'}`}
       size="xl"
     >
+      {selectedDate && (
+        <div className="mb-4 rounded-md bg-blue-50 p-2">
+          <span className="text-sm font-medium text-blue-700">
+            Đang hiển thị số liệu tồn kho ngày: {formatDate(selectedDate)}
+          </span>
+        </div>
+      )}
       {isLoading && !row ? (
         <p className="py-10 text-center text-sm text-slate-400">Đang tải chi tiết thiết bị...</p>
       ) : (

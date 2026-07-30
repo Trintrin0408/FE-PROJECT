@@ -34,6 +34,7 @@ export default function ManagerStockCheckPage() {
   const [searchInput, setSearchInput] = useState('');
   const search = useDebounce(searchInput, 300);
   const [categoryFilter, setCategoryFilter] = useState('');
+  const [selectedDate, setSelectedDate] = useState<string>('');
   const [page, setPage] = useState(1);
   const limit = 10;
 
@@ -44,7 +45,7 @@ export default function ManagerStockCheckPage() {
     setIsLoading(true);
     setLoadError(null);
     inventoryApiService
-      .getInventory({ search: search.trim() || undefined, limit: 100 })
+      .getInventory({ search: search.trim() || undefined, limit: 100, date: selectedDate || undefined })
       .then((res) => {
         if (cancelled) return;
         setRows(res.data ?? []);
@@ -60,11 +61,11 @@ export default function ManagerStockCheckPage() {
     return () => {
       cancelled = true;
     };
-  }, [search, reloadToken]);
+  }, [search, reloadToken, selectedDate]);
 
   useEffect(() => {
     setPage(1);
-  }, [search, categoryFilter]);
+  }, [search, categoryFilter, selectedDate]);
 
   const categoryOptions = useMemo(
     () => Array.from(new Set(rows.map((r) => r.categoryName).filter((v): v is string => Boolean(v)))),
@@ -163,6 +164,14 @@ export default function ManagerStockCheckPage() {
               options={[{ value: '', label: 'Nhóm sản phẩm' }, ...categoryOptions.map((c) => ({ value: c, label: c }))]}
             />
           </div>
+          <div className="w-full md:w-48">
+            <Input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              placeholder="Chọn ngày xem kho"
+            />
+          </div>
         </div>
 
         <div className="mt-4">
@@ -182,6 +191,7 @@ export default function ManagerStockCheckPage() {
         isOpen={Boolean(viewingItemId)}
         onClose={() => setViewingItemId(null)}
         itemId={viewingItemId}
+        selectedDate={selectedDate}
         onAdjusted={() => setReloadToken((t) => t + 1)}
       />
     </div>
