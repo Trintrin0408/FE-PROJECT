@@ -52,7 +52,7 @@ api.interceptors.response.use(
     if (process.env.NODE_ENV !== 'production' && error.response && error.response.status >= 400 && !isAuthRoute) {
       console.error(
         `[API ${error.response.status}] ${error.config?.method?.toUpperCase()} ${error.config?.url}`,
-        error.response.data,
+        JSON.stringify(error.response.data, null, 2),
       );
     }
     throw error;

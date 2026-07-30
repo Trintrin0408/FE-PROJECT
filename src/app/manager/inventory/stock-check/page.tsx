@@ -18,11 +18,9 @@ import type { InventoryRow } from '@/types/inventory';
 // Nối API thật theo docs/tonkhodoanhnghiep_api.md (2026-07-20) — GET /api/v1/inventory (bảng
 // `inventory` thật ra ĐÃ được tạo, tin mới hơn ghi nhận cũ ở docs/more-require.md mục (b)) trả sẵn
 // itemCode/itemName/categoryName/typeName + 4 số liệu tồn kho (quantityTotal/quantityDamaged/
-// quantityReserved/quantityAvailable). Đã bỏ ô chọn ngày (Date-based Inventory Lock) khỏi UI — xác
-// nhận qua curl backend KHÔNG áp dụng `date` vào việc tính `quantityReserved` (số này không đổi theo
-// ngày), giữ ô chọn ngày sẽ gây hiểu nhầm là số liệu date-based thật. `categoryId`/`onlyDamaged` cũng
-// bị backend bỏ qua — FE tự lọc theo `categoryName`/`quantityDamaged > 0` phía client (dữ liệu hiện
-// còn rất nhỏ, chấp nhận được). Xem chi tiết 3 gap này ở docs/more-require.md mục (u).
+// quantityReserved/quantityAvailable).
+// `categoryId`/`onlyDamaged` bị backend bỏ qua — FE tự lọc theo `categoryName`/`quantityDamaged > 0` phía client (dữ liệu hiện
+// còn rất nhỏ, chấp nhận được). Xem chi tiết các gap này ở docs/more-require.md mục (u).
 // Mirror của src/app/admin/inventory/stock-status/page.tsx cho vai trò Manager.
 
 export default function ManagerStockCheckPage() {
