@@ -1,283 +1,540 @@
 'use client';
 
+import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { useParams } from 'next/navigation';
-import { AlertCircle, Building2, Coins, Loader2, Mail, MapPin, Package, Phone, Star, User } from 'lucide-react';
-import { BackButton } from '@/components/ui/BackButton';
-import { Badge, getStatusBadgeVariant } from '@/components/ui/Badge';
-import { Breadcrumb } from '@/components/ui/Breadcrumb';
-import Reveal from '@/components/ui/Reveal';
-import { formatCurrency } from '@/utils/formatCurrency';
-import { formatDate } from '@/utils/formatDate';
-import { procurementApiService } from '@/services/procurement.service';
+import { ArrowLeft, Edit, Eye, Power, Building2, User, Phone, Mail, MapPin, DollarSign, ClipboardList, FileText, Trash2 } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
 import { supplierApiService } from '@/services/supplier.service';
-import { SUPPLIER_TRANSACTION_STATUS_META, SUPPLIER_TRANSACTION_TYPE_META } from '@/constants/supplier-transaction-status';
-import type { Supplier } from '@/types/supplier';
-import type { SupplierTransaction } from '@/types/procurement';
+import type { Supplier, SupplierItem, SupplierTransaction } from '@/types/supplier';
+import Link from 'next/link';
+import toast from 'react-hot-toast';
+import AssignSupplierItemModal from '@/components/suppliers/AssignSupplierItemModal';
+import UpdateSupplierItemModal from '@/components/suppliers/UpdateSupplierItemModal';
+import { SupplierFormModal, type SupplierFormValues } from '@/components/suppliers/SupplierFormModal';
+import OrderQuickViewModal from '@/components/orders/OrderQuickViewModal';
+import CreateSupplierTransactionModal from '@/components/suppliers/CreateSupplierTransactionModal';
+import UpdateSupplierTransactionModal from '@/components/suppliers/UpdateSupplierTransactionModal';
 
-// Trang chi tiết đối tác — thay cho SupplierProfileModal (popup) trước đây, dùng chung cho cả
-// /admin/suppliers/[id] và /manager/suppliers/[id] (2 vai trò chỉ khác backHref). Nội dung hiển thị
-// giữ nguyên như modal cũ (thông tin liên hệ, công nợ, lịch sử giao dịch thuê/mua) — chỉ đổi bố cục
-// thành trang riêng có breadcrumb quay lại danh sách.
+// Trang chi tiết đối tác — dùng chung cho cả /admin/suppliers/[id] và /manager/suppliers/[id] (2 vai
+// trò dùng chung 1 component, không fork riêng): thông tin liên hệ, quản lý hạng mục cung cấp
+// (thêm/sửa/xóa) và quản lý giao dịch thuê/mua (thêm/sửa/xóa).
 
-interface SupplierDetailViewProps {
-  backHref: string;
-}
-
-export default function SupplierDetailView({ backHref }: Readonly<SupplierDetailViewProps>) {
-  const params = useParams<{ id: string }>();
-  const id = params.id;
+export default function SupplierDetailView() {
+  const router = useRouter();
+  const params = useParams();
+  const id = params.id as string;
 
   const [supplier, setSupplier] = useState<Supplier | null>(null);
-  const [isLoadingSupplier, setIsLoadingSupplier] = useState(true);
-  const [supplierError, setSupplierError] = useState<string | null>(null);
-
+  const [items, setItems] = useState<SupplierItem[]>([]);
   const [transactions, setTransactions] = useState<SupplierTransaction[]>([]);
-  const [isLoadingTransactions, setIsLoadingTransactions] = useState(true);
-  const [transactionsError, setTransactionsError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Modals state
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
+  const [isSupplierFormOpen, setIsSupplierFormOpen] = useState(false);
+  const [isCreateTxModalOpen, setIsCreateTxModalOpen] = useState(false);
+  const [isUpdateTxModalOpen, setIsUpdateTxModalOpen] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState<SupplierTransaction | null>(null);
+  const [txModalMode, setTxModalMode] = useState<'edit' | 'view'>('edit');
+  const [selectedItem, setSelectedItem] = useState<SupplierItem | null>(null);
+  const [activeTab, setActiveTab] = useState<'info' | 'transactions'>('info');
+  const [viewOrderId, setViewOrderId] = useState<string | null>(null);
+
+  const handleUpdateSupplier = async (values: SupplierFormValues) => {
+    try {
+      const payload = { ...values, rating: values.rating ? Number(values.rating) : undefined };
+      await supplierApiService.updateSupplier(id, payload);
+      toast.success('Cập nhật thông tin nhà cung cấp thành công');
+      setIsSupplierFormOpen(false);
+      fetchSupplierData();
+    } catch (error) {
+      toast.error('Lỗi khi cập nhật thông tin nhà cung cấp');
+    }
+  };
+
+  const fetchSupplierData = async () => {
+    try {
+      setIsLoading(true);
+      const [supplierRes, itemsRes, transactionsRes] = await Promise.all([
+        supplierApiService.getSupplierById(id),
+        supplierApiService.getSupplierItems(id),
+        supplierApiService.getSupplierTransactions({ supplierId: id, limit: 10 }),
+      ]);
+
+      setSupplier(supplierRes.data || supplierRes); // Handle depending on exact envelope
+      setItems((itemsRes as any).data || itemsRes || []);
+      setTransactions(transactionsRes.data || []);
+    } catch (error: any) {
+      console.error('Failed to fetch supplier details:', error);
+      toast.error('Không thể tải thông tin nhà cung cấp');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    let cancelled = false;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- bật cờ loading khi bắt đầu gọi API thật
-    setIsLoadingSupplier(true);
-    setSupplierError(null);
-    supplierApiService
-      .getSupplier(id)
-      .then((res) => {
-        if (!cancelled) setSupplier(res.data ?? null);
-      })
-      .catch(() => {
-        if (!cancelled) setSupplierError('Không tải được thông tin đối tác.');
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoadingSupplier(false);
-      });
-    return () => {
-      cancelled = true;
-    };
+    fetchSupplierData();
   }, [id]);
 
-  useEffect(() => {
-    let cancelled = false;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- bật cờ loading khi bắt đầu gọi API thật
-    setIsLoadingTransactions(true);
-    setTransactionsError(null);
-    procurementApiService
-      .getTransactions({ supplierId: id, limit: 50 })
-      .then((res) => {
-        if (!cancelled) setTransactions(res.data);
-      })
-      .catch(() => {
-        if (!cancelled) setTransactionsError('Không tải được lịch sử giao dịch. Vui lòng thử lại.');
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoadingTransactions(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [id]);
+  const handleToggleStatus = async () => {
+    if (!supplier) return;
+    if (supplier.status === 'ACTIVE' && (supplier.debtBalance || 0) > 0) {
+      toast.error('Không thể ngừng hợp tác nhà cung cấp đang có công nợ');
+      return;
+    }
+    const newStatus = supplier.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+    try {
+      await supplierApiService.updateSupplierStatus(id, { status: newStatus });
+      toast.success(`Đã ${newStatus === 'ACTIVE' ? 'kích hoạt' : 'ngừng hợp tác'} nhà cung cấp`);
+      fetchSupplierData();
+    } catch (error) {
+      toast.error('Lỗi khi cập nhật trạng thái');
+    }
+  };
 
-  if (isLoadingSupplier) {
-    return (
-      <div className="flex items-center justify-center gap-2 p-16 text-sm text-slate-400">
-        <Loader2 className="h-4 w-4 animate-spin" />
-        Đang tải thông tin đối tác...
-      </div>
-    );
+  const handleRemoveItem = async (itemId: string) => {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa hạng mục này khỏi nhà cung cấp?')) return;
+    try {
+      await supplierApiService.removeSupplierItem(id, itemId);
+      toast.success('Đã xóa hạng mục');
+      fetchSupplierData();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Lỗi khi xóa hạng mục');
+    }
+  };
+
+  const handleRemoveTransaction = async (txId: string) => {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa giao dịch này?')) return;
+    try {
+      await supplierApiService.deleteSupplierTransaction(txId);
+      toast.success('Đã xóa giao dịch');
+      fetchSupplierData();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Lỗi khi xóa giao dịch');
+    }
+  };
+
+  if (isLoading) {
+    return <div className="p-10 text-center flex flex-col items-center gap-4 text-slate-500">
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-blue-600"></div>
+      Đang tải dữ liệu...
+    </div>;
   }
 
-  if (supplierError || !supplier) {
-    return (
-      <div className="p-6">
-        <div className="flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
-          <AlertCircle className="h-4 w-4 flex-shrink-0" />
-          {supplierError ?? 'Không tìm thấy đối tác.'}
-        </div>
-        <Link href={backHref} className="mt-3 inline-block text-sm font-medium text-blue-600 hover:underline">
-          Quay lại danh sách
-        </Link>
-      </div>
-    );
+  if (!supplier) {
+    return <div className="p-6 text-center text-red-500">Không tìm thấy nhà cung cấp!</div>;
   }
+
+  // Generate initials for avatar
+  const initials = supplier.supplierName?.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase() || 'SP';
+
+  // Format date safely
+  const formatDate = (dateStr: string) => {
+    try {
+      return new Intl.DateTimeFormat('vi-VN').format(new Date(dateStr));
+    } catch {
+      return dateStr;
+    }
+  };
 
   return (
-    <div className="p-6">
-      <Breadcrumb
-        items={[
-          { label: 'Nhà cung cấp' },
-          { label: 'Danh sách đối tác', href: backHref },
-          { label: supplier.supplierCode },
-        ]}
-      />
+    <div className="p-6 max-w-[1200px] mx-auto space-y-6">
+      {/* Back button */}
+      <div className="flex items-center gap-2 mb-2">
+        <button
+          onClick={() => router.back()}
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-slate-500 shadow-sm ring-1 ring-inset ring-slate-200 hover:bg-slate-50 transition-colors"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </button>
+      </div>
 
-      <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
-        <div className="flex items-start gap-3">
-          <BackButton href={backHref} />
-          <div>
-            <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-900">
-              <Building2 className="h-6 w-6 text-blue-600" />
-              {supplier.supplierName}
-            </h1>
-            <p className="mt-1 text-sm text-slate-500">
-              Hồ sơ chi tiết đối tác <span className="text-slate-300">•</span>{' '}
-              <span className="font-medium text-blue-600">{supplier.supplierCode}</span>
-            </p>
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+        <div className="flex items-start gap-4">
+          <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-3xl font-bold text-blue-600">
+            {initials}
+          </div>
+          <div className="pt-1">
+            <h1 className="text-2xl font-bold text-slate-900">{supplier.supplierName}</h1>
+            <div className="mt-3 flex items-center gap-3">
+              <span className="rounded-md bg-slate-100 px-2.5 py-1 text-sm font-medium text-slate-600">
+                {supplier.supplierCode}
+              </span>
+              <Badge variant={supplier.status === 'ACTIVE' ? 'success' : 'neutral'}>
+                {supplier.status === 'ACTIVE' ? 'Đang hợp tác' : 'Ngừng hợp tác'}
+              </Badge>
+            </div>
+            <div className="mt-3 flex items-center gap-2 text-sm text-slate-500 font-medium">
+              <Building2 className="h-4 w-4 text-slate-400" />
+              <span>{supplier.serviceType}</span>
+            </div>
           </div>
         </div>
-        <Badge variant={getStatusBadgeVariant(supplier.status)}>{supplier.status === 'ACTIVE' ? 'Đang hợp tác' : 'Ngừng hợp tác'}</Badge>
-      </div>
-
-      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-12">
-        <div className="space-y-6 lg:col-span-8">
-          <Reveal className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs">
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-              <div className="space-y-3">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Lĩnh vực chuyên môn</p>
-                  <span className="mt-2 inline-flex rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-sm font-medium text-blue-600">
-                    {supplier.serviceType}
-                  </span>
-                </div>
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Người liên hệ</p>
-                  <p className="mt-1 flex items-center gap-1.5 text-sm font-medium text-slate-700">
-                    <User className="h-4 w-4 text-slate-400" />
-                    {supplier.contactPerson || '—'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Số điện thoại</p>
-                  <p className="mt-1 flex items-center gap-1.5 text-sm font-medium text-slate-700">
-                    <Phone className="h-4 w-4 text-slate-400" />
-                    {supplier.phone || '—'}
-                  </p>
-                </div>
-                {supplier.rating != null && (
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Đánh giá</p>
-                    <p className="mt-1 flex items-center gap-1.5 text-sm font-medium text-slate-700">
-                      <Star className="h-4 w-4 text-amber-400" />
-                      {supplier.rating.toFixed(1)} / 5
-                    </p>
-                  </div>
-                )}
-              </div>
-              <div className="space-y-3">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Email liên lạc</p>
-                  <p className="mt-1 flex items-center gap-1.5 text-sm font-medium text-slate-700">
-                    <Mail className="h-4 w-4 text-slate-400" />
-                    {supplier.email || '—'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Địa chỉ</p>
-                  <p className="mt-1 flex items-center gap-1.5 text-sm font-medium text-slate-700">
-                    <MapPin className="h-4 w-4 text-slate-400" />
-                    {supplier.address || '—'}
-                  </p>
-                </div>
-                {supplier.notes && (
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Ghi chú</p>
-                    <p className="mt-1 text-sm text-slate-700">{supplier.notes}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </Reveal>
-
-          <Reveal delay={0.05} className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs">
-            <p className="flex items-center gap-2 text-sm font-bold text-slate-800">
-              <Coins className="h-4 w-4 text-teal-500" />
-              Lịch sử giao dịch thuê/mua ngoài
-            </p>
-            <div className="mt-3 overflow-hidden rounded-xl border border-slate-200">
-              {isLoadingTransactions ? (
-                <div className="flex items-center justify-center gap-2 px-3 py-6 text-sm text-slate-400">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Đang tải lịch sử giao dịch...
-                </div>
-              ) : transactionsError ? (
-                <div className="flex items-center gap-2 px-3 py-4 text-sm text-red-600">
-                  <AlertCircle className="h-4 w-4 flex-shrink-0" />
-                  {transactionsError}
-                </div>
-              ) : transactions.length === 0 ? (
-                <p className="px-3 py-4 text-center text-sm text-slate-400">Chưa có giao dịch nào.</p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[560px] text-left text-sm">
-                    <thead className="bg-slate-50">
-                      <tr className="text-[11px] font-bold uppercase tracking-wide text-slate-400">
-                        <th className="px-3 py-2">Mã Giao Dịch</th>
-                        <th className="px-3 py-2">Nội Dung</th>
-                        <th className="px-3 py-2">Loại</th>
-                        <th className="px-3 py-2">Ngày Tạo</th>
-                        <th className="px-3 py-2">Giá Trị</th>
-                        <th className="px-3 py-2">Trạng Thái</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {transactions.map((t) => (
-                        <tr key={t.transactionId}>
-                          <td className="px-3 py-3 font-semibold text-blue-600">{t.transactionCode}</td>
-                          <td className="px-3 py-3">
-                            <p className="font-medium text-slate-800">{t.serviceTitle}</p>
-                            {t.orderCode && <p className="text-xs text-slate-400">Đơn: {t.orderCode}</p>}
-                          </td>
-                          <td className="px-3 py-3 text-slate-600">{SUPPLIER_TRANSACTION_TYPE_META[t.transactionType].label}</td>
-                          <td className="px-3 py-3 text-slate-500">{formatDate(t.createdAt)}</td>
-                          <td className="px-3 py-3 font-bold text-slate-900">{formatCurrency(t.estimatedCost)}</td>
-                          <td className="px-3 py-3">
-                            <Badge variant={SUPPLIER_TRANSACTION_STATUS_META[t.status].variant}>
-                              {SUPPLIER_TRANSACTION_STATUS_META[t.status].label}
-                            </Badge>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </Reveal>
-
-          <Reveal delay={0.1} className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs">
-            <p className="flex items-center gap-2 text-sm font-bold text-slate-800">
-              <Package className="h-4 w-4 text-slate-500" />
-              Danh mục hạng mục &amp; giá thiết bị cung cấp
-            </p>
-            <p className="mt-2 text-sm text-slate-400">Chưa cập nhật hạng mục cung cấp.</p>
-          </Reveal>
-        </div>
-
-        <div className="space-y-6 lg:col-span-4">
-          <Reveal className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs">
-            <h2 className="text-sm font-semibold text-slate-900">Tổng hợp công nợ</h2>
-            <div className="mt-4 rounded-xl border border-slate-100 bg-slate-50/60 p-4 text-center">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Tổng dư nợ hiện tại</p>
-              <p className="mt-1 text-xl font-bold text-red-500">{formatCurrency(supplier.debtBalance)}</p>
-            </div>
-          </Reveal>
-
-          <Reveal delay={0.05} className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs">
-            <h2 className="text-sm font-semibold text-slate-900">Thông tin hồ sơ</h2>
-            <div className="mt-4 space-y-3 text-sm">
-              <div>
-                <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">Ngày tạo</p>
-                <p className="mt-0.5 font-semibold text-slate-800">{formatDate(supplier.createdAt)}</p>
-              </div>
-              <div>
-                <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">Cập nhật gần nhất</p>
-                <p className="mt-0.5 font-semibold text-slate-800">{formatDate(supplier.updatedAt)}</p>
-              </div>
-            </div>
-          </Reveal>
+        <div className="flex gap-2">
+          <Button
+            variant="secondary"
+            onClick={handleToggleStatus}
+            className={`bg-white shadow-sm h-10 ${supplier.status === 'ACTIVE' ? 'text-red-600 hover:bg-red-50 border-red-200 ring-1 ring-inset ring-slate-200' : 'text-emerald-600 hover:bg-emerald-50 border-emerald-200 ring-1 ring-inset ring-slate-200'}`}
+          >
+            <Power className="h-4 w-4 mr-2" />
+            {supplier.status === 'ACTIVE' ? 'Ngừng hợp tác' : 'Hợp tác lại'}
+          </Button>
         </div>
       </div>
+
+      {/* Stats row - 3 columns */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 pt-2">
+        {/* Stat 1: Debt */}
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm flex flex-col justify-between h-full">
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-red-50 text-red-600">
+              <DollarSign className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-slate-600">Công nợ hiện tại</p>
+              <p className="mt-1 text-2xl font-bold text-red-600">{(supplier.debtBalance || 0).toLocaleString('vi-VN')} <span className="text-lg underline">đ</span></p>
+            </div>
+          </div>
+        </div>
+
+        {/* Stat 2: Items */}
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm flex flex-col justify-between h-full">
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+              <ClipboardList className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-slate-600">Hạng mục đang cung cấp</p>
+              <p className="mt-1 text-2xl font-bold text-slate-900">{items.length} hạng mục</p>
+              <p className="mt-1 text-sm text-slate-500">{items.filter(i => i.isActive).length} đang hoạt động</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Stat 3: Orders */}
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm flex flex-col justify-between h-full">
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+              <FileText className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-slate-600">Lịch sử giao dịch</p>
+              <p className="mt-1 text-2xl font-bold text-slate-900">{transactions.length} giao dịch</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="border-b border-slate-200 mt-6 mb-6">
+        <nav className="-mb-px flex space-x-8">
+          <button
+            onClick={() => setActiveTab('info')}
+            className={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium transition-colors ${
+              activeTab === 'info'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700'
+            }`}
+          >
+            Thông tin chung & Hạng mục
+          </button>
+          <button
+            onClick={() => setActiveTab('transactions')}
+            className={`whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium transition-colors ${
+              activeTab === 'transactions'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700'
+            }`}
+          >
+            Danh sách các giao dịch
+          </button>
+        </nav>
+      </div>
+
+      {activeTab === 'info' && (
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* Left Column: Info */}
+        <div className="rounded-xl border border-slate-200 bg-white shadow-sm lg:col-span-1 h-full">
+          <div className="border-b border-slate-100 p-5 flex items-center justify-between">
+            <h3 className="text-lg font-bold text-slate-900">Thông tin liên hệ</h3>
+            <Button variant="secondary" size="sm" onClick={() => setIsSupplierFormOpen(true)} className="h-8 text-blue-600 hover:bg-blue-50 border-blue-200">
+              <Edit className="h-3.5 w-3.5 mr-1.5" />
+              Chỉnh sửa
+            </Button>
+          </div>
+          <div className="p-5 space-y-6 text-sm">
+            <div className="flex items-start gap-4">
+              <Building2 className="mt-0.5 h-5 w-5 shrink-0 text-slate-400" />
+              <div className="grid grid-cols-3 w-full gap-2 items-center">
+                <span className="text-slate-500 col-span-1 font-medium">Chuyên cung cấp</span>
+                <span className="font-medium text-slate-900 col-span-2">{supplier.serviceType}</span>
+              </div>
+            </div>
+            <div className="w-full h-px bg-slate-100"></div>
+            <div className="flex items-start gap-4">
+              <User className="mt-0.5 h-5 w-5 shrink-0 text-slate-400" />
+              <div className="grid grid-cols-3 w-full gap-2 items-center">
+                <span className="text-slate-500 col-span-1 font-medium">Người đại diện</span>
+                <span className="font-medium text-slate-900 col-span-2">{supplier.contactPerson || '—'}</span>
+              </div>
+            </div>
+            <div className="w-full h-px bg-slate-100"></div>
+            <div className="flex items-start gap-4">
+              <Phone className="mt-0.5 h-5 w-5 shrink-0 text-slate-400" />
+              <div className="grid grid-cols-3 w-full gap-2 items-center">
+                <span className="text-slate-500 col-span-1 font-medium">Số điện thoại</span>
+                <Link href={`tel:${supplier.phone}`} className="font-medium text-blue-600 hover:underline col-span-2">{supplier.phone || '—'}</Link>
+              </div>
+            </div>
+            <div className="w-full h-px bg-slate-100"></div>
+            <div className="flex items-start gap-4">
+              <Mail className="mt-0.5 h-5 w-5 shrink-0 text-slate-400" />
+              <div className="grid grid-cols-3 w-full gap-2 items-center">
+                <span className="text-slate-500 col-span-1 font-medium">Email</span>
+                <Link href={`mailto:${supplier.email}`} className="font-medium text-blue-600 hover:underline col-span-2 break-all">{supplier.email || '—'}</Link>
+              </div>
+            </div>
+            <div className="w-full h-px bg-slate-100"></div>
+            <div className="flex items-start gap-4">
+              <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-slate-400" />
+              <div className="grid grid-cols-3 w-full gap-2">
+                <span className="text-slate-500 col-span-1 font-medium">Địa chỉ</span>
+                <span className="font-medium text-slate-900 col-span-2 leading-relaxed">{supplier.address || '—'}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: Items */}
+        <div className="rounded-xl border border-slate-200 bg-white shadow-sm lg:col-span-2 h-full flex flex-col">
+          <div className="border-b border-slate-100 p-5 flex items-center justify-between">
+            <h3 className="text-lg font-bold text-slate-900">Hạng mục đang cung cấp</h3>
+            <Button size="sm" onClick={() => setIsAssignModalOpen(true)}>+ Thêm hạng mục</Button>
+          </div>
+          <div className="overflow-x-auto flex-1">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-slate-50/50">
+                <tr>
+                  <th className="px-5 py-4 font-semibold text-slate-500">Hạng mục</th>
+                  <th className="px-5 py-4 font-semibold text-slate-500 text-right">Giá thuê</th>
+                  <th className="px-5 py-4 font-semibold text-slate-500 text-right">Giá mua</th>
+                  <th className="px-5 py-4 text-center font-semibold text-slate-500">Trạng thái</th>
+                  <th className="px-5 py-4 text-right font-semibold text-slate-500">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {items.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-5 py-8 text-center text-slate-500">
+                      Nhà cung cấp này chưa được gán hạng mục nào.
+                    </td>
+                  </tr>
+                ) : items.map((item) => (
+                  <tr key={item.itemId} className="hover:bg-slate-50/50 transition-colors group">
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-4">
+                        <span className="font-medium text-slate-900 text-[15px]">{item.itemName}</span>
+                      </div>
+                    </td>
+                    <td className="px-5 py-4 text-slate-600 text-right font-medium">
+                      <span className="text-slate-900">{(item.rentalPrice || 0).toLocaleString('vi-VN')} ₫</span>
+                    </td>
+                    <td className="px-5 py-4 text-slate-600 text-right font-medium">
+                      <span className="text-slate-900">{item.purchasePrice != null ? `${item.purchasePrice.toLocaleString('vi-VN')} ₫` : '—'}</span>
+                    </td>
+                    <td className="px-5 py-4 text-center">
+                      <Badge variant={item.isActive ? 'success' : 'neutral'} className={`px-3 py-1 font-medium ${item.isActive ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-600'}`}>
+                        {item.isActive ? 'Hoạt động' : 'Tạm ẩn'}
+                      </Badge>
+                    </td>
+                    <td className="px-5 py-4 text-right">
+                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
+                          onClick={() => { setSelectedItem(item); setIsUpdateModalOpen(true); }}
+                          title="Chỉnh sửa"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button
+                          className="p-1.5 text-red-600 hover:bg-red-50 rounded"
+                          onClick={() => handleRemoveItem(item.itemId)}
+                          title="Xóa"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      )}
+
+      {activeTab === 'transactions' && (
+      <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-100 p-5 flex items-center justify-between">
+          <h3 className="text-lg font-bold text-slate-900">Danh sách các giao dịch</h3>
+          <Button size="sm" onClick={() => setIsCreateTxModalOpen(true)}>+ Tạo giao dịch</Button>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-slate-50/50 border-b border-slate-100">
+              <tr>
+                <th className="px-6 py-4 font-semibold text-slate-500">Mã giao dịch</th>
+                <th className="px-6 py-4 font-semibold text-slate-500 text-center">Loại giao dịch</th>
+                <th className="px-6 py-4 font-semibold text-slate-500 text-center">Đơn liên quan</th>
+                <th className="px-6 py-4 font-semibold text-slate-500 text-center">Ngày tạo</th>
+                <th className="px-6 py-4 font-semibold text-slate-500 text-center">Tổng tiền</th>
+                <th className="px-6 py-4 text-center font-semibold text-slate-500">Thanh toán</th>
+                <th className="px-6 py-4 text-center font-semibold text-slate-500">Trạng thái</th>
+                <th className="px-6 py-4 text-center font-semibold text-slate-500">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {transactions.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-5 py-8 text-center text-slate-500">
+                    Chưa có giao dịch nào
+                  </td>
+                </tr>
+              ) : transactions.map((tx) => (
+                <tr key={tx.transactionId} className="hover:bg-slate-50/50 transition-colors">
+                  <td className="px-6 py-5 text-slate-600 font-medium">{tx.transactionCode}</td>
+                  <td className="px-6 py-5 text-center">
+                    <Badge variant="neutral" className="px-2.5 py-1">
+                      {tx.transactionType === 'RENTAL' ? 'Thuê ngoài' : tx.transactionType === 'PURCHASE' ? 'Mua hàng' : tx.transactionType}
+                    </Badge>
+                  </td>
+                  <td className="px-6 py-5 text-center">
+                    {tx.orderId ? (
+                      <button onClick={() => setViewOrderId(tx.orderId)} className="text-blue-600 hover:underline font-medium">
+                        {tx.orderCode || '—'}
+                      </button>
+                    ) : (
+                      <span className="text-slate-500 italic text-sm">Nhập kho</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-5 text-slate-600 text-center font-medium">{formatDate(tx.createdAt)}</td>
+                  <td className="px-6 py-5 font-bold text-slate-900 text-center">{(tx.estimatedCost || 0).toLocaleString('vi-VN')} ₫</td>
+                  <td className="px-6 py-5 text-center">
+                    {tx.paymentStatus === 'PAID' ? (
+                      <span className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-600">
+                        Đã thanh toán
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center rounded-full bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-600">
+                        {tx.paymentStatus === 'UNPAID' ? 'Chưa thanh toán' : tx.paymentStatus === 'DEPOSITED' ? 'Đã đặt cọc' : tx.paymentStatus}
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-6 py-5 text-center">
+                    <Badge variant={tx.status === 'COMPLETED' ? 'success' : tx.status === 'CANCELLED' ? 'error' : tx.status === 'RECEIVED' ? 'success' : tx.status === 'PENDING' ? 'neutral' : 'info'} className="px-3 py-1 font-medium">
+                      {tx.status === 'PENDING' ? 'Chờ duyệt' : tx.status === 'APPROVED' ? 'Đã duyệt' : tx.status === 'RECEIVED' ? 'Đã nhận' : tx.status === 'COMPLETED' ? 'Hoàn thành' : tx.status === 'CANCELLED' ? 'Đã hủy' : tx.status}
+                    </Badge>
+                  </td>
+                  <td className="px-6 py-5 text-center">
+                    <div className="flex justify-center gap-2">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedTransaction(tx);
+                          setTxModalMode('view');
+                          setIsUpdateTxModalOpen(true);
+                        }}
+                        title="Xem chi tiết"
+                        className="px-2 py-1 h-auto text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedTransaction(tx);
+                          setTxModalMode('edit');
+                          setIsUpdateTxModalOpen(true);
+                        }}
+                        title="Cập nhật"
+                        className="px-2 py-1 h-auto text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => handleRemoveTransaction(tx.transactionId)}
+                        title="Xóa"
+                        className="px-2 py-1 h-auto text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      )}
+
+      <AssignSupplierItemModal
+        isOpen={isAssignModalOpen}
+        onClose={() => setIsAssignModalOpen(false)}
+        supplierId={id}
+        onSuccess={fetchSupplierData}
+      />
+
+      <UpdateSupplierItemModal
+        isOpen={isUpdateModalOpen}
+        onClose={() => setIsUpdateModalOpen(false)}
+        supplierId={id}
+        item={selectedItem}
+        onSuccess={fetchSupplierData}
+      />
+
+      <SupplierFormModal
+        isOpen={isSupplierFormOpen}
+        mode="edit"
+        supplier={supplier}
+        onClose={() => setIsSupplierFormOpen(false)}
+        onSubmit={handleUpdateSupplier}
+      />
+
+      <CreateSupplierTransactionModal
+        isOpen={isCreateTxModalOpen}
+        onClose={() => setIsCreateTxModalOpen(false)}
+        supplierId={id}
+        onSuccess={fetchSupplierData}
+      />
+
+      {isUpdateTxModalOpen && (
+        <UpdateSupplierTransactionModal
+          isOpen={isUpdateTxModalOpen}
+          onClose={() => setIsUpdateTxModalOpen(false)}
+          supplierId={id}
+          transaction={selectedTransaction}
+          onSuccess={fetchSupplierData}
+          mode={txModalMode}
+        />
+      )}
+
+      {/* Quick View Modal */}
+      {viewOrderId && (
+        <OrderQuickViewModal
+          isOpen={!!viewOrderId}
+          onClose={() => setViewOrderId(null)}
+          orderId={viewOrderId}
+        />
+      )}
     </div>
   );
 }

@@ -42,6 +42,16 @@ const PAYMENT_BADGE_VARIANT: Record<OrderPaymentStatus, BadgeVariant> = {
 
 const CANCELLABLE_STATUSES: OrderStatus[] = ['NEW', 'CONFIRMED', 'IN_PROGRESS'];
 
+// Đã cọc/đã thanh toán thì đơn coi như được xác nhận — phòng trường hợp dữ liệu cũ (tạo trước khi
+// DepositDetailView tự đẩy orderStatus lên CONFIRMED lúc xác nhận cọc) vẫn còn kẹt ở "Mới", tránh
+// hiển thị lệch pha "Thanh toán: Đã cọc" / "Đơn hàng: Mới" trên bảng danh sách.
+function getDisplayOrderStatus(order: Order): OrderStatus {
+  if (order.orderStatus === 'NEW' && (order.paymentStatus === 'DEPOSITED' || order.paymentStatus === 'PAID')) {
+    return 'CONFIRMED';
+  }
+  return order.orderStatus;
+}
+
 const emptyMeta: OrderListMeta = {
   page: 1,
   limit: 10,
@@ -310,7 +320,7 @@ export default function ManagerOrdersPage() {
                       <Badge variant={PAYMENT_BADGE_VARIANT[o.paymentStatus]}>{ORDER_PAYMENT_STATUS_LABEL[o.paymentStatus]}</Badge>
                     </td>
                     <td className="px-5 py-3 text-center">
-                      <Badge variant={getStatusBadgeVariant(o.orderStatus)}>{ORDER_STATUS_LABEL[o.orderStatus]}</Badge>
+                      <Badge variant={getStatusBadgeVariant(getDisplayOrderStatus(o))}>{ORDER_STATUS_LABEL[getDisplayOrderStatus(o)]}</Badge>
                     </td>
                     <td className="px-5 py-3 text-right">
                       <div className="flex items-center justify-end gap-1">

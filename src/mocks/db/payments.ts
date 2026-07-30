@@ -217,8 +217,14 @@ export function confirmDeposit(orderId: string, paymentMethod: string): void {
   // store) — trước đây xác nhận cọc ở trang "Đặt cọc & thanh toán" chỉ cập nhật Deposit, khiến trạng
   // thái thanh toán bên "Đơn đặt" không đổi. Chỉ nâng từ UNPAID lên DEPOSITED, không hạ ngược PAID
   // (trường hợp đơn đã quyết toán xong mà vẫn còn thao tác xác nhận cọc, dù hiếm khi xảy ra trên UI).
-  if (getAdminOrderById(orderId)?.paymentStatus === 'UNPAID') {
-    updateAdminOrder(orderId, { paymentStatus: 'DEPOSITED' });
+  // Đã cọc thì đơn coi như được xác nhận — nâng luôn status NEW -> CONFIRMED cùng lúc, tránh lệch
+  // pha "Thanh toán: Đã cọc" / "Đơn hàng: Mới" trên bảng danh sách đơn.
+  const order = getAdminOrderById(orderId);
+  if (order?.paymentStatus === 'UNPAID') {
+    updateAdminOrder(orderId, {
+      paymentStatus: 'DEPOSITED',
+      status: order.status === 'NEW' ? 'CONFIRMED' : order.status,
+    });
   }
 }
 

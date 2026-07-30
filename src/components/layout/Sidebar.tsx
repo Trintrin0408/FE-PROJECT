@@ -9,7 +9,6 @@ import {
   FileText,
   BarChart3,
   Users,
-  User,
   IdCard,
   ShoppingBag,
   MapPin,
@@ -94,8 +93,8 @@ const ADMIN_NAV_SECTIONS: NavSection[] = [
         icon: Truck,
         children: [
           { label: 'Danh sách nhà cung cấp', href: '/admin/suppliers', icon: Building2 },
-          // { label: 'Đơn thuê/mua', href: '/admin/suppliers/purchase-orders', icon: FileSignature },
-          // { label: 'Trả thiết bị NCC', href: '/admin/suppliers/returns', icon: RotateCcw },
+          { label: 'Đơn thuê/mua', href: '/admin/suppliers/purchase-orders', icon: FileSignature },
+          { label: 'Trả thiết bị NCC', href: '/admin/suppliers/returns', icon: RotateCcw },
         ],
       },
     ],
@@ -113,12 +112,6 @@ const ADMIN_NAV_SECTIONS: NavSection[] = [
       // { label: 'Nhật ký hệ thống', href: '/admin/settings/audit-log', icon: History },
     ],
   },
-    {
-    title: 'PROFILE',
-    items: [
-      { label: 'Hồ sơ cá nhân', href: '/admin/profile', icon: User },
-    ],
-  },
 ];
 
 const MANAGER_NAV_SECTIONS: NavSection[] = [
@@ -126,13 +119,13 @@ const MANAGER_NAV_SECTIONS: NavSection[] = [
     items: [
       { label: 'Tổng quan', href: '/manager/dashboard', icon: LayoutGrid },
       { label: 'Khách hàng', href: '/manager/customers', icon: Users },
-      { label: 'Báo giá', href: '/manager/quotations', icon: FileText },
       {
         label: 'Quản lý đơn đặt',
         href: '/manager/orders',
         icon: ShoppingBag,
         children: [
           { label: 'Danh sách đơn đặt', href: '/manager/orders', icon: ClipboardList, badge: 5, badgeColor: 'red' },
+          { label: 'Báo giá', href: '/manager/quotations', icon: FileText },
           { label: 'Đặt cọc', href: '/manager/payments/deposits', icon: CreditCard },
           { label: 'Thanh toán', href: '/manager/payments/settlements', icon: Wallet },
         ],
@@ -178,12 +171,6 @@ const MANAGER_NAV_SECTIONS: NavSection[] = [
       //   ],
       // },
       // { label: 'Công & lương', href: '/manager/wages', icon: Wallet },
-    ],
-  },
-  {
-    title: 'PROFILE',
-    items: [
-      { label: 'Hồ sơ cá nhân', href: '/manager/profile', icon: User },
     ],
   },
 ];

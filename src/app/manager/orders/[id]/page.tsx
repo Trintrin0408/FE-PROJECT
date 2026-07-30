@@ -119,6 +119,17 @@ const LIFECYCLE_STEPS: { id: OrderStatus; label: string; desc: string }[] = [
 ];
 const LIFECYCLE_ORDER: OrderStatus[] = ['NEW', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED'];
 
+// Đã cọc/đã thanh toán thì đơn coi như được xác nhận — cùng quy tắc hiển thị với bảng "Danh sách đơn
+// đặt" (src/app/manager/orders/page.tsx) để 2 màn không lệch pha nhau khi dữ liệu cũ vẫn còn kẹt ở
+// "Mới" (vd tạo trước khi handleConfirmDeposit tự đẩy orderStatus lên CONFIRMED). Chỉ ảnh hưởng phần
+// hiển thị (badge/dropdown/mốc tiến trình) — không tự ghi ngược lên backend.
+function getDisplayOrderStatus(order: { orderStatus: OrderStatus; paymentStatus: string }): OrderStatus {
+  if (order.orderStatus === 'NEW' && (order.paymentStatus === 'DEPOSITED' || order.paymentStatus === 'PAID')) {
+    return 'CONFIRMED';
+  }
+  return order.orderStatus;
+}
+
 const PAYMENT_BADGE_VARIANT: Record<string, BadgeVariant> = {
   UNPAID: 'neutral',
   DEPOSITED: 'warning',
@@ -353,6 +364,7 @@ function ManagerOrderDetailContent() {
     }
   };
 
+  const displayStatus = getDisplayOrderStatus(order);
   const latestDeposit = deposits[0];
   const isDeposited = order.paymentStatus === 'DEPOSITED' || order.paymentStatus === 'PAID';
   const isSurveyDone = surveyReport?.status === 'CONFIRMED';
@@ -567,7 +579,7 @@ function ManagerOrderDetailContent() {
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-2xl font-bold tracking-tight text-slate-900">{order.orderCode}</h1>
-              <Badge variant={getStatusBadgeVariant(order.orderStatus)}>{ORDER_STATUS_LABEL[order.orderStatus]}</Badge>
+              <Badge variant={getStatusBadgeVariant(displayStatus)}>{ORDER_STATUS_LABEL[displayStatus]}</Badge>
               <Badge variant={PAYMENT_BADGE_VARIANT[order.paymentStatus]}>{ORDER_PAYMENT_STATUS_LABEL[order.paymentStatus]}</Badge>
               {urgencyVariant && (
                 <Badge variant={urgencyVariant}>Tổ chức sự kiện · Còn {daysLeft} ngày</Badge>
@@ -588,7 +600,7 @@ function ManagerOrderDetailContent() {
             <>
               <div className="w-44">
                 <Select
-                  value={order.orderStatus}
+                  value={displayStatus}
                   onChange={(e) => handleStatusChange(e.target.value as OrderStatus)}
                   disabled={isChangingStatus}
                   options={LIFECYCLE_ORDER.map((s) => ({ value: s, label: ORDER_STATUS_LABEL[s] }))}
@@ -624,10 +636,10 @@ function ManagerOrderDetailContent() {
         <p className="mb-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">Mốc tiến trình vận hành sự kiện</p>
         <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
           {LIFECYCLE_STEPS.map((step, idx) => {
-            const currentActiveIdx = order.orderStatus === 'CANCELLED' ? -1 : LIFECYCLE_ORDER.indexOf(order.orderStatus);
+            const currentActiveIdx = displayStatus === 'CANCELLED' ? -1 : LIFECYCLE_ORDER.indexOf(displayStatus);
             const stepIdx = LIFECYCLE_ORDER.indexOf(step.id);
             const isPast = stepIdx < currentActiveIdx;
-            const isCurrent = step.id === order.orderStatus;
+            const isCurrent = step.id === displayStatus;
 
             return (
               <div key={step.id} className="flex w-full flex-1 items-center gap-3">
@@ -890,7 +902,7 @@ function ManagerOrderDetailContent() {
                 <p className="mt-2 text-[10px] italic text-slate-400">
                   Checklist chưa có nơi lưu trạng thái cũ — luôn khởi động lại từ đầu khi mở lại trang.
                 </p>
-                {order.orderStatus === 'CONFIRMED' && (
+                {displayStatus === 'CONFIRMED' && (
                   <div className="mt-3">
                     <Button size="sm" onClick={handleActivateLiveShow} isLoading={isActivatingLiveShow}>
                       Kích hoạt chạy Live Show

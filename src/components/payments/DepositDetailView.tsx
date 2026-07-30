@@ -185,6 +185,12 @@ export default function DepositDetailView({ canManage, backHref }: Readonly<Depo
     setIsUpdatingStatus(true);
     try {
       await paymentApiService.updateDepositStatus(depositId, { status: 'PAID' });
+      // Backend không tự chuyển orderStatus khi xác nhận cọc (chỉ nâng paymentStatus lên DEPOSITED,
+      // xem docs/datcoc_api.md) — nếu đơn còn "Mới" thì đẩy sang "Đã xác nhận" luôn từ phía FE để
+      // tránh lệch pha "Thanh toán: Đã cọc" / "Đơn hàng: Mới" trên bảng Danh sách đơn.
+      if (order?.orderStatus === 'NEW') {
+        await orderApiService.updateOrderStatus(orderId, { orderStatus: 'CONFIRMED' });
+      }
       setConfirmingId(null);
       load();
     } finally {
