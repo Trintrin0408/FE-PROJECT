@@ -1,5 +1,5 @@
 import api from './api';
-import type { AdjustInventoryPayload, GetInventoryMovementsQuery, GetInventoryQuery } from '@/types/inventory';
+import type { AdjustInventoryPayload, GetInventoryMovementsQuery, GetInventoryQuery, PicklistItem } from '@/types/inventory';
 import type { GetReturnReportsQuery } from '@/types/collectedEquipmentReport';
 
 export const inventoryApiService = {
@@ -36,6 +36,16 @@ export const inventoryApiService = {
   /** PUT /api/v1/inventory/return-reports/:id/confirm — chỉ role MANAGER gọi được (Admin nhận 403). */
   async confirmReturnReport(reportId: string, notes?: string) {
     const response = await api.put(`/inventory/return-reports/${reportId}/confirm`, { notes });
+    return response.data;
+  },
+
+  /**
+   * GET /api/v1/inventory/picklist/:orderId — tồn kho của từng item trong đơn.
+   * Trả về mảng PicklistItem với quantityAvailable theo từng item (source=INTERNAL).
+   * Supplier items trả quantityAvailable=null.
+   */
+  async getPicklist(orderId: string): Promise<{ data: PicklistItem[] }> {
+    const response = await api.get(`/inventory/picklist/${orderId}`);
     return response.data;
   },
 };
