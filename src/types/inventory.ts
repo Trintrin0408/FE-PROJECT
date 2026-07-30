@@ -71,3 +71,15 @@ export interface GetInventoryMovementsQuery {
   page?: number;
   limit?: number;
 }
+
+// GET /api/v1/inventory/picklist/:orderId — tồn kho của từng item trong đơn,
+// dùng để hiển thị cột "Khả dụng" trong trang Xuất kho và Khả dụng theo đơn.
+export interface PicklistItem {
+  orderItemId: string;
+  itemId: string;
+  itemName: string;
+  unit: string;
+  source: 'INTERNAL' | 'SUPPLIER';
+  quantityOrdered: number;
+  quantityAvailable: number | null; // null nếu chưa có bản ghi inventory
+}

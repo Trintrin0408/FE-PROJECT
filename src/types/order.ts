@@ -51,6 +51,9 @@ export interface Order {
   updatedAt?: string;
   closedAt?: string | null; // xác nhận qua curl thật 2026-07-20 — cột đã có (khác giả định cũ ở docs/tiendosukien_api.md mục 6)
   closedBy?: string | null;
+  // set bởi POST /orders/:id/export-equipment — null nếu chưa xuất kho
+  pickedUpAt?: string | null;
+  pickedUpBy?: string | null;
 }
 
 // GET /api/v1/orders — meta.counts đã có sẵn trên response thật (test 2026-07-20), dùng thẳng cho 6 thẻ

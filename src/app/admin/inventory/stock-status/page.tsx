@@ -2,13 +2,14 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Eye, MoreHorizontal, Search, SlidersHorizontal } from 'lucide-react';
+import { Eye, MoreHorizontal, Search, SlidersHorizontal, Box, Lock, AlertTriangle, XCircle, CheckCircle2 } from 'lucide-react';
 import { Table, TableColumn } from '@/components/ui/Table';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
 import { Pagination } from '@/components/ui/Pagination';
 import type { PaginationState } from '@/hooks/usePagination';
+import DashboardStats, { KpiCardItem } from '@/components/reports/DashboardStats';
 import InventoryDetailModal from '@/components/catalog/InventoryDetailModal';
 import { useDebounce } from '@/hooks/useDebounce';
 import { inventoryApiService } from '@/services/inventory.service';
@@ -33,6 +34,8 @@ export default function AdminStockStatusPage() {
   const [searchInput, setSearchInput] = useState('');
   const search = useDebounce(searchInput, 300);
   const [categoryFilter, setCategoryFilter] = useState('');
+  const [onlyReserved, setOnlyReserved] = useState(false);
+  const [onlyLowStock, setOnlyLowStock] = useState(false);
   const [page, setPage] = useState(1);
   const limit = 10;
 
@@ -65,7 +68,7 @@ export default function AdminStockStatusPage() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reset trang khi đổi bộ lọc/tìm kiếm
     setPage(1);
-  }, [search, categoryFilter]);
+  }, [search, categoryFilter, onlyReserved, onlyLowStock]);
 
   const categoryOptions = useMemo(
     () => Array.from(new Set(rows.map((r) => r.categoryName).filter((v): v is string => Boolean(v)))),
@@ -76,10 +79,28 @@ export default function AdminStockStatusPage() {
     () =>
       rows.filter((r) => {
         if (categoryFilter && r.categoryName !== categoryFilter) return false;
+        if (onlyReserved && r.quantityReserved <= 0) return false;
+        if (onlyLowStock && r.quantityAvailable >= 5) return false; // Giả định threshold = 5
         return true;
       }),
-    [rows, categoryFilter],
+    [rows, categoryFilter, onlyReserved, onlyLowStock],
   );
+
+  const summary = useMemo(() => {
+    return {
+      totalItems: rows.length,
+      totalAvailable: rows.reduce((sum, r) => sum + r.quantityAvailable, 0),
+      totalReserved: rows.reduce((sum, r) => sum + r.quantityReserved, 0),
+      totalDamaged: rows.reduce((sum, r) => sum + r.quantityDamaged, 0),
+    };
+  }, [rows]);
+
+  const kpiItems: KpiCardItem[] = useMemo(() => [
+    { label: 'Tổng loại thiết bị', value: summary.totalItems, icon: Box, iconColor: 'slate' },
+    { label: 'Đang khả dụng', value: summary.totalAvailable, icon: CheckCircle2, iconColor: 'green' },
+    { label: 'Đang giữ (Reserved)', value: summary.totalReserved, icon: Lock, iconColor: 'blue' },
+    { label: 'Đang hỏng', value: summary.totalDamaged, icon: XCircle, iconColor: 'red' },
+  ], [summary]);
 
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / limit));
   const safePage = Math.min(page, totalPages);
@@ -160,6 +181,10 @@ export default function AdminStockStatusPage() {
         </div>
       </div>
 
+      <div className="mt-6">
+        <DashboardStats items={kpiItems} />
+      </div>
+
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         whileInView={{ opacity: 1, y: 0 }}
@@ -184,6 +209,32 @@ export default function AdminStockStatusPage() {
               onChange={(e) => setCategoryFilter(e.target.value)}
               options={[{ value: '', label: 'Nhóm sản phẩm' }, ...categoryOptions.map((c) => ({ value: c, label: c }))]}
             />
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setOnlyReserved(!onlyReserved)}
+              className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                onlyReserved
+                  ? 'border-blue-200 bg-blue-50 text-blue-700'
+                  : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              <Lock className="h-4 w-4" />
+              Đang Reserved
+            </button>
+            <button
+              type="button"
+              onClick={() => setOnlyLowStock(!onlyLowStock)}
+              className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                onlyLowStock
+                  ? 'border-red-200 bg-red-50 text-red-700'
+                  : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              <AlertTriangle className="h-4 w-4" />
+              Tồn thấp
+            </button>
           </div>
         </div>
 

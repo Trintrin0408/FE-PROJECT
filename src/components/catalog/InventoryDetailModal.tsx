@@ -180,7 +180,7 @@ export function InventoryDetailModal({ isOpen, onClose, itemId, onAdjusted }: Re
             <p className="mt-2 text-xs italic text-slate-400">Vị trí kho: {MOCK_LOCATION} (dữ liệu fix cứng — `inventory` chưa có cột `location`)</p>
           </div>
 
-          {isAdmin && (
+          {!isAdmin && (
             <div className="rounded-lg border border-slate-200 p-4">
             <h3 className="text-sm font-semibold text-slate-900">Điều chỉnh tồn kho</h3>
             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-4">
