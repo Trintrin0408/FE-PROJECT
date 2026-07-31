@@ -136,6 +136,17 @@ function PurchaseOrdersContent() {
     }
   };
 
+  const handleDeleteTransaction = async (id: string) => {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa đơn hàng này? Thao tác không thể hoàn tác.')) return;
+    try {
+      await supplierApiService.deleteSupplierTransaction(id);
+      toast.success('Đã xóa đơn hàng thành công');
+      fetchTransactions();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Không thể xóa đơn hàng');
+    }
+  };
+
   const columns: TableColumn<SupplierTransaction>[] = [
     { key: 'transactionCode', label: 'Mã đơn', render: (t) => <span className="font-semibold text-blue-600">{t.transactionCode}</span> },
     {
@@ -223,6 +234,27 @@ function PurchaseOrdersContent() {
           >
             <Pencil className="h-4 w-4" />
           </button>
+          {t.status === 'PENDING' ? (
+            <button
+              type="button"
+              aria-label="Xóa"
+              title="Xóa đơn hàng"
+              onClick={() => handleDeleteTransaction(t.transactionId)}
+              className="inline-flex rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              aria-label="Không thể xóa"
+              title="Chỉ được xóa đơn hàng ở trạng thái Chờ duyệt"
+              disabled
+              className="inline-flex rounded-md p-1.5 text-slate-200 cursor-not-allowed"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
         </div>
       ),
     },
@@ -355,8 +387,11 @@ function OrderDetailModal({ transactionId, onClose }: Readonly<{ transactionId: 
 
   const orderTypeMeta = ORDER_TYPE_META[transaction.transactionType] || { label: transaction.transactionType, fullLabel: transaction.transactionType, badgeClass: '' };
   const statusMeta = TRANSACTION_STATUS_META[transaction.status] || { label: transaction.status, badgeClass: '' };
+  const paymentStatusMeta = PAYMENT_STATUS_META[transaction.paymentStatus || 'UNPAID'] || { label: transaction.paymentStatus || 'Chưa thanh toán', badgeClass: 'bg-gray-100 text-gray-800' };
 
-  const remainingDebt = Number(transaction.estimatedCost) - Number(transaction.depositAmount || 0);
+  const remainingDebt = transaction.paymentStatus === 'PAID'
+    ? 0
+    : Number(transaction.estimatedCost) - Number(transaction.depositAmount || 0);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
@@ -410,6 +445,12 @@ function OrderDetailModal({ transactionId, onClose }: Readonly<{ transactionId: 
                   {statusMeta.label}
                 </span>
               </div>
+              <div>
+                <p className="text-xs text-slate-400">Thanh toán:</p>
+                <span className={`mt-0.5 inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${paymentStatusMeta.badgeClass}`}>
+                  {paymentStatusMeta.label}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -423,6 +464,8 @@ function OrderDetailModal({ transactionId, onClose }: Readonly<{ transactionId: 
                     <th className="px-3 py-2">STT</th>
                     <th className="px-3 py-2">Tên vật tư / dịch vụ</th>
                     <th className="px-3 py-2 text-center">Số lượng</th>
+                    <th className="px-3 py-2 text-right">Đơn giá</th>
+                    <th className="px-3 py-2 text-right">Thành tiền</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -431,10 +474,12 @@ function OrderDetailModal({ transactionId, onClose }: Readonly<{ transactionId: 
                       <td className="px-3 py-3 text-slate-400">{idx + 1}</td>
                       <td className="px-3 py-3 font-medium text-slate-800">{item.itemName}</td>
                       <td className="px-3 py-3 text-center text-slate-600">{item.quantity}</td>
+                      <td className="px-3 py-3 text-right text-slate-600">{formatCurrency(item.unitCost)}</td>
+                      <td className="px-3 py-3 text-right font-medium text-slate-800">{formatCurrency(item.subtotal || (item.quantity * item.unitCost))}</td>
                     </tr>
                   )) : (
                     <tr>
-                      <td colSpan={3} className="px-3 py-4 text-center text-slate-500">Không có hạng mục nào</td>
+                      <td colSpan={5} className="px-3 py-4 text-center text-slate-500">Không có hạng mục nào</td>
                     </tr>
                   )}
                 </tbody>

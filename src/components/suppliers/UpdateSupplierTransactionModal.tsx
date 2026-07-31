@@ -12,11 +12,17 @@ import { formatDate } from '@/utils/formatDate';
 import { formatCurrency } from '@/utils/formatCurrency';
 
 const TRANSACTION_STATUS_META: Record<string, { label: string; badgeClass: string }> = {
-  PENDING: { label: 'Chờ duyệt', badgeClass: 'bg-amber-100 text-amber-700' },
-  APPROVED: { label: 'Đã duyệt', badgeClass: 'bg-blue-100 text-blue-700' },
-  RECEIVED: { label: 'Đã nhận', badgeClass: 'bg-indigo-100 text-indigo-700' },
-  COMPLETED: { label: 'Hoàn thành', badgeClass: 'bg-emerald-100 text-emerald-700' },
-  CANCELLED: { label: 'Đã hủy', badgeClass: 'bg-slate-100 text-slate-700' }
+  PENDING: { label: 'Chờ duyệt', badgeClass: 'bg-amber-100 text-amber-800' },
+  APPROVED: { label: 'Đã duyệt', badgeClass: 'bg-blue-100 text-blue-800' },
+  DELIVERED: { label: 'Đã nhận hàng', badgeClass: 'bg-emerald-100 text-emerald-800' },
+  COMPLETED: { label: 'Hoàn thành', badgeClass: 'bg-slate-100 text-slate-800' },
+  CANCELLED: { label: 'Đã hủy', badgeClass: 'bg-red-100 text-red-800' },
+};
+
+const PAYMENT_STATUS_META: Record<string, { label: string; badgeClass: string }> = {
+  UNPAID: { label: 'Chưa thanh toán', badgeClass: 'bg-rose-50 text-rose-600 border border-rose-200' },
+  PARTIAL: { label: 'Đã đặt cọc', badgeClass: 'bg-blue-50 text-blue-600 border border-blue-200' },
+  PAID: { label: 'Đã thanh toán', badgeClass: 'bg-emerald-50 text-emerald-600 border border-emerald-200' },
 };
 
 const ORDER_TYPE_META: Record<string, { label: string; fullLabel: string; badgeClass: string }> = {
@@ -191,7 +197,11 @@ export default function UpdateSupplierTransactionModal({
   if (mode === 'view') {
     const orderTypeMeta = ORDER_TYPE_META[transactionType] || { label: transactionType, fullLabel: transactionType, badgeClass: '' };
     const statusMeta = TRANSACTION_STATUS_META[status] || { label: status, badgeClass: '' };
-    const remainingDebt = calculateTotal() - depositAmount;
+    const paymentStatusMeta = PAYMENT_STATUS_META[transaction?.paymentStatus || 'UNPAID'] || { label: transaction?.paymentStatus || 'Chưa thanh toán', badgeClass: 'bg-gray-100 text-gray-800' };
+
+    const remainingDebt = transaction?.paymentStatus === 'PAID'
+      ? 0
+      : calculateTotal() - depositAmount;
 
     return (
       <Modal isOpen={isOpen} onClose={onClose} title="Chi tiết đơn hàng" size="lg">
@@ -234,6 +244,12 @@ export default function UpdateSupplierTransactionModal({
                   {statusMeta.label}
                 </span>
               </div>
+              <div>
+                <p className="text-xs text-slate-400">Thanh toán:</p>
+                <span className={`mt-0.5 inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${paymentStatusMeta.badgeClass}`}>
+                  {paymentStatusMeta.label}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -247,18 +263,22 @@ export default function UpdateSupplierTransactionModal({
                     <th className="px-3 py-2">STT</th>
                     <th className="px-3 py-2">Tên vật tư / dịch vụ</th>
                     <th className="px-3 py-2 text-center">Số lượng</th>
+                    <th className="px-3 py-2 text-right">Đơn giá</th>
+                    <th className="px-3 py-2 text-right">Thành tiền</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {items.length > 0 && items[0].itemId !== '' ? items.map((item, idx) => (
+                  {items.filter(i => i.itemId || i.itemName || (i.unitCost && i.unitCost > 0)).length > 0 ? items.filter(i => i.itemId || i.itemName || (i.unitCost && i.unitCost > 0)).map((item, idx) => (
                     <tr key={`${item.itemId}-${idx}`}>
                       <td className="px-3 py-3 text-slate-400">{idx + 1}</td>
                       <td className="px-3 py-3 font-medium text-slate-800">{item.itemName || supplierItems.find(si => si.itemId === item.itemId)?.itemName || '---'}</td>
                       <td className="px-3 py-3 text-center text-slate-600">{item.quantity}</td>
+                      <td className="px-3 py-3 text-right text-slate-600">{formatCurrency(item.unitCost)}</td>
+                      <td className="px-3 py-3 text-right font-medium text-slate-800">{formatCurrency(item.quantity * item.unitCost)}</td>
                     </tr>
                   )) : (
                     <tr>
-                      <td colSpan={3} className="px-3 py-4 text-center text-slate-500">Không có hạng mục nào</td>
+                      <td colSpan={5} className="px-3 py-4 text-center text-slate-500">Không có hạng mục nào</td>
                     </tr>
                   )}
                 </tbody>
@@ -442,7 +462,7 @@ export default function UpdateSupplierTransactionModal({
           </div>
           
           <div className="space-y-3">
-            {items.map((item, index) => (
+            {items.filter(i => mode === 'edit' || i.itemId || i.itemName || (i.unitCost && i.unitCost > 0)).map((item, index) => (
               <div key={index} className="flex flex-col sm:flex-row gap-3 p-3 bg-slate-50 rounded-lg border border-slate-100 items-start sm:items-end">
                 <div className="w-full sm:flex-1 space-y-1">
                   <label className="text-xs font-medium text-slate-600">Hạng mục cung cấp</label>
