@@ -13,6 +13,8 @@ import { Select } from '@/components/ui/Select';
 import RecordSettlementModal from '@/components/orders/RecordSettlementModal';
 import CreateSchedulePlanModal from '@/components/schedule/CreateSchedulePlanModal';
 import CreateQuotationWizardModal from '@/components/quotations/CreateQuotationWizardModal';
+import PlanFormDrawer from '@/components/planning/PlanFormDrawer';
+import { groupPlansByOrder } from '@/utils/schedulePlanGroups';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { formatDate, formatTime } from '@/utils/formatDate';
 import { getUrgencyBadgeVariant } from '@/utils/eventDate';
@@ -219,6 +221,7 @@ function ManagerOrderDetailContent() {
   const [isUpdatingPlanStatus, setIsUpdatingPlanStatus] = useState(false);
   const [evidenceModal, setEvidenceModal] = useState<{ isLoading: boolean; evidence: Evidence | null } | null>(null);
   const [isCreatePlanOpen, setIsCreatePlanOpen] = useState(false);
+  const [isEditPlanOpen, setIsEditPlanOpen] = useState(false);
 
   const [quotationDetail, setQuotationDetail] = useState<QuotationDetailApi | null>(null);
   const [linkableQuotations, setLinkableQuotations] = useState<QuotationListItem[]>([]);
@@ -323,7 +326,7 @@ function ManagerOrderDetailContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ tải lại khi danh sách hạng mục đổi
   }, [order?.orderId, order?.items]);
 
-  if (isLoading) {
+  if (isLoading && !order) {
     return (
       <div className="p-6">
         <p className="text-sm text-slate-400">Đang tải thông tin đơn đặt...</p>
@@ -1174,7 +1177,9 @@ function ManagerOrderDetailContent() {
                             type="button"
                             disabled={!canEdit}
                             title={canEdit ? undefined : 'Chỉ sửa được khi kế hoạch chưa thi công/hoàn thành'}
-                            onClick={() => router.push('/manager/schedule/plans')}
+                            onClick={() => {
+                              setIsEditPlanOpen(true);
+                            }}
                             className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:border-blue-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                           >
                             <Pencil className="h-3.5 w-3.5" />
@@ -1565,6 +1570,18 @@ function ManagerOrderDetailContent() {
         eventDate={order.eventDate}
         onCreated={handleSchedulePlanCreated}
       />
+      
+      {isEditPlanOpen && (
+        <PlanFormDrawer
+          isOpen={isEditPlanOpen}
+          editingGroup={schedulePlans.length > 0 ? groupPlansByOrder(schedulePlans)[0] : null}
+          selectableOrders={[]} // Không cần chọn đơn ở đây vì đã ở trong trang đơn hàng
+          onClose={() => {
+            setIsEditPlanOpen(false);
+          }}
+          onSaved={load}
+        />
+      )}
     </div>
   );
 }
