@@ -77,10 +77,10 @@ export function SupplierDetailModal({ supplier, onClose }: Readonly<SupplierDeta
               </div>
             </div>
 
-            <p className="mt-4 text-xs font-bold uppercase tracking-wide text-slate-500">Lịch sử giao dịch thuê/mua ngoài</p>
+            <p className="mt-4 text-xs font-bold uppercase tracking-wide text-slate-500">Lịch sử đơn thuê/mua ngoài</p>
             <div className="mt-2 overflow-hidden rounded-xl border border-slate-200">
               {((supplier as any).transactions ?? []).length === 0 ? (
-                <p className="px-3 py-4 text-center text-sm text-slate-400">Chưa có giao dịch nào.</p>
+                <p className="px-3 py-4 text-center text-sm text-slate-400">Chưa có đơn thuê/mua nào.</p>
               ) : (
                 <div className="overflow-x-auto">
                 <table className="w-full min-w-[560px] text-left text-sm">

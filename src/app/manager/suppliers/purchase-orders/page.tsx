@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { AlertCircle, BookOpen, Calendar, Eye, Loader2, Pencil, Plus, Search, SlidersHorizontal, X } from 'lucide-react';
+import { AlertCircle, BookOpen, Calendar, Eye, Loader2, Pencil, Plus, Search, SlidersHorizontal, Trash2, X } from 'lucide-react';
 import { Table, TableColumn } from '@/components/ui/Table';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
@@ -24,12 +24,19 @@ import {
   type SupplierTransactionStatus,
   type SupplierTransactionType,
 } from '@/constants/supplier-transaction-status';
+import toast from 'react-hot-toast';
 
 // Đã nối API thật (2026-07-30) — trước đó là trang thuần giao diện dùng mock (xem docs/more-require.md
 // mục (ap)). Admin vẫn dùng modal cục bộ riêng, cũ hơn, không import PurchaseOrderFormModal — không đụng
 // tới trong đợt này (Admin không xử lý vận hành hằng ngày theo quy tắc phân quyền của dự án).
+//
+// CTA "Thiếu {n} · Thuê từ NCC" ở tab Thiết bị & Kho hàng của Đơn hàng giờ mở thẳng
+// PurchaseOrderFormModal ngay trên trang chi tiết đơn (src/app/manager/orders/[id]/page.tsx) thay vì
+// điều hướng sang trang này kèm query param `?createFor=` như trước — nên bỏ hẳn nhánh đọc query param
+// ở đây (không còn nơi nào liên kết theo cách cũ).
 
 type StatusFilter = '' | SupplierTransactionStatus;
+type PaymentStatusFilter = '' | SupplierTransactionPaymentStatus;
 type OrderTypeFilter = '' | SupplierTransactionType;
 
 export default function Page() {
@@ -40,6 +47,7 @@ export default function Page() {
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('');
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState<PaymentStatusFilter>('');
   const [orderTypeFilter, setOrderTypeFilter] = useState<OrderTypeFilter>('');
   const [dateFilter, setDateFilter] = useState('');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
@@ -48,6 +56,7 @@ export default function Page() {
   const [detailTransaction, setDetailTransaction] = useState<SupplierTransaction | null>(null);
   const [viewOrderId, setViewOrderId] = useState<string | null>(null);
   const [formModal, setFormModal] = useState<{ mode: 'create' | 'edit'; transaction: SupplierTransaction | null } | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -77,6 +86,7 @@ export default function Page() {
     const term = search.trim().toLowerCase();
     return transactions.filter((t) => {
       if (statusFilter && t.status !== statusFilter) return false;
+      if (paymentStatusFilter && (t.paymentStatus || 'UNPAID') !== paymentStatusFilter) return false;
       if (orderTypeFilter && t.transactionType !== orderTypeFilter) return false;
       // createdAt là ISO timestamp UTC — cắt 10 ký tự đầu để so theo ngày, có thể lệch 1 ngày gần nửa
       // đêm giờ VN so với UTC (chấp nhận được — bộ lọc chỉ mang tính tương đối, dữ liệu hiện còn ít).
@@ -90,7 +100,22 @@ export default function Page() {
         t.serviceTitle.toLowerCase().includes(term)
       );
     });
-  }, [transactions, search, statusFilter, orderTypeFilter, dateFilter, onlyHighValue]);
+  }, [transactions, search, statusFilter, paymentStatusFilter, orderTypeFilter, dateFilter, onlyHighValue]);
+
+  const handleDeleteTransaction = async (t: SupplierTransaction) => {
+    if (!window.confirm(`Xóa đơn "${t.transactionCode}"? Thao tác không thể hoàn tác.`)) return;
+    setDeletingId(t.transactionId);
+    try {
+      await supplierApiService.deleteSupplierTransaction(t.transactionId);
+      toast.success('Đã xóa đơn thành công');
+      refresh();
+    } catch (error) {
+      const err = error as { response?: { data?: { message?: string } } };
+      toast.error(err?.response?.data?.message || 'Không thể xóa đơn — chỉ xóa được đơn ở trạng thái Chờ duyệt');
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const columns: TableColumn<SupplierTransaction>[] = [
     { key: 'transactionCode', label: 'Mã giao dịch', render: (t) => <span className="font-semibold text-blue-600">{t.transactionCode}</span> },
@@ -166,6 +191,16 @@ export default function Page() {
           >
             <Pencil className="h-4 w-4" />
           </button>
+          <button
+            type="button"
+            aria-label={t.status === 'PENDING' ? 'Xóa' : 'Không thể xóa'}
+            title={t.status === 'PENDING' ? 'Xóa đơn hàng' : 'Chỉ được xóa đơn ở trạng thái Chờ duyệt'}
+            disabled={t.status !== 'PENDING' || deletingId === t.transactionId}
+            onClick={() => handleDeleteTransaction(t)}
+            className="inline-flex rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:text-slate-200 disabled:hover:bg-transparent"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
         </div>
       ),
     },
@@ -203,6 +238,16 @@ export default function Page() {
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
               options={[{ value: '', label: 'Trạng thái' }, ...Object.entries(SUPPLIER_TRANSACTION_STATUS_META).map(([value, meta]) => ({ value, label: meta.label }))]}
+            />
+          </div>
+          <div className="w-44">
+            <Select
+              value={paymentStatusFilter}
+              onChange={(e) => setPaymentStatusFilter(e.target.value as PaymentStatusFilter)}
+              options={[
+                { value: '', label: 'Thanh toán' },
+                ...Object.entries(SUPPLIER_TRANSACTION_PAYMENT_STATUS_META).map(([value, meta]) => ({ value, label: meta.label })),
+              ]}
             />
           </div>
           <div className="w-40">
@@ -296,6 +341,7 @@ function TransactionDetailModal({ transaction, onClose }: Readonly<{ transaction
   const typeMeta = SUPPLIER_TRANSACTION_TYPE_META[transaction.transactionType as SupplierTransactionType];
   const statusMeta = SUPPLIER_TRANSACTION_STATUS_META[transaction.status as SupplierTransactionStatus];
   const paymentMeta = SUPPLIER_TRANSACTION_PAYMENT_STATUS_META[transaction.paymentStatus as SupplierTransactionPaymentStatus];
+  const remainingDebt = transaction.paymentStatus === 'PAID' ? 0 : transaction.estimatedCost - (transaction.depositAmount || 0);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
@@ -386,6 +432,10 @@ function TransactionDetailModal({ transaction, onClose }: Readonly<{ transaction
             <div className="flex justify-between">
               <span className="text-slate-500">Đặt cọc:</span>
               <span className="font-semibold text-emerald-600">{formatCurrency(transaction.depositAmount)}</span>
+            </div>
+            <div className="flex justify-between border-t border-slate-200 pt-2">
+              <span className="font-bold text-slate-700">Dư nợ còn lại (dự kiến):</span>
+              <span className="text-lg font-bold text-red-600">{formatCurrency(remainingDebt)}</span>
             </div>
           </div>
         </div>

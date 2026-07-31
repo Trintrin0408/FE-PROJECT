@@ -166,7 +166,7 @@ export default function CreateSupplierTransactionModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Tạo giao dịch mới" size="xl">
+    <Modal isOpen={isOpen} onClose={onClose} title="Tạo đơn thuê/mua mới" size="xl">
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-1">
@@ -301,7 +301,7 @@ export default function CreateSupplierTransactionModal({
             Hủy
           </Button>
           <Button type="submit" variant="primary" disabled={isSubmitting}>
-            {isSubmitting ? 'Đang lưu...' : 'Tạo giao dịch'}
+            {isSubmitting ? 'Đang lưu...' : 'Tạo đơn'}
           </Button>
         </div>
       </form>

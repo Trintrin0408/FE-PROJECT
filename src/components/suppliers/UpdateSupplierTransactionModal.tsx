@@ -6,8 +6,29 @@ import { supplierApiService } from '@/services/supplier.service';
 import { orderApiService } from '@/services/order.service';
 import type { SupplierItem, TransactionItemInput, SupplierTransaction } from '@/types/supplier';
 import type { Order } from '@/types/order';
-import { Trash2, Plus } from 'lucide-react';
+import { Trash2, Plus, Eye } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { formatDate } from '@/utils/formatDate';
+import { formatCurrency } from '@/utils/formatCurrency';
+
+const TRANSACTION_STATUS_META: Record<string, { label: string; badgeClass: string }> = {
+  PENDING: { label: 'Chờ duyệt', badgeClass: 'bg-amber-100 text-amber-800' },
+  APPROVED: { label: 'Đã duyệt', badgeClass: 'bg-blue-100 text-blue-800' },
+  DELIVERED: { label: 'Đã nhận hàng', badgeClass: 'bg-emerald-100 text-emerald-800' },
+  COMPLETED: { label: 'Hoàn thành', badgeClass: 'bg-slate-100 text-slate-800' },
+  CANCELLED: { label: 'Đã hủy', badgeClass: 'bg-red-100 text-red-800' },
+};
+
+const PAYMENT_STATUS_META: Record<string, { label: string; badgeClass: string }> = {
+  UNPAID: { label: 'Chưa thanh toán', badgeClass: 'bg-rose-50 text-rose-600 border border-rose-200' },
+  PARTIAL: { label: 'Đã đặt cọc', badgeClass: 'bg-blue-50 text-blue-600 border border-blue-200' },
+  PAID: { label: 'Đã thanh toán', badgeClass: 'bg-emerald-50 text-emerald-600 border border-emerald-200' },
+};
+
+const ORDER_TYPE_META: Record<string, { label: string; fullLabel: string; badgeClass: string }> = {
+  RENTAL: { label: 'Thuê', fullLabel: 'Đơn thuê ngoài', badgeClass: 'bg-blue-50 text-blue-600' },
+  PURCHASE: { label: 'Mua', fullLabel: 'Đơn mua ngoài', badgeClass: 'bg-emerald-50 text-emerald-600' },
+};
 
 interface UpdateSupplierTransactionModalProps {
   isOpen: boolean;
@@ -173,11 +194,127 @@ export default function UpdateSupplierTransactionModal({
     }
   };
 
+  if (mode === 'view') {
+    const orderTypeMeta = ORDER_TYPE_META[transactionType] || { label: transactionType, fullLabel: transactionType, badgeClass: '' };
+    const statusMeta = TRANSACTION_STATUS_META[status] || { label: status, badgeClass: '' };
+    const paymentStatusMeta = PAYMENT_STATUS_META[transaction?.paymentStatus || 'UNPAID'] || { label: transaction?.paymentStatus || 'Chưa thanh toán', badgeClass: 'bg-gray-100 text-gray-800' };
+
+    const remainingDebt = transaction?.paymentStatus === 'PAID'
+      ? 0
+      : calculateTotal() - depositAmount;
+
+    return (
+      <Modal isOpen={isOpen} onClose={onClose} title="Chi tiết đơn hàng" size="lg">
+        <div className="flex-1 space-y-5">
+          <div className="-mt-2 mb-4">
+            <span className="inline-flex rounded-full bg-blue-50 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-blue-600">
+              {transactionType === 'RENTAL' ? 'Đơn thuê ngoài' : 'Đơn mua ngoài'}
+            </span>
+          </div>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Thông tin chung</p>
+            <div className="mt-2 grid grid-cols-1 gap-4 rounded-xl bg-slate-50 p-4 sm:grid-cols-2">
+              <div>
+                <p className="text-xs text-slate-400">Tiêu đề / Nội dung:</p>
+                <p className="mt-0.5 font-semibold text-slate-800">{serviceTitle}</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-400">Nhà cung cấp:</p>
+                <p className="mt-0.5 font-semibold text-slate-800">{transaction?.supplierName || '---'}</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-400">Mã đơn hàng liên kết:</p>
+                <p className="mt-0.5 font-semibold text-slate-800">
+                  {orderId ? (orders.find(o => o.orderId === orderId)?.orderCode || orderId) : 'Không có'}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-400">Loại đơn hàng:</p>
+                <p className="mt-0.5 font-semibold text-slate-800">{orderTypeMeta.fullLabel}</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-400">Ngày tạo đơn:</p>
+                <p className="mt-0.5 font-semibold text-slate-800">
+                  {transaction?.createdAt ? formatDate(transaction.createdAt) : '---'}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-400">Trạng thái đơn:</p>
+                <span className={`mt-0.5 inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${statusMeta.badgeClass}`}>
+                  {statusMeta.label}
+                </span>
+              </div>
+              <div>
+                <p className="text-xs text-slate-400">Thanh toán:</p>
+                <span className={`mt-0.5 inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${paymentStatusMeta.badgeClass}`}>
+                  {paymentStatusMeta.label}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Danh sách vật tư / dịch vụ</p>
+            <div className="mt-2 overflow-hidden rounded-xl border border-slate-200">
+              <div className="overflow-x-auto">
+              <table className="w-full min-w-[520px] text-left text-sm">
+                <thead className="bg-slate-50">
+                  <tr className="text-[11px] font-bold uppercase tracking-wide text-slate-400">
+                    <th className="px-3 py-2">STT</th>
+                    <th className="px-3 py-2">Tên vật tư / dịch vụ</th>
+                    <th className="px-3 py-2 text-center">Số lượng</th>
+                    <th className="px-3 py-2 text-right">Đơn giá</th>
+                    <th className="px-3 py-2 text-right">Thành tiền</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {items.filter(i => i.itemId || i.itemName || (i.unitCost && i.unitCost > 0)).length > 0 ? items.filter(i => i.itemId || i.itemName || (i.unitCost && i.unitCost > 0)).map((item, idx) => (
+                    <tr key={`${item.itemId}-${idx}`}>
+                      <td className="px-3 py-3 text-slate-400">{idx + 1}</td>
+                      <td className="px-3 py-3 font-medium text-slate-800">{item.itemName || supplierItems.find(si => si.itemId === item.itemId)?.itemName || '---'}</td>
+                      <td className="px-3 py-3 text-center text-slate-600">{item.quantity}</td>
+                      <td className="px-3 py-3 text-right text-slate-600">{formatCurrency(item.unitCost)}</td>
+                      <td className="px-3 py-3 text-right font-medium text-slate-800">{formatCurrency(item.quantity * item.unitCost)}</td>
+                    </tr>
+                  )) : (
+                    <tr>
+                      <td colSpan={5} className="px-3 py-4 text-center text-slate-500">Không có hạng mục nào</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2 rounded-xl bg-slate-50 p-4 text-sm">
+            <div className="flex justify-between">
+              <span className="text-slate-500">Tổng giá trị đơn hàng ước tính:</span>
+              <span className="font-bold text-slate-900">{formatCurrency(calculateTotal())}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-500">Đã thanh toán (Cọc):</span>
+              <span className="font-semibold text-emerald-600">{formatCurrency(depositAmount)}</span>
+            </div>
+            <div className="flex justify-between border-t border-slate-200 pt-2">
+              <span className="font-bold text-slate-700">Dư nợ còn lại (Dự kiến):</span>
+              <span className="text-lg font-bold text-red-600">{formatCurrency(remainingDebt)}</span>
+            </div>
+          </div>
+
+          <div className="flex justify-end pt-4">
+            <Button onClick={onClose} variant="primary">Đóng</Button>
+          </div>
+        </div>
+      </Modal>
+    );
+  }
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={mode === 'view' ? "Chi tiết giao dịch" : "Cập nhật giao dịch"}
+      title="Cập nhật đơn thuê/mua"
       size="xl"
       footer={
         <div className="flex justify-between items-center w-full">
@@ -200,6 +337,11 @@ export default function UpdateSupplierTransactionModal({
       }
     >
       <form className="space-y-6">
+        <div className="-mt-2 mb-2">
+          <span className="inline-flex rounded-full bg-blue-50 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-blue-600">
+            {transactionType === 'RENTAL' ? 'Đơn thuê ngoài' : 'Đơn mua ngoài'}
+          </span>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-1">
             <label className="block text-sm font-medium text-slate-700">Đơn hàng (Không thể đổi)</label>
@@ -311,7 +453,7 @@ export default function UpdateSupplierTransactionModal({
 
         <div className="pt-4 border-t border-slate-100">
           <div className="flex justify-between items-center mb-4">
-            <h4 className="font-semibold text-slate-900">Chi tiết hạng mục</h4>
+            <h4 className="font-semibold text-slate-900">Chi tiết hạng mục {transactionType === 'PURCHASE' ? '(Mua)' : '(Thuê)'}</h4>
             {mode === 'edit' && (!transaction || transaction.status === 'PENDING') && (
               <Button type="button" variant="secondary" size="sm" onClick={handleAddItem} className="h-8">
                 <Plus className="h-4 w-4 mr-1" /> Thêm hạng mục
@@ -320,9 +462,9 @@ export default function UpdateSupplierTransactionModal({
           </div>
           
           <div className="space-y-3">
-            {items.map((item, index) => (
-              <div key={index} className="flex flex-col md:flex-row gap-3 p-3 bg-slate-50 rounded-lg border border-slate-100 items-end">
-                <div className="w-full md:w-2/5 space-y-1">
+            {items.filter(i => mode === 'edit' || i.itemId || i.itemName || (i.unitCost && i.unitCost > 0)).map((item, index) => (
+              <div key={index} className="flex flex-col sm:flex-row gap-3 p-3 bg-slate-50 rounded-lg border border-slate-100 items-start sm:items-end">
+                <div className="w-full sm:flex-1 space-y-1">
                   <label className="text-xs font-medium text-slate-600">Hạng mục cung cấp</label>
                   <select
                     value={item.itemId || ''}
@@ -345,7 +487,7 @@ export default function UpdateSupplierTransactionModal({
                   </select>
                 </div>
                 
-                <div className="w-full md:w-1/5 space-y-1">
+                <div className="w-full sm:w-28 space-y-1">
                   <label className="text-xs font-medium text-slate-600">Số lượng</label>
                   <Input
                     type="number"
@@ -356,8 +498,8 @@ export default function UpdateSupplierTransactionModal({
                   />
                 </div>
                 
-                <div className="w-full md:w-1/5 space-y-1">
-                  <label className="text-xs font-medium text-slate-600">Đơn giá</label>
+                <div className="w-full sm:w-36 space-y-1">
+                  <label className="text-xs font-medium text-slate-600">Đơn giá {transactionType === 'PURCHASE' ? '(Mua)' : '(Thuê)'}</label>
                   <Input
                     type="number"
                     min="0"
@@ -368,14 +510,15 @@ export default function UpdateSupplierTransactionModal({
                 </div>
 
                 {mode === 'edit' && (
-                  <div className="w-full md:w-auto pb-1.5">
+                  <div className="pt-2 sm:pt-0 sm:pb-1">
                     <button
                       type="button"
                       onClick={() => handleRemoveItem(index)}
                       disabled={items.length === 1 || Boolean(transaction?.status && transaction.status !== 'PENDING')}
-                      className="p-1.5 text-red-500 hover:bg-red-50 rounded-md disabled:opacity-50"
+                      className="p-1.5 text-red-500 hover:bg-red-50 rounded-md disabled:opacity-50 transition-colors"
+                      title="Xóa hạng mục"
                     >
-                      <Trash2 className="h-5 w-5" />
+                      <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
                 )}

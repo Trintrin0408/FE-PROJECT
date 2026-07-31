@@ -221,8 +221,8 @@ export default function SupplierDetailView() {
               <FileText className="h-6 w-6" />
             </div>
             <div>
-              <p className="text-sm font-medium text-slate-600">Lịch sử giao dịch</p>
-              <p className="mt-1 text-2xl font-bold text-slate-900">{transactions.length} giao dịch</p>
+              <p className="text-sm font-medium text-slate-600">Lịch sử đơn thuê/mua</p>
+              <p className="mt-1 text-2xl font-bold text-slate-900">{transactions.length} đơn</p>
             </div>
           </div>
         </div>
@@ -249,7 +249,7 @@ export default function SupplierDetailView() {
                 : 'border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-700'
             }`}
           >
-            Danh sách các giao dịch
+            Danh sách các đơn thuê/mua
           </button>
         </nav>
       </div>
@@ -380,15 +380,15 @@ export default function SupplierDetailView() {
       {activeTab === 'transactions' && (
       <div className="rounded-xl border border-slate-200 bg-white shadow-sm">
         <div className="border-b border-slate-100 p-5 flex items-center justify-between">
-          <h3 className="text-lg font-bold text-slate-900">Danh sách các giao dịch</h3>
-          <Button size="sm" onClick={() => setIsCreateTxModalOpen(true)}>+ Tạo giao dịch</Button>
+          <h3 className="text-lg font-bold text-slate-900">Danh sách các đơn thuê/mua</h3>
+          <Button size="sm" onClick={() => setIsCreateTxModalOpen(true)}>+ Tạo đơn thuê/mua</Button>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-50/50 border-b border-slate-100">
               <tr>
-                <th className="px-6 py-4 font-semibold text-slate-500">Mã giao dịch</th>
-                <th className="px-6 py-4 font-semibold text-slate-500 text-center">Loại giao dịch</th>
+                <th className="px-6 py-4 font-semibold text-slate-500">Mã đơn</th>
+                <th className="px-6 py-4 font-semibold text-slate-500 text-center">Loại đơn</th>
                 <th className="px-6 py-4 font-semibold text-slate-500 text-center">Đơn liên quan</th>
                 <th className="px-6 py-4 font-semibold text-slate-500 text-center">Ngày tạo</th>
                 <th className="px-6 py-4 font-semibold text-slate-500 text-center">Tổng tiền</th>
@@ -401,7 +401,7 @@ export default function SupplierDetailView() {
               {transactions.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-5 py-8 text-center text-slate-500">
-                    Chưa có giao dịch nào
+                    Chưa có đơn thuê/mua nào
                   </td>
                 </tr>
               ) : transactions.map((tx) => (
