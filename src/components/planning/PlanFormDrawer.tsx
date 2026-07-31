@@ -101,6 +101,7 @@ export default function PlanFormDrawer({ isOpen, editingGroup, selectableOrders,
 
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
   const [rowEditDraft, setRowEditDraft] = useState<{ start: string; end: string; location: string; notes: string } | null>(null);
+  const [rowEditError, setRowEditError] = useState<string | null>(null);
   const [rowBusyId, setRowBusyId] = useState<string | null>(null);
   const [assigneePickerRowId, setAssigneePickerRowId] = useState<string | null>(null);
   const [assigneePickUserId, setAssigneePickUserId] = useState('');
@@ -223,6 +224,7 @@ export default function PlanFormDrawer({ isOpen, editingGroup, selectableOrders,
 
   const startRowEdit = (row: OrderPlanGroup['rows'][number]) => {
     setEditingRowId(row.planId);
+    setRowEditError(null);
     setRowEditDraft({
       start: toDatetimeLocal(row.startTime),
       end: toDatetimeLocal(row.endTime),
@@ -233,7 +235,13 @@ export default function PlanFormDrawer({ isOpen, editingGroup, selectableOrders,
 
   const saveRowEdit = async (row: OrderPlanGroup['rows'][number]) => {
     if (!rowEditDraft) return;
+    if (!rowEditDraft.start) {
+      setRowEditError('Thời gian bắt đầu là bắt buộc.');
+      return;
+    }
+    
     setRowBusyId(row.planId);
+    setRowEditError(null);
     try {
       await schedulePlanApiService.updateSchedulePlan(row.planId, {
         // Backend có bug: PUT báo lỗi validate nếu thiếu startTime dù chỉ sửa field khác — luôn gửi
@@ -244,9 +252,12 @@ export default function PlanFormDrawer({ isOpen, editingGroup, selectableOrders,
         notes: rowEditDraft.notes || undefined,
       });
       setEditingRowId(null);
+      setRowEditError(null);
       onSaved();
-    } catch {
-      // giữ nguyên form sửa để người dùng thử lại
+    } catch (err) {
+      // Bắt lỗi và hiển thị, không ẩn im lặng nữa
+      const message = (err as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message ?? 'Lưu thất bại. Vui lòng kiểm tra lại dữ liệu.';
+      setRowEditError(message);
     } finally {
       setRowBusyId(null);
     }
@@ -408,19 +419,26 @@ export default function PlanFormDrawer({ isOpen, editingGroup, selectableOrders,
                               className="w-full rounded-lg border border-slate-200 bg-white p-1.5 text-xs"
                             />
                           </div>
-                          <div className="col-span-2 flex justify-end gap-2">
-                            <button type="button" onClick={() => setEditingRowId(null)} className="rounded-lg border border-slate-200 px-3 py-1 font-bold text-slate-600">
-                              Hủy
-                            </button>
-                            <button
-                              type="button"
-                              disabled={busy}
-                              onClick={() => saveRowEdit(row)}
-                              className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1 font-bold text-white disabled:opacity-60"
-                            >
-                              {busy && <Loader2 className="h-3 w-3 animate-spin" />}
-                              Lưu
-                            </button>
+                          <div className="col-span-2 flex flex-col gap-2">
+                            {rowEditError && (
+                              <div className="rounded-lg border border-red-200 bg-red-50 p-2 text-[10px] text-red-600">
+                                {rowEditError}
+                              </div>
+                            )}
+                            <div className="flex justify-end gap-2">
+                              <button type="button" onClick={() => { setEditingRowId(null); setRowEditError(null); }} className="rounded-lg border border-slate-200 px-3 py-1 font-bold text-slate-600">
+                                Hủy
+                              </button>
+                              <button
+                                type="button"
+                                disabled={busy}
+                                onClick={() => saveRowEdit(row)}
+                                className="inline-flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1 font-bold text-white disabled:opacity-60"
+                              >
+                                {busy && <Loader2 className="h-3 w-3 animate-spin" />}
+                                Lưu
+                              </button>
+                            </div>
                           </div>
                         </div>
                       ) : (
@@ -683,10 +701,12 @@ export default function PlanFormDrawer({ isOpen, editingGroup, selectableOrders,
             <Button variant="secondary" onClick={onClose}>
               Đóng
             </Button>
-            <Button onClick={handleSubmit} disabled={!canSubmit || submitting}>
-              {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-              {editingGroup ? 'Lưu hoạt động mới' : 'Lưu kế hoạch'}
-            </Button>
+            {items.length > 0 && (
+              <Button onClick={handleSubmit} disabled={!canSubmit || submitting}>
+                {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                {editingGroup ? 'Lưu hoạt động mới' : 'Lưu kế hoạch'}
+              </Button>
+            )}
           </div>
         </div>
       </motion.div>
