@@ -78,6 +78,12 @@ export function getSupplierTransactionRemainingDebt(t: SupplierTransactionSummar
   return t.value + t.compensationAmount - t.supplierDeduction - t.paidAmount;
 }
 
+/** Bỏ tiền tố "KH: " khỏi customerLabel khi hiển thị — tiền tố này chỉ dùng để nhận diện trong data,
+ * không hiển thị ra UI (bảng đơn thuê/mua, modal chi tiết, form tạo/sửa). */
+export function customerLabelOf(t: { customerLabel: string }): string {
+  return t.customerLabel.replace(/^KH:\s*/, '');
+}
+
 export interface SupplierCatalogItem {
   itemCode: string;
   itemName: string;
@@ -455,6 +461,15 @@ export function getAdminSuppliers(): AdminSupplier[] {
 export function getAdminSupplierById(id: string): AdminSupplier | undefined {
   const supplier = supplierStore.getById(id);
   return supplier ? withComputedDebtBalance(supplier) : undefined;
+}
+
+/** Nhà cung cấp có khai báo `itemName` (so khớp tên, không phân biệt hoa/thường) trong catalogItems —
+ * dùng để lọc gợi ý NCC khi tạo đơn thuê/mua từ CTA "Thiếu hàng" trên Đơn hàng (purchase-orders/page.tsx).
+ * So khớp TÊN là giải pháp tạm thời — catalogItems mock hiện chưa có FK itemId thật tới db/catalog.ts. */
+export function getSuppliersCarryingItem(suppliers: AdminSupplier[], itemName: string): AdminSupplier[] {
+  const normalized = itemName.trim().toLowerCase();
+  if (!normalized) return [];
+  return suppliers.filter((s) => s.catalogItems.some((ci) => ci.itemName.trim().toLowerCase() === normalized));
 }
 
 export interface AdminSupplierFormValues {

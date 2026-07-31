@@ -1,18 +1,31 @@
 import type { BadgeVariant } from '@/components/ui/Badge';
-import { getStatusBadgeVariant } from '@/components/ui/Badge';
-import type { SupplierTransactionStatus, SupplierTransactionType } from '@/types/procurement';
 
-// Nhãn hiển thị cho SupplierTransaction.status/transactionType — theo enum thật của backend, xác nhận
-// qua curl GET /api/v1/supplier-transactions ngày 2026-07-21 (docs/supplier_api.md mục 4.2/6.0).
+// Nhãn + màu badge cho SupplierTransaction.status/transactionType/paymentStatus — theo đúng schema DB
+// thật do người dùng cung cấp trực tiếp ngày 2026-07-30 (bảng supplier_transactions), khớp với
+// UpdateSupplierTransactionModal.tsx (component thật đang hoạt động). Không dùng type từ
+// @/types/procurement — enum SupplierTransactionStatus ở đó ghi `IN_PROGRESS` là SAI, giá trị đúng theo
+// DB thật là `RECEIVED`. Không dùng getStatusBadgeVariant() (components/ui/Badge.tsx) — helper đó dùng
+// chung nhiều domain khác nhau, cho PENDING/APPROVED màu khác quy ước đã dùng thật ở
+// SupplierDetailView.tsx, và không có key RECEIVED — hardcode màu riêng cho đúng domain này.
+export type SupplierTransactionStatus = 'PENDING' | 'APPROVED' | 'RECEIVED' | 'COMPLETED' | 'CANCELLED';
+export type SupplierTransactionType = 'RENTAL' | 'PURCHASE';
+export type SupplierTransactionPaymentStatus = 'UNPAID' | 'DEPOSITED' | 'PAID';
+
 export const SUPPLIER_TRANSACTION_STATUS_META: Record<SupplierTransactionStatus, { label: string; variant: BadgeVariant }> = {
-  PENDING: { label: 'Chờ duyệt', variant: getStatusBadgeVariant('PENDING') },
-  APPROVED: { label: 'Đã duyệt', variant: getStatusBadgeVariant('APPROVED') },
-  IN_PROGRESS: { label: 'Đang thực hiện', variant: getStatusBadgeVariant('IN_PROGRESS') },
-  COMPLETED: { label: 'Hoàn thành', variant: getStatusBadgeVariant('COMPLETED') },
-  CANCELLED: { label: 'Đã hủy', variant: getStatusBadgeVariant('CANCELLED') },
+  PENDING: { label: 'Chờ duyệt', variant: 'neutral' },
+  APPROVED: { label: 'Đã duyệt', variant: 'info' },
+  RECEIVED: { label: 'Đã nhận', variant: 'success' },
+  COMPLETED: { label: 'Hoàn thành', variant: 'success' },
+  CANCELLED: { label: 'Đã hủy', variant: 'error' },
 };
 
-export const SUPPLIER_TRANSACTION_TYPE_META: Record<SupplierTransactionType, { label: string }> = {
-  RENTAL: { label: 'Thuê' },
-  PURCHASE: { label: 'Mua' },
+export const SUPPLIER_TRANSACTION_TYPE_META: Record<SupplierTransactionType, { label: string; variant: BadgeVariant }> = {
+  RENTAL: { label: 'Thuê ngoài', variant: 'neutral' },
+  PURCHASE: { label: 'Mua hàng', variant: 'neutral' },
+};
+
+export const SUPPLIER_TRANSACTION_PAYMENT_STATUS_META: Record<SupplierTransactionPaymentStatus, { label: string; variant: BadgeVariant }> = {
+  UNPAID: { label: 'Chưa thanh toán', variant: 'warning' },
+  DEPOSITED: { label: 'Đã đặt cọc', variant: 'warning' },
+  PAID: { label: 'Đã thanh toán', variant: 'success' },
 };

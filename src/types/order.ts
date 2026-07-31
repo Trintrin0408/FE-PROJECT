@@ -191,6 +191,12 @@ export interface UpdateOrderQuotationPayload {
 // mới đụng kho; dòng SUPPLIER trả về ở skippedSupplierItems.
 export interface ExportEquipmentPayload {
   notes?: string;
+  // Yêu cầu người dùng 2026-07-30: khi thiếu tồn kho, Manager xác nhận vẫn muốn xuất thì gửi lại kèm
+  // force=true. Backend hiện tại (doc mục 4.2) CHƯA hỗ trợ field này — vẫn rollback + trả 400 dù có
+  // force hay không (kiểm tra quantity_available >= delta là điều kiện cứng trong transaction, không
+  // có nhánh bỏ qua). Field này gửi sẵn để khớp UI ngay, nhưng cần Backend bổ sung nhánh xử lý mới có
+  // tác dụng thật — xem docs/more-require.md mục (aq).
+  force?: boolean;
 }
 
 export interface ExportEquipmentMovement {

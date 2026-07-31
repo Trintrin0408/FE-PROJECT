@@ -13,6 +13,7 @@ import { Select } from '@/components/ui/Select';
 import RecordSettlementModal from '@/components/orders/RecordSettlementModal';
 import CreateSchedulePlanModal from '@/components/schedule/CreateSchedulePlanModal';
 import CreateQuotationWizardModal from '@/components/quotations/CreateQuotationWizardModal';
+import PurchaseOrderFormModal, { type CreateFormPrefill } from '@/components/suppliers/PurchaseOrderFormModal';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { formatDate, formatTime } from '@/utils/formatDate';
 import { getUrgencyBadgeVariant } from '@/utils/eventDate';
@@ -25,6 +26,7 @@ import { inventoryApiService } from '@/services/inventory.service';
 import { evidenceApiService } from '@/services/evidence.service';
 import { quotationApiService } from '@/services/quotation.service';
 import { surveyApiService } from '@/services/survey.service';
+import { supplierApiService } from '@/services/supplier.service';
 import { QUOTATION_STATUS_META } from '@/mocks/db/quotations';
 import { ORDER_PAYMENT_STATUS_LABEL, ORDER_STATUS_LABEL } from '@/constants/order-status';
 import type { CreateOrderItemPayload, LiveShowChecklist, OrderDetail, OrderItemSource, OrderStatus } from '@/types/order';
@@ -213,12 +215,15 @@ function ManagerOrderDetailContent() {
 
   const [isPicklistOpen, setIsPicklistOpen] = useState(false);
   const [picklistInventory, setPicklistInventory] = useState<Record<string, InventoryRow>>({});
+  const [itemSupplierMap, setItemSupplierMap] = useState<Record<string, { supplierName: string; quantity: number }>>({});
 
   const [viewingScheduleItem, setViewingScheduleItem] = useState<SchedulePlan | null>(null);
   const [cancelingPlanId, setCancelingPlanId] = useState<string | null>(null);
   const [isUpdatingPlanStatus, setIsUpdatingPlanStatus] = useState(false);
   const [evidenceModal, setEvidenceModal] = useState<{ isLoading: boolean; evidence: Evidence | null } | null>(null);
   const [isCreatePlanOpen, setIsCreatePlanOpen] = useState(false);
+  const [supplierRentalPrefill, setSupplierRentalPrefill] = useState<CreateFormPrefill | null>(null);
+  const [supplierRentalToast, setSupplierRentalToast] = useState(false);
 
   const [quotationDetail, setQuotationDetail] = useState<QuotationDetailApi | null>(null);
   const [linkableQuotations, setLinkableQuotations] = useState<QuotationListItem[]>([]);
@@ -320,6 +325,48 @@ function ManagerOrderDetailContent() {
       });
       setPicklistInventory(next);
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ tải lại khi danh sách hạng mục đổi
+  }, [order?.orderId, order?.items]);
+
+  // Tên NCC cho các hạng mục nguồn "Thuê ngoài" — tra theo giao dịch thuê (supplier-transactions) của
+  // đơn này rồi khớp itemId trong từng giao dịch, vì OrderItem không có sẵn field supplierId/supplierName.
+  useEffect(() => {
+    if (!order || order.items.length === 0) {
+      setItemSupplierMap({});
+      return;
+    }
+    // Không lọc theo item.source ở đây — hạng mục "Kho nhà" cũng có thể có phần thiếu đã được thuê bù
+    // từ NCC (giao dịch supplier-transaction riêng, không đổi source gốc của order item), nên luôn thử
+    // tra giao dịch thuê của đơn rồi khớp itemId, bất kể source hiện tại là gì.
+    supplierApiService
+      .getSupplierTransactions({ orderId: order.orderId })
+      .then((res) =>
+        Promise.all(
+          (res.data ?? []).map((t) =>
+            supplierApiService
+              .getTransactionById(t.transactionId)
+              .then((res) => {
+                const detail = (res as unknown as { data?: { items?: { itemId?: string; quantity?: number }[] } })?.data || res;
+                return { supplierName: t.supplierName, items: (detail as { items?: { itemId?: string; quantity?: number }[] })?.items ?? [] };
+              })
+              .catch(() => ({ supplierName: t.supplierName, items: [] as { itemId?: string; quantity?: number }[] })),
+          ),
+        ),
+      )
+      .then((transactions) => {
+        // Cộng dồn quantity nếu 1 itemId xuất hiện ở nhiều giao dịch (thuê bổ sung nhiều lần), không
+        // ghi đè theo giao dịch cuối cùng.
+        const next: Record<string, { supplierName: string; quantity: number }> = {};
+        transactions.forEach(({ supplierName, items }) => {
+          items.forEach((it) => {
+            if (!it.itemId) return;
+            const prev = next[it.itemId];
+            next[it.itemId] = { supplierName, quantity: (prev?.quantity ?? 0) + (it.quantity ?? 0) };
+          });
+        });
+        setItemSupplierMap(next);
+      })
+      .catch(() => setItemSupplierMap({}));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ tải lại khi danh sách hạng mục đổi
   }, [order?.orderId, order?.items]);
 
@@ -556,6 +603,17 @@ function ManagerOrderDetailContent() {
         >
           <CheckCircle2 className="h-4 w-4 shrink-0" />
           {exportToast === 'success' ? 'Xuất thiết bị thành công.' : 'Đơn đã khớp báo giá, không có gì cần xuất thêm.'}
+        </motion.div>
+      )}
+      {supplierRentalToast && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.2 }}
+          className="fixed right-6 top-6 z-50 flex items-center gap-2.5 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-700 shadow-lg"
+        >
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+          Đã tạo yêu cầu thuê từ nhà cung cấp.
         </motion.div>
       )}
       <Breadcrumb
@@ -1003,7 +1061,16 @@ function ManagerOrderDetailContent() {
                   <tbody className="divide-y divide-slate-100">
                     {order.items.map((item) => {
                       const inv = picklistInventory[item.itemId];
-                      const shortfall = inv ? Math.max(item.quantity - inv.quantityAvailable, 0) : 0;
+                      // Khi tồn kho khả dụng đã bị trừ âm (bug Backend "Vẫn xuất" trừ thẳng toàn bộ SL
+                      // đặt khỏi quantity_total thay vì chỉ trừ theo delta còn thiếu — xem
+                      // docs/more-require.md mục (ar)), phần âm CHÍNH LÀ số thiếu thật: nếu
+                      // postAvailable = preAvailable - SL đặt thì SL đặt - preAvailable = -postAvailable.
+                      // Công thức "SL đặt - tồn kho hiện tại" sẽ tính gấp đôi số thiếu trong trường hợp này.
+                      const shortfall = !inv
+                        ? 0
+                        : inv.quantityAvailable < 0
+                          ? Math.abs(inv.quantityAvailable)
+                          : Math.max(item.quantity - inv.quantityAvailable, 0);
                       const isShort = item.source === 'INTERNAL' && shortfall > 0;
                       return (
                         <tr key={item.orderItemId}>
@@ -1012,21 +1079,39 @@ function ManagerOrderDetailContent() {
                             <p className="text-xs text-slate-400">{item.unit}</p>
                           </td>
                           <td className="px-3 py-3">
-                            <Badge variant={item.source === 'INTERNAL' ? 'neutral' : 'info'}>{ORDER_ITEM_SOURCE_LABEL[item.source]}</Badge>
-                            {isShort && (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  router.push(
-                                    `/manager/suppliers/purchase-orders?createFor=${order.orderId}&itemId=${item.itemId}&itemName=${encodeURIComponent(item.itemName ?? '')}&qty=${shortfall}`,
-                                  )
-                                }
-                                className="mt-1.5 flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-600 ring-1 ring-inset ring-red-200 hover:bg-red-100"
-                                title="Số lượng đặt vượt tồn kho khả dụng — tạo giao dịch thuê từ Nhà cung cấp cho phần thiếu"
-                              >
-                                Thiếu {shortfall} · Thuê từ NCC
-                              </button>
-                            )}
+                            <div className="flex flex-col gap-1.5">
+                              <div>
+                                <Badge variant={item.source === 'INTERNAL' ? 'neutral' : 'info'}>{ORDER_ITEM_SOURCE_LABEL[item.source]}</Badge>
+                                {item.source === 'SUPPLIER' && (
+                                  <p className="mt-1 text-xs text-slate-500">{itemSupplierMap[item.itemId]?.supplierName ?? 'Đang xác định NCC'}</p>
+                                )}
+                              </div>
+                              {isShort &&
+                                (itemSupplierMap[item.itemId] ? (
+                                  <span
+                                    className="flex w-fit items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-600 ring-1 ring-inset ring-emerald-200"
+                                    title={`Đã có đơn thuê từ NCC "${itemSupplierMap[item.itemId].supplierName}" cho phần thiếu`}
+                                  >
+                                    Thuê {itemSupplierMap[item.itemId].quantity} · từ {itemSupplierMap[item.itemId].supplierName}
+                                  </span>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setSupplierRentalPrefill({
+                                        orderId: order.orderId,
+                                        itemId: item.itemId,
+                                        itemName: item.itemName ?? '',
+                                        qty: shortfall,
+                                      })
+                                    }
+                                    className="flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-600 ring-1 ring-inset ring-red-200 hover:bg-red-100"
+                                    title="Số lượng đặt vượt tồn kho khả dụng — tạo giao dịch thuê từ Nhà cung cấp cho phần thiếu"
+                                  >
+                                    Thiếu {shortfall} · Thuê từ NCC
+                                  </button>
+                                ))}
+                            </div>
                           </td>
                           <td className="px-3 py-3 text-center font-bold text-slate-900">{item.quantity}</td>
                           <td className="px-3 py-3 text-center">
@@ -1431,7 +1516,12 @@ function ManagerOrderDetailContent() {
                       <td className="px-3 py-3 text-center font-bold text-slate-900">
                         {item.quantity} {item.unit}
                       </td>
-                      <td className="px-3 py-3 text-center">{ORDER_ITEM_SOURCE_LABEL[item.source]}</td>
+                      <td className="px-3 py-3 text-center">
+                        {ORDER_ITEM_SOURCE_LABEL[item.source]}
+                        {item.source === 'SUPPLIER' && (
+                          <p className="mt-0.5 text-[11px] font-normal text-slate-400">{itemSupplierMap[item.itemId]?.supplierName ?? 'Đang xác định NCC'}</p>
+                        )}
+                      </td>
                       <td className="px-3 py-3 text-center">
                         {inv ? (
                           <span className={`font-bold ${inv.quantityAvailable < item.quantity ? 'text-red-600' : 'text-emerald-600'}`}>
@@ -1564,6 +1654,19 @@ function ManagerOrderDetailContent() {
         defaultLocation={order.location}
         eventDate={order.eventDate}
         onCreated={handleSchedulePlanCreated}
+      />
+
+      <PurchaseOrderFormModal
+        isOpen={!!supplierRentalPrefill}
+        mode="create"
+        transaction={null}
+        prefill={supplierRentalPrefill}
+        onClose={() => setSupplierRentalPrefill(null)}
+        onSuccess={() => {
+          setSupplierRentalToast(true);
+          setTimeout(() => setSupplierRentalToast(false), 4000);
+          load();
+        }}
       />
     </div>
   );

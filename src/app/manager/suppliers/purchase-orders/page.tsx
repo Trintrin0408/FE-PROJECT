@@ -1,61 +1,43 @@
 'use client';
 
-import { Suspense, useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
-import { BookOpen, Calendar, Eye, Pencil, Plus, Search, SlidersHorizontal, X } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { AlertCircle, BookOpen, Calendar, Eye, Loader2, Pencil, Plus, Search, SlidersHorizontal, X } from 'lucide-react';
 import { Table, TableColumn } from '@/components/ui/Table';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
-import { Modal } from '@/components/ui/Modal';
+import { Badge } from '@/components/ui/Badge';
 import { Avatar } from '@/components/ui/Avatar';
-import { SupplierDetailModal } from '@/components/suppliers/SupplierDetailModal';
+import PurchaseOrderFormModal from '@/components/suppliers/PurchaseOrderFormModal';
+import OrderQuickViewModal from '@/components/orders/OrderQuickViewModal';
 import Reveal from '@/components/ui/Reveal';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { formatDate } from '@/utils/formatDate';
-import { orderApiService } from '@/services/order.service';
-import type { Order } from '@/types/order';
+import { supplierApiService } from '@/services/supplier.service';
+import type { SupplierTransaction, TransactionItemInput } from '@/types/supplier';
 import {
-  AdminSupplier,
-  FlatSupplierTransaction,
-  SUPPLIER_ORDER_TYPE_META,
+  SUPPLIER_TRANSACTION_PAYMENT_STATUS_META,
   SUPPLIER_TRANSACTION_STATUS_META,
-  SupplierOrderType,
-  SupplierTransactionFormValues,
-  SupplierTransactionItemInput,
-  SupplierTransactionStatus,
-  createSupplierTransaction,
-  getAdminSupplierById,
-  getAdminSuppliers,
-  getAllSupplierTransactions,
-  getSupplierTransactionRemainingDebt,
-  updateSupplierTransaction,
-} from '@/mocks/db/suppliers';
+  SUPPLIER_TRANSACTION_TYPE_META,
+  type SupplierTransactionPaymentStatus,
+  type SupplierTransactionStatus,
+  type SupplierTransactionType,
+} from '@/constants/supplier-transaction-status';
 
-/** Prefill khi mở trang từ CTA "Thiếu {n} · Thuê từ NCC" ở tab Thiết bị & Kho hàng của Đơn hàng
- * (src/app/manager/orders/[id]/page.tsx) — query params: createFor (orderId thật), itemId, itemName, qty. */
-interface CreateFormPrefill {
-  orderId: string;
-  itemId?: string;
-  itemName: string;
-  qty: number;
-}
-
-// Trang thuần giao diện — mirror 1:1 từ src/app/admin/suppliers/purchase-orders/page.tsx cho vai trò
-// Manager (xem giải thích ở đầu src/mocks/adminSuppliersMock.ts). Đáp ứng checklist "Đặt thuê/mua
-// Supplier khi thiếu kho nội bộ" — loại đơn (thuê/mua) chọn qua trường orderType. Admin và Manager
-// dùng chung 1 bộ mock/service — không fork dữ liệu riêng cho Manager.
+// Đã nối API thật (2026-07-30) — trước đó là trang thuần giao diện dùng mock (xem docs/more-require.md
+// mục (ap)). Admin vẫn dùng modal cục bộ riêng, cũ hơn, không import PurchaseOrderFormModal — không đụng
+// tới trong đợt này (Admin không xử lý vận hành hằng ngày theo quy tắc phân quyền của dự án).
 
 type StatusFilter = '' | SupplierTransactionStatus;
-type OrderTypeFilter = '' | SupplierOrderType;
+type OrderTypeFilter = '' | SupplierTransactionType;
 
-function customerLabelOf(t: { customerLabel: string }): string {
-  return t.customerLabel.replace(/^KH:\s*/, '');
-}
+export default function Page() {
+  const [transactions, setTransactions] = useState<SupplierTransaction[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [reloadTick, setReloadTick] = useState(0);
 
-function PurchaseOrdersContent() {
-  const searchParams = useSearchParams();
-  const [transactions, setTransactions] = useState<FlatSupplierTransaction[]>(() => getAllSupplierTransactions());
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('');
   const [orderTypeFilter, setOrderTypeFilter] = useState<OrderTypeFilter>('');
@@ -63,102 +45,103 @@ function PurchaseOrdersContent() {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [onlyHighValue, setOnlyHighValue] = useState(false);
 
-  const [detailSupplier, setDetailSupplier] = useState<AdminSupplier | null>(null);
-  const [detailTransaction, setDetailTransaction] = useState<FlatSupplierTransaction | null>(null);
+  const [detailTransaction, setDetailTransaction] = useState<SupplierTransaction | null>(null);
+  const [viewOrderId, setViewOrderId] = useState<string | null>(null);
+  const [formModal, setFormModal] = useState<{ mode: 'create' | 'edit'; transaction: SupplierTransaction | null } | null>(null);
 
-  const createPrefill: CreateFormPrefill | null = useMemo(() => {
-    const orderId = searchParams.get('createFor');
-    if (!orderId) return null;
-    return {
-      orderId,
-      itemId: searchParams.get('itemId') ?? undefined,
-      itemName: searchParams.get('itemName') ?? '',
-      qty: Number(searchParams.get('qty') ?? '1') || 1,
+  useEffect(() => {
+    let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- bật cờ loading khi bắt đầu gọi API thật
+    setIsLoading(true);
+    setLoadError(null);
+    supplierApiService
+      .getSupplierTransactions({ limit: 100 })
+      .then((res) => {
+        if (cancelled) return;
+        setTransactions(res.data ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setLoadError('Không tải được danh sách đơn thuê/mua. Vui lòng thử lại.');
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
+    return () => {
+      cancelled = true;
     };
-  }, [searchParams]);
+  }, [reloadTick]);
 
-  // Tự mở modal tạo mới ngay từ lần render đầu khi trang được mở kèm query params từ CTA thiếu hàng
-  // (src/app/manager/orders/[id]/page.tsx) — dùng lazy initializer thay vì effect để tránh setState
-  // đồng bộ trong effect (react-hooks/set-state-in-effect).
-  const [formModal, setFormModal] = useState<{ mode: 'create' | 'edit'; transaction: FlatSupplierTransaction | null } | null>(() =>
-    searchParams.get('createFor') ? { mode: 'create', transaction: null } : null,
-  );
-
-  const refresh = () => setTransactions(getAllSupplierTransactions());
+  const refresh = () => setReloadTick((t) => t + 1);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
     return transactions.filter((t) => {
       if (statusFilter && t.status !== statusFilter) return false;
-      if (orderTypeFilter && t.orderType !== orderTypeFilter) return false;
-      if (dateFilter && t.executionDate !== dateFilter) return false;
-      if (onlyHighValue && t.value < 10_000_000) return false;
+      if (orderTypeFilter && t.transactionType !== orderTypeFilter) return false;
+      // createdAt là ISO timestamp UTC — cắt 10 ký tự đầu để so theo ngày, có thể lệch 1 ngày gần nửa
+      // đêm giờ VN so với UTC (chấp nhận được — bộ lọc chỉ mang tính tương đối, dữ liệu hiện còn ít).
+      if (dateFilter && t.createdAt.slice(0, 10) !== dateFilter) return false;
+      if (onlyHighValue && t.estimatedCost < 10_000_000) return false;
       if (!term) return true;
       return (
-        t.requestCode.toLowerCase().includes(term) ||
+        t.transactionCode.toLowerCase().includes(term) ||
         t.supplierName.toLowerCase().includes(term) ||
-        customerLabelOf(t).toLowerCase().includes(term)
+        (t.orderCode || '').toLowerCase().includes(term) ||
+        t.serviceTitle.toLowerCase().includes(term)
       );
     });
   }, [transactions, search, statusFilter, orderTypeFilter, dateFilter, onlyHighValue]);
 
-  const handleSubmitForm = (values: SupplierTransactionFormValues) => {
-    if (formModal?.mode === 'edit' && formModal.transaction) {
-      updateSupplierTransaction(formModal.transaction.supplierId, formModal.transaction.requestCode, values);
-    } else {
-      createSupplierTransaction(values);
-    }
-    refresh();
-    setFormModal(null);
-  };
-
-  const columns: TableColumn<FlatSupplierTransaction>[] = [
-    { key: 'requestCode', label: 'Mã đơn', render: (t) => <span className="font-semibold text-blue-600">{t.requestCode}</span> },
+  const columns: TableColumn<SupplierTransaction>[] = [
+    { key: 'transactionCode', label: 'Mã giao dịch', render: (t) => <span className="font-semibold text-blue-600">{t.transactionCode}</span> },
     {
       key: 'supplier',
       label: 'Nhà cung cấp',
       render: (t) => (
-        <button
-          type="button"
-          onClick={() => setDetailSupplier(getAdminSupplierById(t.supplierId) ?? null)}
-          className="flex items-center gap-2.5 text-left hover:opacity-80"
-          title="Xem hồ sơ đối tác"
-        >
+        <Link href={`/manager/suppliers/${t.supplierId}`} className="flex items-center gap-2.5 hover:opacity-80">
           <Avatar name={t.supplierName} size="sm" />
           <span className="font-semibold text-slate-800">{t.supplierName}</span>
-        </button>
+        </Link>
       ),
     },
     {
-      key: 'event',
-      label: 'Sự kiện liên quan',
-      render: (t) => (
-        <div>
-          <p className="font-medium text-slate-800">{customerLabelOf(t)}</p>
-          <p className="text-xs text-slate-400">{formatDate(t.executionDate)}</p>
-        </div>
-      ),
-    },
-    {
-      key: 'orderType',
+      key: 'transactionType',
       label: 'Loại đơn',
-      render: (t) => (
-        <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${SUPPLIER_ORDER_TYPE_META[t.orderType].badgeClass}`}>
-          {SUPPLIER_ORDER_TYPE_META[t.orderType].label}
-        </span>
-      ),
+      render: (t) => {
+        const meta = SUPPLIER_TRANSACTION_TYPE_META[t.transactionType as SupplierTransactionType];
+        return <Badge variant={meta?.variant ?? 'neutral'}>{meta?.label ?? t.transactionType}</Badge>;
+      },
     },
-    { key: 'executionDate', label: 'Ngày đặt', render: (t) => formatDate(t.executionDate) },
-    { key: 'expectedDate', label: 'Ngày dự kiến', render: (t) => formatDate(t.expectedDate) },
-    { key: 'value', label: 'Tổng tiền', render: (t) => <span className="font-bold text-slate-900">{formatCurrency(t.value)}</span> },
+    {
+      key: 'order',
+      label: 'Đơn liên quan',
+      render: (t) =>
+        t.orderId ? (
+          <button type="button" onClick={() => setViewOrderId(t.orderId)} className="text-sm font-medium text-blue-600 hover:underline">
+            {t.orderCode || '—'}
+          </button>
+        ) : (
+          <span className="text-sm italic text-slate-400">Nhập kho</span>
+        ),
+    },
+    { key: 'createdAt', label: 'Ngày tạo', render: (t) => formatDate(t.createdAt) },
+    { key: 'estimatedCost', label: 'Tổng tiền', render: (t) => <span className="font-bold text-slate-900">{formatCurrency(t.estimatedCost)}</span> },
+    { key: 'depositAmount', label: 'Đặt cọc', render: (t) => formatCurrency(t.depositAmount) },
+    {
+      key: 'paymentStatus',
+      label: 'Thanh toán',
+      render: (t) => {
+        const meta = SUPPLIER_TRANSACTION_PAYMENT_STATUS_META[t.paymentStatus as SupplierTransactionPaymentStatus];
+        return <Badge variant={meta?.variant ?? 'neutral'}>{meta?.label ?? t.paymentStatus}</Badge>;
+      },
+    },
     {
       key: 'status',
       label: 'Trạng thái',
-      render: (t) => (
-        <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${SUPPLIER_TRANSACTION_STATUS_META[t.status].badgeClass}`}>
-          {SUPPLIER_TRANSACTION_STATUS_META[t.status].label}
-        </span>
-      ),
+      render: (t) => {
+        const meta = SUPPLIER_TRANSACTION_STATUS_META[t.status as SupplierTransactionStatus];
+        return <Badge variant={meta?.variant ?? 'neutral'}>{meta?.label ?? t.status}</Badge>;
+      },
     },
     {
       key: 'actions',
@@ -168,7 +151,7 @@ function PurchaseOrdersContent() {
           <button
             type="button"
             aria-label="Xem chi tiết"
-            title="Xem chi tiết đơn hàng"
+            title="Xem chi tiết giao dịch"
             onClick={() => setDetailTransaction(t)}
             className="inline-flex rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-blue-600"
           >
@@ -209,7 +192,7 @@ function PurchaseOrdersContent() {
         <div className="flex flex-wrap items-center gap-3">
           <div className="min-w-[240px] flex-1">
             <Input
-              placeholder="Tìm theo mã đơn, nhà cung cấp, sự kiện..."
+              placeholder="Tìm theo mã giao dịch, nhà cung cấp, đơn hàng, nội dung..."
               icon={<Search className="h-4 w-4" />}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -226,7 +209,7 @@ function PurchaseOrdersContent() {
             <Select
               value={orderTypeFilter}
               onChange={(e) => setOrderTypeFilter(e.target.value as OrderTypeFilter)}
-              options={[{ value: '', label: 'Loại đơn' }, ...Object.entries(SUPPLIER_ORDER_TYPE_META).map(([value, meta]) => ({ value, label: meta.label }))]}
+              options={[{ value: '', label: 'Loại đơn' }, ...Object.entries(SUPPLIER_TRANSACTION_TYPE_META).map(([value, meta]) => ({ value, label: meta.label }))]}
             />
           </div>
           <div className="w-40">
@@ -253,53 +236,76 @@ function PurchaseOrdersContent() {
           </div>
         )}
 
+        {loadError && (
+          <div className="mt-3 flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            {loadError}
+          </div>
+        )}
+
         <div className="mt-4 overflow-x-auto">
-          <Table columns={columns} rows={filtered} rowKey={(row) => row.requestCode} />
+          {isLoading ? (
+            <div className="flex items-center justify-center gap-2 py-16 text-sm text-slate-400">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Đang tải danh sách...
+            </div>
+          ) : (
+            <Table columns={columns} rows={filtered} rowKey={(row) => row.transactionId} />
+          )}
         </div>
       </Reveal>
 
-      <SupplierDetailModal supplier={(detailSupplier as any) ?? null} onClose={() => setDetailSupplier(null)} />
+      <TransactionDetailModal transaction={detailTransaction} onClose={() => setDetailTransaction(null)} />
 
-      <OrderDetailModal transaction={detailTransaction} onClose={() => setDetailTransaction(null)} />
+      <OrderQuickViewModal isOpen={!!viewOrderId} onClose={() => setViewOrderId(null)} orderId={viewOrderId} />
 
-      <TransactionFormModal
+      <PurchaseOrderFormModal
         isOpen={!!formModal}
         mode={formModal?.mode ?? 'create'}
         transaction={formModal?.transaction ?? null}
-        prefill={formModal?.mode === 'create' ? createPrefill : null}
         onClose={() => setFormModal(null)}
-        onSubmit={handleSubmitForm}
+        onSuccess={refresh}
       />
     </div>
   );
 }
 
-// useSearchParams bắt buộc bọc Suspense (node_modules/next/dist/docs/01-app/03-api-reference/
-// 04-functions/use-search-params.md) — cùng pattern với manager/orders/[id]/page.tsx.
-export default function Page() {
-  return (
-    <Suspense fallback={<div className="p-6 text-sm text-slate-400">Đang tải...</div>}>
-      <PurchaseOrdersContent />
-    </Suspense>
-  );
-}
+function TransactionDetailModal({ transaction, onClose }: Readonly<{ transaction: SupplierTransaction | null; onClose: () => void }>) {
+  const [items, setItems] = useState<TransactionItemInput[]>([]);
 
-function OrderDetailModal({ transaction, onClose }: Readonly<{ transaction: FlatSupplierTransaction | null; onClose: () => void }>) {
+  useEffect(() => {
+    if (!transaction) return;
+    let cancelled = false;
+    supplierApiService
+      .getTransactionById(transaction.transactionId)
+      .then((res) => {
+        if (cancelled) return;
+        const detail = (res as unknown as { data?: SupplierTransaction & { items?: TransactionItemInput[] } })?.data || res;
+        setItems((detail as { items?: TransactionItemInput[] })?.items || []);
+      })
+      .catch(() => {
+        if (!cancelled) setItems([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [transaction]);
+
   if (!transaction) return null;
 
-  const remainingDebt = getSupplierTransactionRemainingDebt(transaction);
+  const typeMeta = SUPPLIER_TRANSACTION_TYPE_META[transaction.transactionType as SupplierTransactionType];
+  const statusMeta = SUPPLIER_TRANSACTION_STATUS_META[transaction.status as SupplierTransactionStatus];
+  const paymentMeta = SUPPLIER_TRANSACTION_PAYMENT_STATUS_META[transaction.paymentStatus as SupplierTransactionPaymentStatus];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
       <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-lg">
         <div className="flex items-start justify-between border-b border-slate-100 px-6 py-4">
           <div>
-            <span className="inline-flex rounded-full bg-blue-50 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-blue-600">
-              {transaction.orderType === 'RENT' ? 'Đơn thuê ngoài' : 'Đơn mua ngoài'}
-            </span>
+            <Badge variant={typeMeta?.variant ?? 'neutral'}>{typeMeta?.label ?? transaction.transactionType}</Badge>
             <h2 className="mt-1.5 flex items-center gap-2 text-base font-bold text-slate-900">
               <Eye className="h-4 w-4 text-slate-400" />
-              Chi tiết đơn hàng: <span className="text-blue-600">{transaction.requestCode}</span>
+              Chi tiết giao dịch: <span className="text-blue-600">{transaction.transactionCode}</span>
             </h2>
           </div>
           <button type="button" onClick={onClose} aria-label="Đóng" className="text-slate-400 hover:text-slate-600">
@@ -312,33 +318,31 @@ function OrderDetailModal({ transaction, onClose }: Readonly<{ transaction: Flat
             <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Thông tin chung</p>
             <div className="mt-2 grid grid-cols-1 gap-4 rounded-xl bg-slate-50 p-4 sm:grid-cols-2">
               <div>
-                <p className="text-xs text-slate-400">Tiêu đề / Nội dung:</p>
-                <p className="mt-0.5 font-semibold text-slate-800">{transaction.title}</p>
+                <p className="text-xs text-slate-400">Nội dung:</p>
+                <p className="mt-0.5 font-semibold text-slate-800">{transaction.serviceTitle}</p>
               </div>
               <div>
                 <p className="text-xs text-slate-400">Nhà cung cấp:</p>
                 <p className="mt-0.5 font-semibold text-slate-800">{transaction.supplierName}</p>
               </div>
               <div>
-                <p className="text-xs text-slate-400">Sự kiện đám cưới:</p>
-                <p className="mt-0.5 font-semibold text-slate-800">
-                  {customerLabelOf(transaction)} ({transaction.orderLinkCode})
-                </p>
+                <p className="text-xs text-slate-400">Đơn liên quan:</p>
+                <p className="mt-0.5 font-semibold text-slate-800">{transaction.orderCode || 'Nhập kho trực tiếp'}</p>
               </div>
               <div>
-                <p className="text-xs text-slate-400">Loại đơn hàng:</p>
-                <p className="mt-0.5 font-semibold text-slate-800">{SUPPLIER_ORDER_TYPE_META[transaction.orderType].fullLabel}</p>
+                <p className="text-xs text-slate-400">Ngày tạo:</p>
+                <p className="mt-0.5 font-semibold text-slate-800">{formatDate(transaction.createdAt)}</p>
               </div>
               <div>
-                <p className="text-xs text-slate-400">Thời gian thuê:</p>
-                <p className="mt-0.5 font-semibold text-slate-800">
-                  {formatDate(transaction.executionDate)} → {formatDate(transaction.expectedDate)}
-                </p>
+                <p className="text-xs text-slate-400">Trạng thái thanh toán:</p>
+                <span className="mt-0.5 inline-block">
+                  <Badge variant={paymentMeta?.variant ?? 'neutral'}>{paymentMeta?.label ?? transaction.paymentStatus}</Badge>
+                </span>
               </div>
               <div>
                 <p className="text-xs text-slate-400">Trạng thái đơn:</p>
-                <span className={`mt-0.5 inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${SUPPLIER_TRANSACTION_STATUS_META[transaction.status].badgeClass}`}>
-                  {SUPPLIER_TRANSACTION_STATUS_META[transaction.status].label}
+                <span className="mt-0.5 inline-block">
+                  <Badge variant={statusMeta?.variant ?? 'neutral'}>{statusMeta?.label ?? transaction.status}</Badge>
                 </span>
               </div>
             </div>
@@ -348,28 +352,28 @@ function OrderDetailModal({ transaction, onClose }: Readonly<{ transaction: Flat
             <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Danh sách vật tư / dịch vụ</p>
             <div className="mt-2 overflow-hidden rounded-xl border border-slate-200">
               <div className="overflow-x-auto">
-              <table className="w-full min-w-[520px] text-left text-sm">
-                <thead className="bg-slate-50">
-                  <tr className="text-[11px] font-bold uppercase tracking-wide text-slate-400">
-                    <th className="px-3 py-2">STT</th>
-                    <th className="px-3 py-2">Tên vật tư / dịch vụ</th>
-                    <th className="px-3 py-2 text-center">Số lượng</th>
-                    <th className="px-3 py-2 text-right">Đơn giá (đ)</th>
-                    <th className="px-3 py-2 text-right">Thành tiền (đ)</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {transaction.lineItems.map((item, idx) => (
-                    <tr key={`${item.name}-${idx}`}>
-                      <td className="px-3 py-3 text-slate-400">{idx + 1}</td>
-                      <td className="px-3 py-3 font-medium text-slate-800">{item.name}</td>
-                      <td className="px-3 py-3 text-center text-slate-600">{item.quantity}</td>
-                      <td className="px-3 py-3 text-right text-slate-600">{formatCurrency(item.unitPrice)}</td>
-                      <td className="px-3 py-3 text-right font-bold text-slate-900">{formatCurrency(item.quantity * item.unitPrice)}</td>
+                <table className="w-full min-w-[520px] text-left text-sm">
+                  <thead className="bg-slate-50">
+                    <tr className="text-[11px] font-bold uppercase tracking-wide text-slate-400">
+                      <th className="px-3 py-2">STT</th>
+                      <th className="px-3 py-2">Tên vật tư / dịch vụ</th>
+                      <th className="px-3 py-2 text-center">Số lượng</th>
+                      <th className="px-3 py-2 text-right">Đơn giá (đ)</th>
+                      <th className="px-3 py-2 text-right">Thành tiền (đ)</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {items.map((item, idx) => (
+                      <tr key={`${item.itemId}-${idx}`}>
+                        <td className="px-3 py-3 text-slate-400">{idx + 1}</td>
+                        <td className="px-3 py-3 font-medium text-slate-800">{item.itemName}</td>
+                        <td className="px-3 py-3 text-center text-slate-600">{item.quantity}</td>
+                        <td className="px-3 py-3 text-right text-slate-600">{formatCurrency(item.unitCost ?? 0)}</td>
+                        <td className="px-3 py-3 text-right font-bold text-slate-900">{formatCurrency(item.quantity * (item.unitCost ?? 0))}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
@@ -377,19 +381,11 @@ function OrderDetailModal({ transaction, onClose }: Readonly<{ transaction: Flat
           <div className="space-y-2 rounded-xl bg-slate-50 p-4 text-sm">
             <div className="flex justify-between">
               <span className="text-slate-500">Tổng giá trị đơn hàng:</span>
-              <span className="font-bold text-slate-900">{formatCurrency(transaction.value)}</span>
+              <span className="font-bold text-slate-900">{formatCurrency(transaction.estimatedCost)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-500">Đã thanh toán:</span>
-              <span className="font-semibold text-emerald-600">{formatCurrency(transaction.paidAmount)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-slate-500">Bồi thường phát sinh (nếu có):</span>
-              <span className="font-semibold text-red-500">{formatCurrency(transaction.compensationAmount)}</span>
-            </div>
-            <div className="flex justify-between border-t border-slate-200 pt-2">
-              <span className="font-bold text-slate-700">Dư nợ còn lại:</span>
-              <span className="text-lg font-bold text-red-600">{formatCurrency(remainingDebt)}</span>
+              <span className="text-slate-500">Đặt cọc:</span>
+              <span className="font-semibold text-emerald-600">{formatCurrency(transaction.depositAmount)}</span>
             </div>
           </div>
         </div>
@@ -399,256 +395,5 @@ function OrderDetailModal({ transaction, onClose }: Readonly<{ transaction: Flat
         </div>
       </div>
     </div>
-  );
-}
-
-const EMPTY_TX_FORM: SupplierTransactionFormValues = {
-  supplierId: '',
-  title: '',
-  customerLabel: '',
-  executionDate: '',
-  expectedDate: '',
-  orderType: 'RENT',
-  value: 0,
-  status: 'NEW',
-  paidAmount: 0,
-  compensationAmount: 0,
-  supplierDeduction: 0,
-};
-
-interface TransactionFormModalProps {
-  isOpen: boolean;
-  mode: 'create' | 'edit';
-  transaction: FlatSupplierTransaction | null;
-  /** Chỉ có ở mode 'create' khi trang được mở kèm query params từ CTA thiếu hàng trên Đơn hàng. */
-  prefill: CreateFormPrefill | null;
-  onClose: () => void;
-  onSubmit: (values: SupplierTransactionFormValues) => void;
-}
-
-function prefillToValues(prefill: CreateFormPrefill): SupplierTransactionFormValues {
-  return {
-    ...EMPTY_TX_FORM,
-    title: `Thuê bổ sung: ${prefill.itemName}`,
-    orderId: prefill.orderId,
-    items: [{ itemId: prefill.itemId, itemName: prefill.itemName, quantity: prefill.qty, unitCost: 0 }],
-  };
-}
-
-function TransactionFormModal({ isOpen, mode, transaction, prefill, onClose, onSubmit }: Readonly<TransactionFormModalProps>) {
-  // Lazy init (không phải effect): trang cha có thể mở modal này Ở TRẠNG THÁI ĐÃ MỞ ngay từ lần render
-  // đầu (auto-open khi URL có ?createFor=...) — nếu chỉ dựa vào so sánh isOpen!==wasOpen bên dưới (vốn
-  // chỉ bắt được các lần TOGGLE closed→open sau này) thì lần mở đầu tiên này sẽ không bao giờ áp dụng prefill.
-  const [values, setValues] = useState<SupplierTransactionFormValues>(() => (isOpen && mode === 'create' && prefill ? prefillToValues(prefill) : EMPTY_TX_FORM));
-  const [error, setError] = useState('');
-  const [wasOpen, setWasOpen] = useState(isOpen);
-  const suppliers = getAdminSuppliers();
-
-  // Danh sách đơn hàng thật để chọn liên kết (thay cho nhập tay "Sự kiện/khách hàng") — chỉ cần tải 1
-  // lần, đủ dùng cho việc chọn/tìm nhanh trong dropdown; đơn được trỏ tới từ CTA thiếu hàng (prefill)
-  // luôn được đảm bảo có mặt trong danh sách qua `orders` state dưới, kể cả khi không nằm trong trang đầu.
-  const [orders, setOrders] = useState<Order[]>([]);
-  useEffect(() => {
-    orderApiService
-      .getOrders({ limit: 50 })
-      .then((res) => setOrders((res.data as Order[]) ?? []))
-      .catch(() => setOrders([]));
-  }, []);
-  useEffect(() => {
-    if (!prefill?.orderId) return;
-    orderApiService
-      .getOrder(prefill.orderId)
-      .then((res) => {
-        const o = res.data as Order | undefined;
-        if (!o) return;
-        setOrders((prev) => (prev.some((p) => p.orderId === o.orderId) ? prev : [o, ...prev]));
-      })
-      .catch(() => {});
-  }, [prefill?.orderId]);
-
-  if (isOpen !== wasOpen) {
-    setWasOpen(isOpen);
-    if (isOpen) {
-      setError('');
-      if (mode === 'edit' && transaction) {
-        setValues({
-          supplierId: transaction.supplierId,
-          title: transaction.title,
-          customerLabel: customerLabelOf(transaction),
-          executionDate: transaction.executionDate,
-          expectedDate: transaction.expectedDate,
-          orderType: transaction.orderType,
-          value: transaction.value,
-          status: transaction.status,
-          paidAmount: transaction.paidAmount,
-          compensationAmount: transaction.compensationAmount,
-          supplierDeduction: transaction.supplierDeduction,
-        });
-      } else if (prefill) {
-        setValues(prefillToValues(prefill));
-      } else {
-        setValues(EMPTY_TX_FORM);
-      }
-    }
-  }
-
-  const selectedOrder = orders.find((o) => o.orderId === values.orderId) ?? null;
-
-  const addItemRow = () => setValues((v) => ({ ...v, items: [...(v.items ?? []), { itemName: '', quantity: 1, unitCost: 0 }] }));
-  const updateItemRow = (idx: number, patch: Partial<SupplierTransactionItemInput>) =>
-    setValues((v) => ({ ...v, items: (v.items ?? []).map((it, i) => (i === idx ? { ...it, ...patch } : it)) }));
-  const removeItemRow = (idx: number) => setValues((v) => ({ ...v, items: (v.items ?? []).filter((_, i) => i !== idx) }));
-
-  const itemsTotal = (values.items ?? []).reduce((sum, it) => sum + it.quantity * it.unitCost, 0);
-  const hasItems = (values.items ?? []).length > 0;
-
-  const handleSubmit = () => {
-    const customerLabel = selectedOrder ? `Lễ cưới ${selectedOrder.customerName}` : values.customerLabel;
-    if (!values.supplierId || !values.title.trim() || !customerLabel.trim() || !values.executionDate) {
-      setError('Vui lòng chọn nhà cung cấp và nhập đủ thông tin đơn');
-      return;
-    }
-    const items = (values.items ?? []).filter((it) => it.itemName.trim() && it.quantity > 0);
-    const value = items.length > 0 ? itemsTotal : values.value;
-    if (!value || value <= 0) {
-      setError('Vui lòng nhập tổng tiền hợp lệ');
-      return;
-    }
-    onSubmit({
-      ...values,
-      customerLabel: `KH: ${customerLabel.replace(/^KH:\s*/, '')}`,
-      orderId: values.orderId || undefined,
-      items: items.length > 0 ? items : undefined,
-      value,
-    });
-  };
-
-  return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title={mode === 'create' ? 'Tạo đơn thuê/mua mới' : 'Chỉnh sửa đơn thuê/mua'}
-      size="lg"
-      footer={
-        <>
-          <Button variant="secondary" onClick={onClose}>
-            Hủy
-          </Button>
-          <Button onClick={handleSubmit}>{mode === 'create' ? 'Tạo đơn' : 'Lưu thay đổi'}</Button>
-        </>
-      }
-    >
-      <div className="space-y-4">
-        <Select
-          label="Nhà cung cấp"
-          required
-          disabled={mode === 'edit'}
-          value={values.supplierId}
-          onChange={(e) => setValues((v) => ({ ...v, supplierId: e.target.value }))}
-          options={suppliers.map((s) => ({ value: s.supplierId, label: s.supplierName }))}
-          placeholder="-- Chọn nhà cung cấp --"
-        />
-        <Input
-          label="Nội dung yêu cầu"
-          required
-          value={values.title}
-          onChange={(e) => setValues((v) => ({ ...v, title: e.target.value }))}
-          placeholder="VD: Bộ âm thanh ánh sáng tiệc cưới chuyên nghiệp"
-        />
-        <Select
-          label="Đơn hàng liên kết (tuỳ chọn)"
-          value={values.orderId ?? ''}
-          onChange={(e) => setValues((v) => ({ ...v, orderId: e.target.value || undefined }))}
-          options={orders.map((o) => ({ value: o.orderId, label: `${o.orderCode} — ${o.customerName}` }))}
-          placeholder="-- Không liên kết, nhập tay sự kiện bên dưới --"
-        />
-        {selectedOrder ? (
-          <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
-            Sự kiện: <span className="font-semibold text-slate-800">Lễ cưới {selectedOrder.customerName}</span> ({selectedOrder.orderCode})
-          </p>
-        ) : (
-          <Input
-            label="Sự kiện / khách hàng"
-            required
-            value={values.customerLabel}
-            onChange={(e) => setValues((v) => ({ ...v, customerLabel: e.target.value }))}
-            placeholder="VD: Lễ cưới Minh Anh - Thu Hà"
-          />
-        )}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Input label="Ngày đặt" type="date" required value={values.executionDate} onChange={(e) => setValues((v) => ({ ...v, executionDate: e.target.value }))} />
-          <Input label="Ngày dự kiến" type="date" value={values.expectedDate} onChange={(e) => setValues((v) => ({ ...v, expectedDate: e.target.value }))} />
-        </div>
-
-        <div className="space-y-2 rounded-lg border border-slate-200 p-3">
-          <div className="flex items-center justify-between">
-            <label className="text-sm font-medium text-slate-700">Hạng mục thuê/mua (tuỳ chọn)</label>
-            <button type="button" onClick={addItemRow} className="text-xs font-semibold text-blue-600 hover:underline">
-              + Thêm hạng mục
-            </button>
-          </div>
-          {(values.items ?? []).map((it, idx) => (
-            <div key={idx} className="grid grid-cols-12 items-center gap-2">
-              <div className="col-span-5">
-                <Input placeholder="Tên hạng mục" value={it.itemName} onChange={(e) => updateItemRow(idx, { itemName: e.target.value })} />
-              </div>
-              <div className="col-span-2">
-                <Input type="number" min={1} placeholder="SL" value={it.quantity} onChange={(e) => updateItemRow(idx, { quantity: Number(e.target.value) })} />
-              </div>
-              <div className="col-span-3">
-                <Input type="number" min={0} placeholder="Đơn giá" value={it.unitCost} onChange={(e) => updateItemRow(idx, { unitCost: Number(e.target.value) })} />
-              </div>
-              <div className="col-span-2 text-right">
-                <button type="button" onClick={() => removeItemRow(idx)} className="text-xs font-medium text-red-500 hover:underline">
-                  Xóa
-                </button>
-              </div>
-            </div>
-          ))}
-          {hasItems && <p className="text-right text-xs font-semibold text-slate-600">Tổng theo hạng mục: {formatCurrency(itemsTotal)}</p>}
-        </div>
-
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Select
-            label="Loại đơn"
-            value={values.orderType}
-            onChange={(e) => setValues((v) => ({ ...v, orderType: e.target.value as SupplierOrderType }))}
-            options={Object.entries(SUPPLIER_ORDER_TYPE_META).map(([value, meta]) => ({ value, label: meta.label }))}
-          />
-          <Input
-            label="Tổng tiền"
-            type="number"
-            min={0}
-            required
-            disabled={hasItems}
-            value={hasItems ? itemsTotal : values.value}
-            onChange={(e) => setValues((v) => ({ ...v, value: Number(e.target.value) }))}
-          />
-        </div>
-        <Select
-          label="Trạng thái"
-          value={values.status}
-          onChange={(e) => setValues((v) => ({ ...v, status: e.target.value as SupplierTransactionStatus }))}
-          options={Object.entries(SUPPLIER_TRANSACTION_STATUS_META).map(([value, meta]) => ({ value, label: meta.label }))}
-        />
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Input
-            label="Đã thanh toán"
-            type="number"
-            min={0}
-            value={values.paidAmount}
-            onChange={(e) => setValues((v) => ({ ...v, paidAmount: Number(e.target.value) }))}
-          />
-          <Input
-            label="Bồi thường phát sinh (nếu có)"
-            type="number"
-            min={0}
-            value={values.compensationAmount}
-            onChange={(e) => setValues((v) => ({ ...v, compensationAmount: Number(e.target.value) }))}
-          />
-        </div>
-        {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 ring-1 ring-inset ring-red-600/20">{error}</p>}
-      </div>
-    </Modal>
   );
 }

@@ -131,15 +131,7 @@ const MANAGER_NAV_SECTIONS: NavSection[] = [
         ],
       },
       { label: 'Báo cáo khảo sát', href: '/manager/survey', icon: MapPin },
-      {
-        label: 'Lịch trình',
-        href: '/manager/schedule/plans',
-        icon: Calendar,
-        children: [
-          { label: 'Kế hoạch điều phối', href: '/manager/schedule/plans', icon: Calendar },
-          // { label: 'Công việc (Work Task)', href: '/manager/schedule/tasks', icon: ClipboardList },
-        ],
-      },
+      { label: 'Lịch trình', href: '/manager/schedule/plans', icon: Calendar },
       {
         label: 'Tồn kho',
         href: '/manager/inventory/stock-check',

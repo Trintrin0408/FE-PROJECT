@@ -1853,3 +1853,309 @@ tồn đọng riêng, chưa xử lý ở lần sửa này.
   2 model.
 - **Trạng thái**: khối "Yêu cầu thay đổi chờ duyệt" ở Header + card ở tab Khảo sát/Nhân sự (order detail) đã
   nối API thật hoàn toàn (list + approve/reject + create). `npx tsc --noEmit` chạy sạch không lỗi.
+
+## (ap) 2026-07-30 — Nối API thật cho trang "Đơn thuê/mua" (Manager) — `supplier_transactions` thiếu cột ngày dự kiến + bồi thường/đền bù
+
+- **Bối cảnh**: người dùng phát hiện NCC thật "Studio Ánh Sáng Sự Kiện Nam Việt" (SUP-006) có đúng hạng
+  mục "Đèn Par LED 54x3W" nhưng modal "Tạo đơn thuê/mua mới" báo không NCC nào khai báo — do trang
+  `/manager/suppliers/purchase-orders` và modal dùng chung `PurchaseOrderFormModal.tsx` trước đó hoàn toàn
+  chạy mock (`mocks/db/suppliers.ts`, 7 NCC giả), tách biệt khỏi NCC thật. `docs/supplier_api.md`
+  (2026-07-21) từng cố tình loại 2 trang `purchase-orders` khỏi phạm vi nối API — người dùng yêu cầu chính
+  thức nối lại lần này, chỉ cho trang Manager (Admin giữ nguyên mock, có modal cục bộ riêng cũ hơn).
+- **Xác nhận trực tiếp qua schema DB thật do người dùng cung cấp** (3 bảng `supplier_transactions`,
+  `supplier_transaction_items`, `supplier_items`) + `curl` chỉ-đọc vào backend dev: `GET
+  /catalog/items/:id/suppliers` trả đúng SUP-006 cho item Đèn Par LED; `GET /suppliers` (7 NCC thật); `GET
+  /supplier-transactions` hoạt động đúng shape `types/supplier.ts`. Đã thử tạo 1 giao dịch thật từ đầu tới
+  cuối qua UI (`POST /supplier-transactions`) — **thành công**, xác nhận lại qua `curl` (`STX-001`, đúng
+  `supplierId`/`serviceTitle`/`status: PENDING`/`paymentStatus: UNPAID`).
+- **Phát hiện quan trọng — `supplier_transactions` KHÔNG có cột**: ngày thực hiện/ngày dự kiến (mock cũ
+  gọi "Ngày đặt"/"Ngày dự kiến"), bồi thường phát sinh cho NCC, đền bù/giảm trừ từ NCC. Cũng không có
+  "dư nợ còn lại" theo từng giao dịch — chỉ có `Supplier.debtBalance` (tổng dư nợ theo NCC, backend tự
+  tính sẵn, không có breakdown). Theo quyết định của người dùng, **đã bỏ hẳn các field này khỏi UI đã nối
+  API thật** — nếu nghiệp vụ thật sự cần theo dõi "ngày dự kiến nhận hàng từ NCC" hoặc bồi thường/đền bù
+  theo từng giao dịch (như UI mock cũ từng mô phỏng), **cần Backend bổ sung cột tương ứng** vào bảng
+  `supplier_transactions` (vd `expected_date`, `compensation_amount`, `supplier_deduction`).
+- **Đã cập nhật**:
+  - `src/constants/supplier-transaction-status.ts`: sửa lỗi có sẵn — khai báo trạng thái `IN_PROGRESS`
+    (theo `types/procurement.ts`, SAI) → `RECEIVED` (đúng theo schema DB thật + `UpdateSupplierTransactionModal.tsx`
+    đang dùng thật). Không dùng `getStatusBadgeVariant()` dùng chung nữa (cho màu sai với domain này) —
+    hardcode variant riêng theo đúng quy ước `SupplierDetailView.tsx`. Thêm mới
+    `SUPPLIER_TRANSACTION_PAYMENT_STATUS_META`.
+  - `src/components/suppliers/PurchaseOrderFormModal.tsx`: viết lại hoàn toàn từ mock sang
+    `supplierApiService`/`catalogApiService` thật — dropdown NCC ưu tiên `getItemSuppliers(itemId)` khi mở
+    từ CTA thiếu hàng, rơi về `getSuppliers({status:'ACTIVE'})` nếu rỗng; hạng mục chọn từ catalog thật của
+    đúng NCC (`getSupplierItems`) thay vì gõ tên tự do; submit tách 3 lệnh khi sửa (PUT thân đơn nếu còn
+    `PENDING` / PATCH status nếu đổi / PATCH paymentStatus nếu đổi), giống hệt
+    `UpdateSupplierTransactionModal.tsx`. Props đổi `onSubmit` → `onSuccess` (modal tự gọi API + tự đóng).
+  - `src/app/manager/suppliers/purchase-orders/page.tsx`: viết lại danh sách/lọc/chi tiết từ
+    `getSupplierTransactions` thật, đổi tên `OrderDetailModal` → `TransactionDetailModal` (fetch thêm
+    `getTransactionById` để có `items[]`), cột "Nhà cung cấp" trỏ sang `/manager/suppliers/:id` thật thay
+    vì modal mock, "Đơn liên quan" dùng lại `OrderQuickViewModal` có sẵn.
+  - `src/app/manager/orders/[id]/page.tsx`: bỏ import mock + handler `handleCreateSupplierRental` (không
+    cần nữa vì modal tự xử lý), đổi `onSubmit` → `onSuccess`.
+- **Chưa đụng tới (ngoài phạm vi)**: `src/app/admin/suppliers/purchase-orders/page.tsx` (modal cục bộ
+  riêng, cũ hơn, không import `PurchaseOrderFormModal.tsx`, vẫn mock) — theo đúng lựa chọn của người dùng.
+  `src/services/procurement.service.ts`/`src/types/procurement.ts`/`CreateProcurementModal.tsx` (module
+  API thật song song, trùng lặp, chỉ 1 nơi gọi và đã chết) — không dùng, không xoá.
+- **Trạng thái**: `npx tsc --noEmit` và `npx eslint` sạch trên toàn bộ file đã sửa. Đã kiểm thử trực tiếp
+  qua trình duyệt (đăng nhập `manager`) + `curl`: tạo giao dịch thật thành công, danh sách + chi tiết hiện
+  đúng dữ liệu thật, không có lỗi console. Còn 1 bản ghi test thật trong DB dev (`STX-001`, "Test giao dịch
+  tự động (Playwright verification)", NCC Studio Ánh Sáng Sự Kiện Nam Việt) — chưa xoá, người dùng có thể
+  tự xoá qua UI nếu muốn dọn dẹp.
+
+## (aq) 2026-07-30 — Yêu cầu Backend thêm nhánh "vẫn xuất dù thiếu tồn kho" (`force`) cho `POST /orders/:orderId/export-equipment`
+
+- **Bối cảnh**: người dùng yêu cầu — khi bấm "Xuất thiết bị" từ báo giá mà thiếu tồn kho, chỉ cần báo số
+  lượng thiếu rồi hỏi Manager "Bạn có chắc chắn muốn xuất thiết bị không?"; nếu xác nhận thì **vẫn cho
+  xuất** thay vì chặn cứng như hiện tại.
+- **Hiện trạng backend (docs/xuatthietbi_tubaogia_api.md mục 4.1 bước 3 / mục 4.2)**: điều kiện
+  `quantity_available >= delta` là bắt buộc trong transaction — thiếu ở bất kỳ dòng `INTERNAL` nào thì
+  rollback **toàn bộ** (kể cả phần đồng bộ `order_items`) và trả 400, không có nhánh bỏ qua. Đây là chặn
+  ở tầng service, phía frontend không có cách nào vượt qua chỉ bằng cách gọi lại endpoint.
+- **Đã làm ở FE** (`src/app/manager/quotations/[id]/page.tsx`, `src/types/order.ts`): đổi modal thiếu tồn
+  kho thành hỏi xác nhận (nút "Hủy"/"Vẫn xuất" thay vì chỉ "Đóng"); `handleExportEquipment(force?)` khi
+  Manager bấm "Vẫn xuất" sẽ gọi lại `POST .../export-equipment` kèm `{ force: true }` trong body
+  (`ExportEquipmentPayload.force`, field mới, optional). Vì backend chưa đọc field này, lần gọi lại vẫn bị
+  400 y hệt — FE bắt riêng trường hợp này (`force === true` mà vẫn 400 thiếu kho) để hiện thông báo rõ
+  ràng "Hệ thống chưa hỗ trợ xuất vượt tồn kho khả dụng — cần bổ sung phía backend" thay vì lặp vô nghĩa.
+- **Cần Backend làm**: đọc `force` từ request body ở bước kiểm tra `quantity_available >= delta` (mục
+  4.1 bước 2.3) — khi `force === true` và thiếu kho: vẫn ghi nhận `net_exported`/movement OUTBOUND theo
+  đúng `delta` yêu cầu (không giới hạn theo `quantity_available`), nhưng cho phép `quantity_available` xuống
+  âm (hoặc quyết định business rule khác nếu không muốn cho âm — cần người dùng chốt lại cách xử lý số âm
+  trước khi code, vd có tự động tạo cảnh báo/ghi log riêng hay không). Response 200 vẫn giữ nguyên shape
+  mục 4.3.
+- **Trạng thái**: FE đã sẵn sàng gửi `force: true`, chỉ chờ Backend implement nhánh xử lý. Chưa test được
+  qua `curl` vì backend chưa có field này.
+
+## (ar) 2026-07-31 — Backend đã âm thầm triển khai `force` ở (aq) nhưng SAI công thức, trừ thẳng toàn bộ SL đặt vào `quantity_total` gây tồn kho âm
+
+- **Phát hiện qua test thật**: đơn `ORD-021` (2 hạng mục Loa Sub JBL SRX828S 18inch SL đặt 100, Bàn tiệc
+  tròn 1m5 SL đặt 500) đột nhiên hiện `quantityAvailable` âm trên tab "Thiết bị & Kho hàng" — xác minh lại
+  bằng `curl` trực tiếp `GET /inventory?itemId=`: Loa Sub JBL từ `17` (đúng lúc trước) tụt xuống
+  `quantityTotal = quantityAvailable = -83`; Bàn tiệc tròn 1m5 xuống `quantityTotal = -391`,
+  `quantityAvailable = -396`. Cả 2 đổi cùng lúc (`updatedAt ≈ 2026-07-31T06:35:19Z`, khớp
+  `order.updatedAt`), và **độ lệch đúng bằng SL đặt của từng dòng** (100 và 500) — chứng tỏ có 1 lần gọi
+  đã trừ thẳng **toàn bộ SL đặt** khỏi `quantity_total`, không giới hạn theo tồn thực có.
+- **Nguyên nhân xác định**: khớp với luồng "Xuất thiết bị → Vẫn xuất" (`handleExportEquipment(true)`,
+  `src/app/manager/quotations/[id]/page.tsx:162`, gửi `POST /orders/:orderId/export-equipment` kèm
+  `{force: true}`) — đúng tính năng đã yêu cầu Backend làm ở mục (aq). Nhưng Backend implement **sai
+  công thức đã tài liệu** ở `docs/xuatthietbi_tubaogia_api.md` mục 4.1 (đáng lẽ chỉ trừ
+  `quantity_available`/cộng `quantity_reserved` theo đúng `delta = quantity − net_exported`) — thay vào đó
+  trừ thẳng **toàn bộ SL đặt** vào **`quantity_total`** (không phải chỉ `quantity_available`), không giới
+  hạn theo tồn thực có. Comment cũ ở `quotations/[id]/page.tsx:181-186` ghi "Backend chưa xử lý `force`,
+  vẫn luôn 400" — nay đã lỗi thời, đã sửa lại theo phát hiện này.
+- **Ảnh hưởng lan sang FE**: mọi chỗ tính "số thiếu cần thuê thêm" kiểu `SL đặt − quantityAvailable` sẽ
+  tính **gấp đôi** số thiếu thật một khi rơi vào tình huống này (vì `quantityAvailable` đã tự mang dấu âm
+  bằng đúng số thiếu). Ví dụ: Loa Sub JBL đã có giao dịch thuê thật `STX-016` đúng 83 cái, nhưng badge
+  "Thiếu/Thuê" ở `src/app/manager/orders/[id]/page.tsx` tính ra 100 − (−83) = **183** (sai gấp đôi); Bàn
+  tiệc tròn 1m5 ra 500 − (−396) = **896** thay vì đúng 396.
+- **Đã sửa tạm ở FE** (`src/app/manager/orders/[id]/page.tsx`, tab "Thiết bị & Kho hàng"): công thức
+  `shortfall` giờ kiểm tra `quantityAvailable < 0` → dùng thẳng `Math.abs(quantityAvailable)` (suy ra
+  được chính xác từ cơ chế lỗi trên: `postAvailable = preAvailable − SL đặt` ⇒
+  `SL đặt − preAvailable = −postAvailable`), thay vì công thức cũ luôn tính gấp đôi trong trường hợp này.
+  Badge khi đã khớp được giao dịch thuê thật (`itemSupplierMap`) giờ hiện **số lượng ghi trong giao dịch**
+  (nguồn đáng tin nhất) thay vì số suy luận. **Đây chỉ là vá tạm đúng với đúng cơ chế lỗi hiện tại** (trừ
+  thẳng full SL đặt) — nếu Backend đổi cách xử lý khác thì công thức này cần rà lại, không phải fix gốc.
+- **Cần Backend làm**: (a) sửa `POST /orders/:orderId/export-equipment` nhánh `force` cho đúng công thức
+  `delta` đã tài liệu ở mục 4.1 (chỉ đụng `quantity_available`/`quantity_reserved`, không đụng
+  `quantity_total`); (b) chốt chính sách cho phép tồn kho âm hay không (câu hỏi mở đã nêu ở mục (aq),
+  hình như đã tự quyết đi theo hướng "cho âm" mà chưa xác nhận lại với người dùng); (c) reset lại 2 dòng
+  `inventory` bị sai trên DB dev hiện tại (Loa Sub JBL SRX828S 18inch, Bàn tiệc tròn 1m5) về đúng giá trị
+  gốc — FE chỉ có quyền đọc DB (MySQL MCP read-only), không tự sửa được.
+- **Trạng thái**: đã vá tạm hiển thị ở FE, `npx tsc --noEmit` sạch. Còn nguyên vấn đề dữ liệu sai trên DB
+  dev + cần Backend sửa endpoint theo đúng công thức tài liệu — chưa xử lý được từ phía FE.
+
+### (ar.1) Cập nhật 2026-07-31 — Quyết định chính thức: KHÔNG chấp nhận tồn kho âm; đã bỏ nút "Vẫn xuất", chuyển điểm khóa kho sang lúc tạo lịch trình "Lắp đặt thiết bị"
+
+- **Quyết định chính thức của người dùng**: đóng hẳn câu hỏi mở ở mục (aq)/(ar) — tồn kho **không được
+  phép âm dưới bất kỳ hình thức nào**. Đã bỏ hoàn toàn khả năng gọi `force: true` từ UI:
+  `src/app/manager/quotations/[id]/page.tsx` xóa nút "Vẫn xuất" khỏi modal `stockShortage`, chỉ còn nút
+  "Đã hiểu" (đóng modal, không gọi lại API). Tham số `force` ở `handleExportEquipment`/
+  `ExportEquipmentPayload` **giữ nguyên trong code** (không xóa) để dễ mở lại nếu sau này Backend xác
+  nhận đã sửa đúng công thức — hiện tại không còn nơi nào trong UI truyền `force: true` nữa.
+- **Điểm khóa kho thật sự chuyển sang lúc tạo lịch trình (Schedule Plan) loại "Lắp đặt thiết bị"**:
+  người dùng chốt luồng nghiệp vụ — "Xuất thiết bị" ở trang báo giá chỉ nên **so sánh** SL đặt với tồn
+  kho khả dụng để biết thiếu bao nhiêu (không mutate theo cách có thể gây âm); việc **thật sự trừ/khóa
+  kho nội bộ** chỉ nên xảy ra khi Manager tạo lịch trình "Lắp đặt thiết bị" — đúng thời điểm thiết bị cam
+  kết rời kho để lắp đặt tại sự kiện.
+  - **Không cần Backend làm gì thêm cho phần này**: bản `export-equipment` KHÔNG kèm `force` (mặc định)
+    vốn đã đúng là hành vi an toàn cần dùng — theo `docs/xuatthietbi_tubaogia_api.md` mục 4.1, nó tính
+    `delta` rồi rollback 400 (không mutate gì) nếu `quantity_available < delta`, chỉ trừ đúng `delta`
+    (không bao giờ âm) nếu đủ. Chỉ cần **gọi đúng lúc** (khi tạo lịch trình Lắp đặt) và không bao giờ
+    dùng `force` nữa.
+  - **Đã cài ở FE**: `src/components/schedule/CreateSchedulePlanModal.tsx` — thêm helper
+    `isInstallationTaskName(taskName)` (regex `/lắp đặt/i`, cùng pattern với `isDateRestrictedTaskName`
+    đã có sẵn, vì `WorkTask` là danh mục tĩnh chỉ có `taskName` tự do, không có field loại việc riêng).
+    Trong `handleSubmit`, nếu loại việc được chọn khớp "Lắp đặt", gọi
+    `orderApiService.exportEquipment(orderId)` (không `force`) **trước khi** tạo `schedule_plan`:
+    thành công/`unchanged` → tạo lịch trình bình thường; lỗi 400 kèm `details.items` → **chặn tạo lịch
+    trình**, hiện bảng thiếu tồn kho (`required/available/thiếu`) ngay trong modal kèm hướng dẫn tạo đơn
+    thuê NCC ở tab "Thiết bị & Kho hàng" trước.
+- **Giới hạn kiến trúc còn lại (chưa giải quyết, ghi nhận để biết khi gặp)**: nếu 1 hạng mục có
+  `source = INTERNAL` nhưng thực tế cần bù 1 phần từ NCC (đã tạo `supplier_transactions` riêng cho phần
+  thiếu, như trường hợp Loa Sub JBL/`STX-016`), `export-equipment` bản an toàn sẽ **mãi mãi rollback
+  400** cho hạng mục đó — vì `quantity_available` không bao giờ đủ `delta = SL đặt` toàn phần, và giao
+  dịch thuê NCC không cộng ngược lại `quantity_available`. Tức Manager sẽ **không tạo được lịch trình
+  "Lắp đặt"** cho đơn có hạng mục thiếu-đã-thuê-bù kiểu này cho tới khi có 1 trong 2 hướng: (a) Backend hỗ
+  trợ tách `order_items` thành 2 dòng theo nguồn thật (phần từ kho nội bộ + phần từ NCC, đúng field
+  `source` riêng cho từng phần, thay vì 1 dòng duy nhất như hiện tại); hoặc (b) 1 cơ chế khác để
+  `export-equipment` biết loại trừ phần đã có giao dịch `SUPPLIER` che phủ ra khỏi `delta` cần từ kho nội
+  bộ. Đây là gap kiến trúc lớn hơn phạm vi đợt sửa này — cần bàn riêng với Backend/Product khi gặp
+  trường hợp thật (đơn `ORD-021` hiện tại chính là ví dụ sẽ bị chặn theo đúng giới hạn này).
+- **Vẫn còn nguyên, chưa xử lý**: 2 dòng `inventory` bị sai trên DB dev (Loa Sub JBL SRX828S 18inch,
+  Bàn tiệc tròn 1m5, xem giá trị đề xuất khôi phục ở mục (ar) phía trên) — cần Backend/người quản lý DB
+  tự chạy, FE chỉ có quyền đọc DB.
+- **Trạng thái**: đã cài xong ở FE, `npx tsc --noEmit` sạch. Đã ngăn được nguy cơ âm kho phát sinh MỚI từ
+  UI này; dữ liệu cũ đã sai vẫn cần dọn riêng.
+
+## (as) 2026-07-31 — Yêu cầu chính thức cho Backend: Tồn kho theo ngày (Date-based Inventory Lock) — giải pháp gốc thay cho mô hình `reserved`/`available` cộng-trừ thủ công hiện tại
+
+- **Bối cảnh dẫn tới yêu cầu này**: sau khi xử lý xong 2 lỗi liên tiếp ở mục (ar)/(ar.1) (tồn kho bị
+  trừ âm do `force` export, rồi tới câu hỏi "nhả khóa kho vào đúng ngày Thu hồi thiết bị"), phát hiện ra
+  gốc rễ chung của cả 2 vấn đề: hệ thống tồn kho hiện tại **không tính theo ngày** — mỗi hạng mục chỉ có
+  **1 bộ số duy nhất tại thời điểm hiện tại** (`quantity_total/available/reserved/damaged`, xem
+  `src/types/inventory.ts`), không phân biệt được "còn trống ngày 5/8" khác "còn trống ngày 20/8". Điều
+  này đã được ghi nhận rải rác trước đó (`GetInventoryQuery.date` — BE nhận nhưng không ảnh hưởng gì,
+  xem mục (u); comment "hệ thống chưa hỗ trợ khóa tồn kho theo ngày" ở tab "Thiết bị & Kho hàng") nhưng
+  chưa từng được đặt thành yêu cầu chính thức, tách riêng — nay ghi rõ ở đây.
+- **Vì sao mô hình hiện tại (1 bộ số + cộng/trừ thủ công) gây rủi ro cố hữu, không chỉ 1 lần**:
+  1. Muốn "khóa" thiết bị cho 1 đơn → phải trừ `available` (và tăng `reserved`) tại thời điểm tạo lịch
+     trình Lắp đặt (đã cài ở mục (ar.1), dùng lại `export-equipment` không-force).
+  2. Muốn "nhả khóa" khi đơn kết thúc (qua ngày Thu hồi) → cần 1 API cộng trả đúng `reserved`→`available`
+     mà **không tồn tại** — API `POST /inventory/adjust` hiện có chỉ sửa được `deltaTotal`/`deltaDamaged`,
+     dùng tạm nó để cộng `available` sẽ vô tình **phình `quantity_total` vĩnh viễn** mỗi chu kỳ (phân
+     tích chi tiết bằng số liệu cụ thể đã trao đổi với người dùng — không lặp lại ở đây), một dạng lỗi
+     âm thầm khó phát hiện hơn cả lỗi âm kho ở mục (ar).
+  3. Ngay cả khi có API đúng, mô hình "1 bộ số cho mọi thời điểm" vẫn không xử lý được trường hợp 2 đơn
+     dùng chung 1 hạng mục nhưng ở 2 khoảng ngày khác nhau, không giao nhau (vd đơn A dùng 10 cái Loa từ
+     1/8-3/8, đơn B dùng chính 10 cái đó từ 10/8-12/8) — hệ thống hiện tại sẽ báo "thiếu" sai dù thực tế
+     không xung đột ngày nào cả, vì không biết phân biệt theo khoảng ngày.
+- **Yêu cầu Backend — đổi mô hình tồn kho sang tính theo khoảng ngày chiếm dụng**:
+  - Mỗi đơn (qua lịch trình "Lắp đặt thiết bị" → "Thu hồi thiết bị") ghi nhận **chiếm dụng N đơn vị của
+    hạng mục X trong khoảng [ngày Lắp đặt, ngày Thu hồi]** — có thể là 1 bảng riêng kiểu
+    `inventory_reservations(item_id, order_id, quantity, start_date, end_date)`, không nhất thiết phải
+    đụng tới `inventory.quantity_total` (số vật lý thật) ở bước này.
+  - **Tồn kho khả dụng cho 1 ngày D** = `quantity_total` − tổng `quantity` của mọi reservation có
+    khoảng `[start_date, end_date]` **giao với ngày D** − `quantity_damaged` (thiết bị hỏng loại khỏi
+    lưu thông) — tính **động** mỗi lần truy vấn, không lưu sẵn 1 con số tĩnh.
+  - **Không cần bước "nhả khóa" thủ công/tự động nào nữa**: qua khỏi `end_date`, reservation tự động
+    không còn được tính vào phép trừ của các ngày sau đó — loại bỏ hoàn toàn rủi ro cộng/trừ sai, cộng
+    trùng, hay phình `quantity_total` đã phân tích ở trên.
+  - `GET /inventory` nên nhận thêm `date` (param `date` đã có sẵn trong query nhưng đang bị bỏ qua —
+    chỉ cần cài đúng logic tính theo mục trên) để FE hỏi đúng "khả dụng ngày X" khi cần (vd Manager xem
+    trước tồn kho cho ngày sự kiện sắp diễn ra của 1 đơn khác).
+- **Phạm vi ảnh hưởng nếu Backend làm mô hình này**: sẽ thay thế được toàn bộ cơ chế
+  `export-equipment`/`quantity_reserved` hiện tại (mục (ar.1)) — cần bàn lại với FE trước khi đổi để cập
+  nhật lại `CreateSchedulePlanModal.tsx`/tab "Thiết bị & Kho hàng" cho khớp API mới, không tự ý đổi 1
+  phía.
+- **Trạng thái**: đây là yêu cầu tính năng mới, **chưa** implement ở cả Backend lẫn FE — người dùng đã
+  quyết định **không** dùng giải pháp tạm `/inventory/adjust` để né rủi ro phình `quantity_total`, chờ
+  Backend làm đúng mô hình theo ngày. Cho tới lúc đó, tính năng "tự động nhả khóa kho khi tới ngày Thu
+  hồi thiết bị" **chưa được cài** — thiết bị đã khóa cho 1 đơn (qua mục (ar.1)) sẽ ở trạng thái "đã khóa"
+  vô thời hạn cho tới khi Backend có API đúng, hoặc người dùng chọn cách xử lý khác.
+- ⚠️ **ĐÍNH CHÍNH TOÀN BỘ MỤC NÀY — xem mục (at) ngay dưới**: nhận định "chưa implement Date-based
+  Inventory Lock" ở trên dựa trên comment cũ/stale trong FE (`date` param bị bỏ qua) và suy luận qua
+  `curl`, **chưa đọc thẳng source code Backend thật**. Sau khi đọc trực tiếp
+  `D:\sep490-backend-api\src\modules\inventory\inventory.repository.ts`, xác nhận Backend **đã** có cơ
+  chế khóa theo ngày (`getLockedQuantityByDate`) từ trước — nhận định ở mục (as) sai, đọc mục (at) để
+  biết đúng cơ chế thật.
+
+## (at) 2026-07-31 — ĐÍNH CHÍNH (as): Backend ĐÃ có Date-based Inventory Lock (`getLockedQuantityByDate`) — đọc thẳng source thật, không phải suy luận qua `curl`
+
+- **Bài học rút ra**: các nhận định ở mục (ar)/(ar.1)/(as) trước đó đều dựa trên test qua `curl` + đọc
+  comment cũ trong FE, **chưa từng đọc trực tiếp source Backend** (`D:\sep490-backend-api`, đã có sẵn
+  trên máy, đọc được bằng công cụ Read bình thường) trước khi kết luận "chưa implement". Lần này đọc
+  thẳng `inventory.repository.ts`/`inventory.service.ts`/`order.repository.ts`/`order.service.ts` để có
+  câu trả lời chính xác — nên áp dụng cách này sớm hơn cho các lần điều tra sau, thay vì chỉ suy luận qua
+  hành vi API quan sát được.
+- **Cơ chế thật (`inventory.repository.ts:97` hàm `getLockedQuantityByDate(itemId, date)`)**:
+  1. `quantity_reserved` mà FE nhận qua `GET /inventory` **không phải cột lưu trong DB** — bảng
+     `inventory` (Prisma) **chỉ lưu `quantityTotal`/`quantityDamaged`**, không có cột `reserved`/
+     `available` nào cả (xác nhận qua `inventory.repository.ts:82-87` hàm `create`). `quantityReserved`
+     và `quantityAvailable` đều được **tính lại mỗi lần gọi API** (`inventory.service.ts:94-110` hàm
+     `mapInventory`): `quantityReserved = lockedQty` (kết quả của `getLockedQuantityByDate`),
+     `quantityAvailable = quantityTotal - quantityDamaged - lockedQty`.
+  2. `getLockedQuantityByDate(itemId, date)` — với mỗi item, quét toàn bộ đơn có
+     `orderStatus ∈ {CONFIRMED, IN_PROGRESS}`, **`pickedUpAt = null`** (chưa từng "Xuất thiết bị" thật),
+     có `orderItems` chứa item này (`source = 'INTERNAL'`), có ít nhất 1 `schedulePlans`. Với mỗi đơn:
+     `lockStart` = giờ bắt đầu lịch trình có `task.taskCode = 'SETUP'` ("Lắp đặt thiết bị"), nếu không có
+     thì lấy giờ bắt đầu sớm nhất trong các lịch trình của đơn; `lockEnd` = giờ bắt đầu lịch trình có
+     `task.taskCode = 'COLLECT'` ("Thu hồi thiết bị"), nếu **chưa có lịch Thu hồi** thì `lockEnd =
+     Infinity` (coi như khóa vô thời hạn cho tới khi có lịch Thu hồi). Ngày truy vấn nằm trong
+     `[lockStart, lockEnd)` → cộng dồn `quantity` của đơn vào tổng khóa.
+  3. **Trả lời trực tiếp câu hỏi "nhả khóa vào đúng ngày Thu hồi"**: Backend đã tự làm đúng việc này —
+     ngay khi lịch trình "Thu hồi thiết bị" (COLLECT) được tạo với 1 giờ bắt đầu, từ đúng giờ đó trở đi
+     mọi ngày truy vấn sau sẽ không còn cộng đơn này vào "đã khóa" nữa. **Hoàn toàn tự động, tính lại mỗi
+     lần đọc, không cần bất kỳ API cộng/trừ thủ công nào** — không có rủi ro phình `quantity_total` như
+     đã lo ngại ở mục (as).
+- **`export-equipment` là 1 cơ chế THỨ HAI, song song, khác mục đích** (`order.repository.ts:416-641`):
+  - Không liên quan gì tới `getLockedQuantityByDate` — nó **trừ thẳng vào `quantity_total`** thật (dòng
+    561/577: `quantityTotal: { decrement: delta }`) và set `order.pickedUpAt` (dòng 624-628, chỉ khi có
+    movement thật) — đại diện cho khoảnh khắc thiết bị **thật sự rời kho vật lý**, không phải lúc chỉ mới
+    lên lịch.
+  - Once `pickedUpAt` được set, đơn đó **rời khỏi** phép tính `getLockedQuantityByDate` (vì điều kiện
+    `pickedUpAt: null` không còn khớp) — quyền kiểm soát "đã dùng bao nhiêu" chuyển hẳn từ khóa-theo-ngày
+    (ảo, không đụng `quantity_total`) sang trừ-thật (`quantity_total` giảm vĩnh viễn cho tới khi có hàng
+    về qua "Xác nhận hoàn kho", `quantityTotal: { increment: goodQuantity + damagedQuantity }`,
+    `inventory.repository.ts:240`).
+  - **Xác nhận lại bug ở mục (ar) bằng source thật (không còn là suy luận)**: nhánh không-`force`
+    (`order.repository.ts:574-580`) dùng `updateMany({ where: { itemId, quantityTotal: { gte: delta } },
+    data: { decrement: delta } })` — điều kiện `gte` trong `WHERE` đảm bảo **không bao giờ âm** (an
+    toàn thật). Nhánh `force` (dòng 552, 558-573) **bỏ qua thẳng điều kiện** `available < delta` và update
+    không kèm `gte` → xác nhận 100% đây là nguyên nhân gây âm kho, đúng như đã suy luận ở mục (ar). Quyết
+    định bỏ nút "Vẫn xuất" ở mục (ar.1) **vẫn đúng, giữ nguyên**.
+  - **Gap nhỏ phát hiện thêm**: điều kiện thiếu-tồn-kho bên trong `export-equipment`
+    (`order.repository.ts:551`: `available = inventoryByItem.get(itemId)?.quantityTotal ?? 0`) chỉ so
+    với `quantityTotal` thô, **không trừ `quantityDamaged` lẫn `lockedQty`** — khác công thức
+    `GET /inventory` hiển thị cho Manager (`total - damaged - lockedQty`). Nghĩa là 2 nơi tính "khả dụng"
+    khác nhau: màn hình tồn kho trừ luôn phần đã khóa bởi lịch trình đơn khác, nhưng lúc thật sự "Xuất
+    thiết bị" lại không trừ phần đó — có thể dẫn tới xuất được dù tồn kho hiển thị "không đủ" (do lockedQty
+    của đơn khác), hoặc ngược lại. Đây là gap thật của Backend, ghi nhận ở đây, chưa yêu cầu sửa (cần bàn
+    thêm với Product xem có phải bug hay cố ý).
+- **Đã REVERT thay đổi ở `CreateSchedulePlanModal.tsx` (mục ar.1)**: gỡ bỏ hoàn toàn việc gọi
+  `orderApiService.exportEquipment()` khi tạo lịch trình "Lắp đặt thiết bị" — không cần thiết vì Backend
+  đã tự động khóa theo ngày ngay khi lịch trình SETUP tồn tại, không cần đợi tới lúc tạo lịch mới trừ kho.
+  Gọi `export-equipment` sớm (ngay lúc tạo lịch, có thể trước ngày lắp đặt thật rất lâu) sẽ trừ thẳng
+  `quantity_total` **quá sớm** — sai bản chất (thiết bị vẫn còn nằm trong kho vật lý cho tới đúng ngày).
+  Nút "Xuất thiết bị" ở trang báo giá (không force) giữ nguyên, dùng đúng lúc thiết bị thật sự rời kho.
+- **Vẫn đúng, không đổi**: quyết định bỏ nút "Vẫn xuất" (mục ar.1) — bug âm kho ở nhánh `force` là có
+  thật, xác nhận lại bằng source. Quyết định KHÔNG dùng `/inventory/adjust` để giả lập "nhả khóa" (mục
+  as) — cũng đúng, vì thực ra không cần nhả khóa thủ công nào cả, Backend đã tự làm.
+- **Trạng thái**: đã revert `CreateSchedulePlanModal.tsx` về đúng hành vi gốc (chỉ tạo lịch trình, không
+  gọi export-equipment). `npx tsc --noEmit` sạch. Tính năng "khóa/nhả khóa theo ngày" **đã hoạt động đúng
+  từ phía Backend, không cần FE làm gì thêm** — chỉ cần Manager tạo đúng 2 lịch trình SETUP/COLLECT với
+  giờ bắt đầu chính xác cho mỗi đơn.
+
+## (au) 2026-07-31 — Bug thật + ĐÃ SỬA ở Backend: `getLockedQuantityByDate` cộng nguyên `order_items.quantity` vào "đã khóa", không trừ phần đã thuê bù NCC, gây "khả dụng" âm sai (vd `ORD-026`/"Thảm sân khấu màu đỏ": khóa 799 dù tổng tồn chỉ 43)
+
+- **Phát hiện qua dữ liệu thật (màn Admin "Tồn kho doanh nghiệp")**: item "Thảm sân khấu màu đỏ (khổ
+  2m)" hiện `Tổng khả dụng = -756`, `Số lượng đã khóa = 799`, `Tổng số lượng = 43`. Đối chiếu MySQL
+  (read-only) xác nhận: đơn `ORD-026` (IN_PROGRESS, `picked_up_at = null`) có `order_items.quantity =
+  799` (source INTERNAL) cho item này, nhưng **đã có sẵn giao dịch thuê NCC `STX-018` (RENTAL, PENDING)
+  đúng 756 cái** — khớp chính xác `799 − 43 = 756` (đúng phần thiếu so với tồn kho thật, đã được bù từ
+  NCC). Đây chính là trường hợp "mixed sourcing" đã ghi nhận là giới hạn kiến trúc chưa xử lý ở mục (ar.1)
+  — nay xảy ra thật với số liệu đủ lớn để lộ rõ vấn đề.
+- **Nguyên nhân xác định qua source Backend thật** (`inventory.repository.ts`, hàm
+  `getLockedQuantityByDate`, dòng 97 cũ): với mỗi đơn thỏa điều kiện khóa theo ngày (mục (at)), hàm cộng
+  **nguyên `order_items.quantity`** (799) vào tổng "đã khóa" — không trừ đi phần đã có giao dịch thuê NCC
+  che phủ (756) — nên "đã khóa" bị tính vượt xa cả tổng tồn kho, kéo "khả dụng" xuống âm rất sâu dù thực
+  tế đơn chỉ dùng đúng 43/43 tồn kho nội bộ (không thiếu, không âm).
+- **Đã sửa trực tiếp ở `D:\sep490-backend-api\src\modules\inventory\inventory.repository.ts`** (theo yêu
+  cầu của người dùng — sửa thẳng Backend, không chỉ ghi doc, vì code đã đọc/hiểu rõ và có quyền truy cập):
+  thêm bước truy vấn `supplier_transaction_items` (qua `prisma.supplierTransactionItem`) cho đúng `itemId`
+  và các `orderId` liên quan, lọc `transaction.status != CANCELLED`, gộp tổng theo từng đơn
+  (`supplierCoveredByOrder`). Khi cộng dồn "đã khóa" cho 1 đơn, dùng
+  `Math.max(orderNeed - supplierCovered, 0)` thay vì `orderNeed` thô — đúng ý người dùng "chỉ khóa số
+  lượng không thuê ngoài thôi".
+- **Đã xác minh lại qua `curl` thật ngay sau khi sửa** (server dev tự reload): `GET /inventory?itemId=...`
+  cho "Thảm sân khấu màu đỏ" đổi từ `quantityReserved: 799, quantityAvailable: -756` →
+  **`quantityReserved: 43, quantityAvailable: 0`** — đúng như kỳ vọng (toàn bộ 43 tồn kho đang phục vụ
+  đơn `ORD-026`, không còn âm).
+- **Giới hạn còn lại (chưa đụng tới trong đợt sửa này)**: `export-equipment`'s check nội bộ
+  (`order.repository.ts:551`, `available = quantityTotal` thô) **vẫn chưa trừ** phần đã thuê bù NCC —
+  nghĩa là nếu Manager thật sự bấm "Xuất thiết bị" cho `ORD-026`, endpoint này sẽ vẫn đòi đủ 799 từ kho
+  nội bộ (chỉ có 43) và trả lỗi thiếu tồn kho, dù về logic đã đủ (43 nội bộ + 756 thuê NCC = 799). Đây là
+  gap riêng, khác hàm `getLockedQuantityByDate` vừa sửa — cần sửa thêm ở `order.repository.ts` nếu muốn
+  đồng bộ hoàn toàn cách tính "đủ hàng" giữa 2 nơi; chưa làm trong đợt này vì người dùng chỉ yêu cầu sửa
+  phần hiển thị "đã khóa" ở tồn kho.
+- **`npx tsc --noEmit` ở Backend chạy sạch (exit code 0)** sau khi sửa.
