@@ -105,7 +105,10 @@ const ADMIN_NAV_SECTIONS: NavSection[] = [
   },
   {
     title: 'CÔNG VIỆC',
-    items: [{ label: 'Công việc', href: '/admin/work-tasks', icon: ClipboardList }],
+    items: [
+      { label: 'Công việc', href: '/admin/work-tasks', icon: ClipboardList },
+      { label: 'Chấm công', href: '/admin/schedule/attendances', icon: CalendarCheck },
+    ],
   },
   {
     title: 'BÁO CÁO & KIỂM TOÁN',

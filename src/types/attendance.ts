@@ -27,3 +27,53 @@ export interface CheckOutPayload {
   checkOutAt: string; // ISO datetime
   note?: string;
 }
+
+export interface AttendanceListItem {
+  assigneeId: string;
+  planId: string;
+  userId: string;
+  role: 'LEAD' | 'TECHNICAL';
+  notes?: string | null;
+  createdAt: string;
+  attendance?: {
+    attendanceId: string;
+    checkInAt: string | null;
+    checkOutAt: string | null;
+    latitude: number | null;
+    longitude: number | null;
+    checkInEvidenceId: string | null;
+    note: string | null;
+  } | null;
+  user: {
+    userId: string;
+    fullName: string;
+    employeeCode: string | null;
+    avatarUrl: string | null;
+  };
+  plan: {
+    planId: string;
+    orderId: string;
+    taskId: string;
+    startTime: string;
+    endTime: string | null;
+    status: string;
+    order: {
+      orderId: string;
+      orderCode: string;
+      eventName: string | null;
+      eventDate: string;
+    };
+    task: {
+      taskId: string;
+      taskCode: string;
+      taskName: string;
+    };
+  };
+}
+
+export interface ListAttendancesMeta {
+  page: number;
+  limit: number;
+  totalItems: number;
+  totalPages: number;
+}
