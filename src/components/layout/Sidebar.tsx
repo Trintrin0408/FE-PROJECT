@@ -104,6 +104,10 @@ const ADMIN_NAV_SECTIONS: NavSection[] = [
     items: [{ label: 'Chính sách', href: '/admin/policies', icon: Shield }],
   },
   {
+    title: 'CÔNG VIỆC',
+    items: [{ label: 'Công việc', href: '/admin/work-tasks', icon: ClipboardList }],
+  },
+  {
     title: 'BÁO CÁO & KIỂM TOÁN',
     items: [
       // { label: 'Báo cáo doanh thu', href: '/admin/reports/revenue', icon: TrendingUp },
@@ -180,9 +184,30 @@ const BADGE_CLASSES: Record<'amber' | 'red', string> = {
   red: 'bg-rose-500/15 text-rose-400',
 };
 
-function itemMatchesPath(item: NavItem, pathname: string | null): boolean {
-  if (pathname === item.href || pathname?.startsWith(`${item.href}/`)) return true;
-  return item.children?.some((child) => itemMatchesPath(child, pathname)) ?? false;
+function findActiveHref(sections: NavSection[], pathname: string | null): string | null {
+  if (!pathname) return null;
+  let bestMatch: string | null = null;
+  let maxLen = 0;
+
+  const traverse = (items: NavItem[]) => {
+    for (const item of items) {
+      if (pathname === item.href || pathname.startsWith(`${item.href}/`)) {
+        if (item.href.length > maxLen) {
+          maxLen = item.href.length;
+          bestMatch = item.href;
+        }
+      }
+      if (item.children) {
+        traverse(item.children);
+      }
+    }
+  };
+
+  for (const section of sections) {
+    traverse(section.items);
+  }
+  
+  return bestMatch;
 }
 
 /** Thu thập nhãn của MỌI nhóm cha (đệ quy) — dùng để mặc định mở sẵn tất cả, khớp ảnh thiết kế. */
@@ -202,6 +227,8 @@ export default function Sidebar() {
   const isAdmin = user?.role.roleName === 'Admin';
   const sections = isAdmin ? ADMIN_NAV_SECTIONS : MANAGER_NAV_SECTIONS;
   const basePath = isAdmin ? '/admin' : '/manager';
+
+  const activeHref = findActiveHref(sections, pathname);
 
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [expandedLabels, setExpandedLabels] = useState<Set<string>>(() => {
@@ -226,20 +253,24 @@ export default function Sidebar() {
   };
 
   const renderItem = (item: NavItem, depth: number): React.ReactNode => {
-    const isActive = itemMatchesPath(item, pathname);
+    const isActive = item.href === activeHref;
     const Icon = item.icon;
     const hasChildren = Boolean(item.children && item.children.length > 0);
     const isExpanded = expandedLabels.has(item.label);
     const paddingLeft = depth === 0 ? 'px-3' : depth === 1 ? 'pl-9 pr-3' : 'pl-12 pr-3';
 
     if (hasChildren) {
+      const hasActiveChild = (function checkActive(children: NavItem[]): boolean {
+        return children.some(c => c.href === activeHref || (c.children ? checkActive(c.children) : false));
+      })(item.children!);
+
       return (
         <div key={item.label}>
           <button
             type="button"
             onClick={() => toggleLabel(item.label)}
             className={`flex w-full items-center gap-3 rounded-lg py-2 text-[13px] font-medium transition-colors duration-150 ${paddingLeft} ${
-              isActive ? 'border-l-2 border-blue-500 bg-slate-800/60 text-blue-400' : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+              hasActiveChild ? 'text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'
             }`}
           >
             {Icon && <Icon className="h-4 w-4 flex-shrink-0" />}
