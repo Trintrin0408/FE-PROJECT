@@ -37,6 +37,11 @@ export interface Order {
   eventName?: string;
   eventDate: string;
   location: string;
+  /** Tọa độ địa điểm tổ chức — backend thật đã có sẵn 2 cột này (Prisma `Order.latitude/longitude`,
+   * thêm cho tính năng GPS check-in nhân viên kỹ thuật), FE gán qua Goong Place Detail khi Manager chọn
+   * gợi ý địa chỉ ở CreateOrderModal (2026-08-02). */
+  latitude?: number;
+  longitude?: number;
   guestCount?: number;
   totalAmount: number;
   paymentStatus: OrderPaymentStatus;
@@ -134,6 +139,8 @@ export interface CreateOrderPayload {
   eventType: string;
   eventDate: string; // ISO datetime string
   location: string;
+  latitude?: number;
+  longitude?: number;
   guestCount?: number;
   items: CreateOrderItemPayload[]; // tối thiểu 1
   notes?: string;

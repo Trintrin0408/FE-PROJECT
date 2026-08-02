@@ -7,6 +7,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { AddressAutocompleteInput } from '@/components/ui/AddressAutocompleteInput';
 import { orderApiService } from '@/services/order.service';
 import { EVENT_TYPES } from '@/constants/order-event-type';
 import { VN_TIME_ZONE } from '@/utils/formatDate';
@@ -44,6 +45,8 @@ export default function CreateOrderModal({ isOpen, customers, onClose, onCreated
   const [eventType, setEventType] = useState('');
   const [eventDate, setEventDate] = useState('');
   const [location, setLocation] = useState('');
+  const [latitude, setLatitude] = useState<number | undefined>(undefined);
+  const [longitude, setLongitude] = useState<number | undefined>(undefined);
   const [guestCount, setGuestCount] = useState('');
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -82,6 +85,8 @@ export default function CreateOrderModal({ isOpen, customers, onClose, onCreated
     setEventType('');
     setEventDate('');
     setLocation('');
+    setLatitude(undefined);
+    setLongitude(undefined);
     setGuestCount('');
     setErrors({});
     setSubmitError(null);
@@ -126,6 +131,8 @@ export default function CreateOrderModal({ isOpen, customers, onClose, onCreated
         eventType,
         eventDate: new Date(eventDate).toISOString(),
         location: location.trim(),
+        ...(latitude !== undefined ? { latitude } : {}),
+        ...(longitude !== undefined ? { longitude } : {}),
         ...(guestCount ? { guestCount: Number(guestCount) } : {}),
         items: [],
       });
@@ -262,13 +269,22 @@ export default function CreateOrderModal({ isOpen, customers, onClose, onCreated
               onChange={(e) => setGuestCount(e.target.value)}
             />
             <div className="sm:col-span-2">
-              <Input
+              <AddressAutocompleteInput
                 label="Địa điểm tổ chức"
                 required
                 placeholder="VD: 123 Đường ABC, Quận 1, TP.HCM"
                 value={location}
                 error={errors.location}
-                onChange={(e) => setLocation(e.target.value)}
+                onChange={(value) => {
+                  setLocation(value);
+                  setLatitude(undefined);
+                  setLongitude(undefined);
+                }}
+                onSelectPlace={({ formattedAddress, lat, lng }) => {
+                  setLocation(formattedAddress);
+                  setLatitude(lat);
+                  setLongitude(lng);
+                }}
               />
             </div>
           </div>
