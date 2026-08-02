@@ -32,7 +32,20 @@ export interface SchedulePlan {
   assigneeName?: string; // join thêm khi GET — KHÔNG khớp response thật, xem `assignees` dưới
   // Xác nhận qua curl thật 2026-07-20 (docs/more-require.md mục (f)): GET /schedule-plans trả đúng
   // model đa phân công thật (schedule_plan_assignees), không phải 1 assigneeName đơn.
-  assignees?: { userId: string; fullName: string; role: 'LEAD' | 'TECHNICAL'; phone?: string; checkInAt?: string | null; checkOutAt?: string | null }[];
+  // Đính chính 2026-08-02 (đọc source thật `schedule.service.ts` `AssigneeDTO` tại
+  // D:\sep490-backend-api): API đã trả sẵn checkInEvidenceId/latitude/longitude cho từng assignee (phục
+  // vụ chấm công GPS), FE type trước đây bỏ sót 3 field này dù JSON response đã có.
+  assignees?: {
+    userId: string;
+    fullName: string;
+    role: 'LEAD' | 'TECHNICAL';
+    phone?: string;
+    checkInAt?: string | null;
+    checkOutAt?: string | null;
+    checkInEvidenceId?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+  }[];
   orderCode?: string; // join thêm khi GET
   customerName?: string; // join thêm khi GET
   eventName?: string; // join thêm khi GET

@@ -1526,6 +1526,37 @@ tồn đọng riêng, chưa xử lý ở lần sửa này.
   đổi gì** ở tab "Lịch trình & Kỹ thuật" hiện tại (vẫn đọc `status` read-only như đang làm) — hướng mới
   chỉ đổi cách Backend/mobile tự tính `status`, không phát sinh việc code mới phía web.
 
+### Đính chính 2026-08-02 — GPS check-in đã CÓ THẬT trên backend, nhiều điểm ở mục (ah) đã lỗi thời
+
+Đọc trực tiếp source thật tại `D:\sep490-backend-api` (không chỉ dựa vào curl/doc cũ) để phục vụ yêu
+cầu "trang chi tiết lịch trình + tab Chấm công" — phát hiện các điểm ở mục (ah) trên đã lỗi thời vì
+được viết ngày 2026-07-20/21, TRƯỚC 2 migration bổ sung cột GPS:
+
+- `attendances.latitude`/`attendances.longitude` — có thật (`prisma/schema.prisma` dòng 573-589, model
+  `Attendance`; migration `20260728095707_add_attendance_coordinates`).
+- `orders.latitude`/`orders.longitude` — có thật (migration `20260731112151_add_order_latitude_longitude`).
+  FE đã bắt đầu ghi giá trị này khi tạo Order qua Goong Place Detail (`src/services/geocoding.service.ts`,
+  `CreateOrderModal.tsx`, 2026-08-02 — việc khác, không thuộc phạm vi chấm công).
+- Endpoint ghi nhận **đã tồn tại và đúng path đã đề xuất** ở điểm 1/2 mục (ah) trên:
+  `POST /schedule-plans/:planId/assignees/:userId/check-in` và `.../check-out` (`schedule.routes.ts`
+  dòng 113-126, role `STAFF`, tự check cho chính mình). Khác 1 chi tiết nhỏ so với đề xuất cũ: body
+  **không nhận `checkInAt`/`checkOutAt` từ client** (server tự set giờ thật lúc gọi), chỉ nhận
+  `checkInEvidenceId?`, `latitude?`, `longitude?` (`schedule.validators.ts` dòng 86-95).
+- Server tự validate bán kính check-in so với toạ độ Order (`src/utils/geo.utils.ts` hàm
+  `calculateDistanceMeters`, ngưỡng `MAX_CHECKIN_DISTANCE_METERS` mặc định 500m, áp dụng trong
+  `schedule.service.ts` hàm `checkIn`) — chặn 400 nếu check-in ngoài phạm vi cho phép.
+- `GET /api/v1/schedule-plans/:planId` (đã mount sẵn, `schedule.routes.ts` dòng 40-44) trả `assignees[]`
+  kèm đầy đủ `checkInAt`, `checkOutAt`, `checkInEvidenceId`, `latitude`, `longitude` cho từng người
+  (`schedule.service.ts` `AssigneeDTO`/`mapAssignee`, dòng 26-38, 77-94) — dùng trực tiếp cho web Manager
+  đọc, không cần endpoint tổng hợp riêng (điểm 3 mục (ah) trên) cho trường hợp xem theo 1 plan cụ thể.
+- Vẫn đúng như mục (ah) đã ghi: 2 lớp xác nhận (Leader xác nhận Technical, Manager xác nhận tổng hợp
+  công/lương) **chưa được model** ở schema thật — vẫn cần Backend thiết kế thêm nếu làm màn "Công &
+  lương".
+
+Đã cập nhật `src/types/schedulePlan.ts` (`SchedulePlan.assignees[]`) thêm 3 field
+`checkInEvidenceId`/`latitude`/`longitude` cho khớp response thật (trước đó FE type bỏ sót dù JSON đã
+trả sẵn).
+
 ## (ai) Yêu cầu chính thức từ người dùng 2026-07-22 — CẦN Backend cho phép role `MANAGER` gọi `POST /api/v1/survey-reports` (hiện chỉ cho `LEADER`)
 
 - **Bối cảnh**: theo `docs/khaosathientruong_api.md` mục 0 (đã chốt trước đó), nút "+ Tạo báo cáo khảo

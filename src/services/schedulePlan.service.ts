@@ -14,6 +14,12 @@ export const schedulePlanApiService = {
     return response.data;
   },
 
+  /** GET /api/v1/schedule-plans/:planId */
+  async getSchedulePlanById(planId: string) {
+    const response = await api.get(`/schedule-plans/${planId}`);
+    return response.data;
+  },
+
   /** POST /api/v1/schedule-plans */
   async createSchedulePlan(payload: CreateSchedulePlanPayload) {
     const response = await api.post('/schedule-plans', payload);

@@ -219,7 +219,6 @@ function ManagerOrderDetailContent() {
   const [picklistInventory, setPicklistInventory] = useState<Record<string, InventoryRow>>({});
   const [itemSupplierMap, setItemSupplierMap] = useState<Record<string, { supplierName: string; quantity: number }>>({});
 
-  const [viewingScheduleItem, setViewingScheduleItem] = useState<SchedulePlan | null>(null);
   const [cancelingPlanId, setCancelingPlanId] = useState<string | null>(null);
   const [isUpdatingPlanStatus, setIsUpdatingPlanStatus] = useState(false);
   const [evidenceModal, setEvidenceModal] = useState<{ isLoading: boolean; evidence: Evidence | null } | null>(null);
@@ -1237,14 +1236,13 @@ function ManagerOrderDetailContent() {
                         {plan.notes && <p className="mt-2 text-xs italic text-slate-500">{plan.notes}</p>}
 
                         <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-slate-100 pt-3">
-                          <button
-                            type="button"
-                            onClick={() => setViewingScheduleItem(plan)}
+                          <Link
+                            href={`/manager/orders/${order.orderId}/schedule/${plan.planId}`}
                             className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:border-blue-300 hover:bg-slate-50"
                           >
                             <Eye className="h-3.5 w-3.5" />
                             Xem chi tiết
-                          </button>
+                          </Link>
                           {plan.status === 'COMPLETED' && plan.evidenceId && (
                             <button
                               type="button"
@@ -1546,68 +1544,6 @@ function ManagerOrderDetailContent() {
             Đã bỏ phần "vật tư cấu thành" (BOM) dựng sẵn — DB thật không có bảng lưu quan hệ này, xem docs/thietbikhohang_api.md mục 5.
           </p>
         </div>
-      </Modal>
-
-      <Modal
-        isOpen={Boolean(viewingScheduleItem)}
-        onClose={() => setViewingScheduleItem(null)}
-        title={viewingScheduleItem?.taskName ?? viewingScheduleItem?.planCode}
-        subtitle={viewingScheduleItem?.planCode}
-        footer={
-          <Button variant="secondary" onClick={() => setViewingScheduleItem(null)}>
-            Đóng
-          </Button>
-        }
-      >
-        {viewingScheduleItem && (
-          <div className="space-y-3 text-sm">
-            <div>
-              <p className="text-xs font-semibold text-slate-500">Người/đội phụ trách</p>
-              {viewingScheduleItem.assignees && viewingScheduleItem.assignees.length > 0 ? (
-                <div className="mt-1 space-y-1.5">
-                  {viewingScheduleItem.assignees.map((a) => (
-                    <p key={a.userId} className="flex items-center gap-3 text-xs text-slate-700">
-                      <span className="font-medium text-slate-900">{a.fullName}</span>
-                      <span>{ASSIGNEE_ROLE_LABEL[a.role] ?? a.role}</span>
-                      {a.phone && (
-                        <span className="flex items-center gap-1">
-                          <Phone className="h-3.5 w-3.5" />
-                          {a.phone}
-                        </span>
-                      )}
-                    </p>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-slate-400">Chưa phân công.</p>
-              )}
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <p className="text-xs font-semibold text-slate-500">Ngày/giờ kế hoạch</p>
-                <p className="text-slate-900">
-                  {formatDate(viewingScheduleItem.startTime)} · {formatTime(viewingScheduleItem.startTime)}
-                  {viewingScheduleItem.endTime ? ` - ${formatTime(viewingScheduleItem.endTime)}` : ''}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-slate-500">Địa điểm</p>
-                <p className="text-slate-900">{viewingScheduleItem.location ?? order.location}</p>
-              </div>
-            </div>
-            {viewingScheduleItem.notes && (
-              <div>
-                <p className="text-xs font-semibold text-slate-500">Ghi chú</p>
-                <p className="italic text-slate-600">{viewingScheduleItem.notes}</p>
-              </div>
-            )}
-            <div className="flex items-center gap-2 border-t border-slate-100 pt-3">
-              <Badge variant={SCHEDULE_STATUS_META[viewingScheduleItem.status]?.variant ?? 'neutral'}>
-                {SCHEDULE_STATUS_META[viewingScheduleItem.status]?.label ?? viewingScheduleItem.status}
-              </Badge>
-            </div>
-          </div>
-        )}
       </Modal>
 
       <Modal
