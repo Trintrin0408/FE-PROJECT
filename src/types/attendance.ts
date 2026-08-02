@@ -62,6 +62,7 @@ export interface AttendanceListItem {
       orderCode: string;
       eventName: string | null;
       eventDate: string;
+      location: string | null;
     };
     task: {
       taskId: string;

@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { Search } from 'lucide-react';
+import { Search, ExternalLink } from 'lucide-react';
 import { Table, TableColumn } from '@/components/ui/Table';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Select } from '@/components/ui/Select';
 import { Pagination } from '@/components/ui/Pagination';
 import { Avatar } from '@/components/ui/Avatar';
+import { Badge } from '@/components/ui/Badge';
 import { orderApiService } from '@/services/order.service';
 import { attendanceApiService } from '@/services/attendance.service';
 import { workTaskApiService } from '@/services/workTask.service';
@@ -51,7 +52,7 @@ export default function AttendancesPage() {
       value: order.orderId,
       label: `[${order.orderCode}] ${order.eventName || 'Đơn hàng'}`,
     }));
-    return [{ value: '', label: 'Tất cả dự án' }, ...opts];
+    return [{ value: '', label: 'Tất cả đơn hàng' }, ...opts];
   }, [orders]);
 
   const taskOptions = useMemo(() => {
@@ -114,13 +115,23 @@ export default function AttendancesPage() {
     },
     {
       key: 'order',
-      label: 'Dự án',
-      render: (row) => (
-        <div>
-          <div className="font-medium text-slate-800">{row.plan.order.eventName || 'Sự kiện'}</div>
-          <div className="text-xs text-slate-500">Mã: {row.plan.order.orderCode}</div>
-        </div>
-      ),
+      label: 'Đơn hàng',
+      render: (row) => {
+        const eventDateObj = new Date(row.plan.order.eventDate);
+        const dateStr = eventDateObj.toLocaleDateString('en-GB');
+        
+        return (
+          <div className="flex flex-col gap-0.5">
+            <span className="font-bold text-slate-900 text-sm">{row.plan.order.orderCode}</span>
+            <span className="text-xs text-slate-500 line-clamp-2">
+              📍 {row.plan.order.location || 'Chưa cập nhật địa chỉ'}
+            </span>
+            <span className="text-xs text-slate-400 font-medium">
+              📅 Ngày TC: {dateStr}
+            </span>
+          </div>
+        );
+      },
     },
     {
       key: 'checkIn',
@@ -142,6 +153,54 @@ export default function AttendancesPage() {
         const timeStr = date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
         const dateStr = date.toLocaleDateString('en-GB');
         return <span className="text-slate-700">{`${timeStr} ${dateStr}`}</span>;
+      },
+    },
+    {
+      key: 'gps',
+      label: 'Vị trí GPS',
+      render: (row) => {
+        if (row.attendance?.latitude == null || row.attendance?.longitude == null) {
+          return <span className="text-slate-400 italic">Chưa có dữ liệu</span>;
+        }
+        return (
+          <div className="space-y-0.5">
+            <p className="font-mono text-xs text-slate-600">
+              {row.attendance.latitude.toFixed(5)}, {row.attendance.longitude.toFixed(5)}
+            </p>
+            <a
+              href={`https://www.google.com/maps?q=${row.attendance.latitude},${row.attendance.longitude}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:underline"
+            >
+              Xem trên bản đồ
+              <ExternalLink className="h-3 w-3" />
+            </a>
+          </div>
+        );
+      },
+    },
+    {
+      key: 'status',
+      label: 'Trạng thái',
+      render: (row) => {
+        if (row.plan.status === 'CANCELLED') {
+          return <Badge variant="error">Đã hủy</Badge>;
+        }
+        
+        if (row.attendance?.checkInAt && row.attendance?.checkOutAt) {
+          return <Badge variant="success">Hoàn thành</Badge>;
+        }
+        
+        if (row.attendance?.checkInAt && !row.attendance?.checkOutAt) {
+          return <Badge variant="warning">Đang làm việc</Badge>;
+        }
+
+        if (row.plan.status === 'CONFIRMED' || row.plan.status === 'IN_PROGRESS' || row.plan.status === 'COMPLETED') {
+          return <Badge variant="info">Đã xác nhận</Badge>;
+        }
+
+        return <Badge variant="neutral">Chưa xác nhận</Badge>;
       },
     },
   ];
@@ -186,11 +245,11 @@ export default function AttendancesPage() {
           />
 
           <SearchableSelect
-            label="Dự án"
+            label="Đơn hàng"
             value={selectedOrderId}
             onChange={handleOrderChange}
             options={orderOptions}
-            placeholder="Tất cả dự án"
+            placeholder="Tất cả đơn hàng"
           />
         </div>
 
