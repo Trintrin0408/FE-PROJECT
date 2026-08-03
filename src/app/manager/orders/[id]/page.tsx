@@ -8,6 +8,7 @@ import { Activity, Ban, Box, Calendar, Check, CheckCircle2, ChevronLeft, Clock, 
 import { Badge, getStatusBadgeVariant, type BadgeVariant } from '@/components/ui/Badge';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
 import RecordSettlementModal from '@/components/orders/RecordSettlementModal';
@@ -169,6 +170,26 @@ const ASSIGNEE_ROLE_LABEL: Record<string, string> = {
   TECHNICAL: 'Nhân viên kỹ thuật',
 };
 
+// Giới hạn số ngày kiểm tra tồn kho trong 1 khoảng — mỗi ngày trong khoảng cần 1 lệnh gọi API riêng cho
+// từng hạng mục (GET /inventory không hỗ trợ truyền khoảng ngày), giới hạn để tránh gọi quá nhiều API
+// nếu Manager lỡ chọn khoảng quá dài.
+const MAX_STOCK_CHECK_DAYS = 31;
+
+/** Liệt kê các ngày (YYYY-MM-DD) từ fromStr đến toStr (bao gồm 2 đầu), tối đa MAX_STOCK_CHECK_DAYS ngày.
+ * toStr < fromStr (Manager đang gõ dở, chưa hợp lệ) → trả về đúng 1 ngày fromStr. */
+function enumerateDates(fromStr: string, toStr: string): string[] {
+  const startTime = new Date(fromStr).getTime();
+  const endTime = new Date(toStr).getTime();
+  if (Number.isNaN(startTime) || Number.isNaN(endTime) || endTime < startTime) return [fromStr];
+  const dates: string[] = [];
+  let cur = startTime;
+  while (cur <= endTime && dates.length < MAX_STOCK_CHECK_DAYS) {
+    dates.push(new Date(cur).toISOString().slice(0, 10));
+    cur += 86_400_000;
+  }
+  return dates;
+}
+
 function ManagerOrderDetailContent() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -218,6 +239,12 @@ function ManagerOrderDetailContent() {
   const [isPicklistOpen, setIsPicklistOpen] = useState(false);
   const [picklistInventory, setPicklistInventory] = useState<Record<string, InventoryRow>>({});
   const [itemSupplierMap, setItemSupplierMap] = useState<Record<string, { supplierName: string; quantity: number }>>({});
+  // Khoảng ngày kiểm tra tồn kho — mặc định = [ngày liền trước ngày tổ chức, ngày tổ chức] (set ở effect
+  // dưới ngay khi order sẵn sàng), Manager có thể sửa thành khoảng dài hơn (vd cả giai đoạn chuẩn bị →
+  // thu hồi) để kiểm tra đủ hàng suốt khoảng đó, không chỉ đúng 1-2 ngày cố định.
+  const [stockCheckFrom, setStockCheckFrom] = useState('');
+  const [stockCheckTo, setStockCheckTo] = useState('');
+  const [inventoryCheckDates, setInventoryCheckDates] = useState<Record<string, string>>({});
 
   const [cancelingPlanId, setCancelingPlanId] = useState<string | null>(null);
   const [isUpdatingPlanStatus, setIsUpdatingPlanStatus] = useState(false);
@@ -309,26 +336,69 @@ function ManagerOrderDetailContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ tải lại khi order thay đổi thật sự
   }, [order?.orderId, order?.quotationId, order?.customerId]);
 
+  // Khoảng ngày kiểm tra tồn kho mặc định = [ngày liền trước ngày tổ chức, ngày tổ chức] — chỉ set lại
+  // khi order đổi (đổi đơn khác/eventDate đổi), không ghi đè khoảng Manager đang tự chỉnh mỗi lần load()
+  // (vd sau khi xác nhận cọc) vì order?.eventDate hầu như không đổi giữa các lần tải lại cùng 1 đơn.
+  useEffect(() => {
+    if (!order) return;
+    const eventDateStr = order.eventDate.slice(0, 10);
+    const dayBeforeStr = new Date(new Date(order.eventDate).getTime() - 86_400_000).toISOString().slice(0, 10);
+    setStockCheckFrom(dayBeforeStr);
+    setStockCheckTo(eventDateStr);
+  }, [order?.eventDate]);
+
   // Tồn kho khả dụng theo từng hạng mục — tải ngay khi order sẵn sàng (không chỉ khi mở Picklist) để
   // tab "Thiết bị & Kho hàng" hiện được cảnh báo thiếu hàng ngay trên bảng chính.
+  //
+  // Cập nhật 2026-08-02: GET /inventory?date=... đã hoạt động đúng ở Backend theo cơ chế khóa tồn kho
+  // theo ngày thật (`getLockedQuantityByDate`, xem docs/more-require.md mục (at)/(au)) — không còn bị bỏ
+  // qua như ghi nhận cũ ở src/types/inventory.ts.
+  //
+  // Cập nhật 2026-08-03: đổi từ so sánh đúng 2 mốc cố định sang kiểm tra CẢ MỘT KHOẢNG ngày
+  // [stockCheckFrom, stockCheckTo] — mặc định là [ngày liền trước, ngày tổ chức] (set ở effect trên),
+  // Manager có thể sửa thành khoảng dài hơn (vd cả giai đoạn chuẩn bị → thu hồi thiết bị). Với mỗi hạng
+  // mục, lấy ngày có `quantityAvailable` ÍT HƠN trong suốt khoảng đã chọn, đảm bảo đủ hàng cho toàn bộ
+  // khoảng đó chứ không chỉ 1-2 ngày cố định.
   useEffect(() => {
-    if (!order || order.items.length === 0) return;
+    if (!order || order.items.length === 0 || !stockCheckFrom || !stockCheckTo) return;
+    let cancelled = false;
+    const datesToCheck = enumerateDates(stockCheckFrom, stockCheckTo);
+
     Promise.all(
       order.items.map((item) =>
-        inventoryApiService
-          .getInventory({ itemId: item.itemId, limit: 1 })
-          .then((res) => [item.itemId, (res.data ?? [])[0]] as const)
-          .catch(() => [item.itemId, undefined] as const),
+        Promise.all(
+          datesToCheck.map((date) =>
+            inventoryApiService
+              .getInventory({ itemId: item.itemId, date, limit: 1 })
+              .then((res) => ({ date, row: (res.data ?? [])[0] as InventoryRow | undefined }))
+              .catch(() => ({ date, row: undefined as InventoryRow | undefined })),
+          ),
+        ).then((results) => {
+          const valid = results.filter((r): r is { date: string; row: InventoryRow } => Boolean(r.row));
+          const picked = valid.length === 0 ? undefined : valid.reduce((min, cur) => (cur.row.quantityAvailable < min.row.quantityAvailable ? cur : min));
+          return [item.itemId, picked] as const;
+        }),
       ),
     ).then((pairs) => {
-      const next: Record<string, InventoryRow> = {};
-      pairs.forEach(([itemId, row]) => {
-        if (row) next[itemId] = row;
+      // Chặn race: nếu Manager đổi ngày kiểm tra (hoặc order đổi) trước khi lượt gọi này xong, lượt cũ
+      // có thể trả về SAU lượt mới và ghi đè nhầm state — bỏ qua kết quả nếu effect đã bị hủy.
+      if (cancelled) return;
+      const nextInventory: Record<string, InventoryRow> = {};
+      const nextDates: Record<string, string> = {};
+      pairs.forEach(([itemId, picked]) => {
+        if (picked) {
+          nextInventory[itemId] = picked.row;
+          nextDates[itemId] = picked.date;
+        }
       });
-      setPicklistInventory(next);
+      setPicklistInventory(nextInventory);
+      setInventoryCheckDates(nextDates);
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ tải lại khi danh sách hạng mục đổi
-  }, [order?.orderId, order?.items]);
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ tải lại khi danh sách hạng mục/khoảng ngày kiểm tra đổi
+  }, [order?.orderId, order?.items, stockCheckFrom, stockCheckTo]);
 
   // Tên NCC cho các hạng mục nguồn "Thuê ngoài" — tra theo giao dịch thuê (supplier-transactions) của
   // đơn này rồi khớp itemId trong từng giao dịch, vì OrderItem không có sẵn field supplierId/supplierName.
@@ -591,6 +661,16 @@ function ManagerOrderDetailContent() {
 
   const daysLeft = Math.round((new Date(order.eventDate).getTime() - Date.now()) / 86_400_000);
   const urgencyVariant = daysLeft >= 0 ? getUrgencyBadgeVariant(daysLeft) : null;
+
+  const eventDateStr = order.eventDate.slice(0, 10);
+  const dayBeforeEventStr = new Date(new Date(order.eventDate).getTime() - 86_400_000).toISOString().slice(0, 10);
+  const isDefaultStockCheckRange = stockCheckFrom === dayBeforeEventStr && stockCheckTo === eventDateStr;
+  const isStockCheckRangeInvalid = Boolean(stockCheckFrom && stockCheckTo && stockCheckTo < stockCheckFrom);
+  const stockCheckDayCount =
+    stockCheckFrom && stockCheckTo && !isStockCheckRangeInvalid
+      ? Math.round((new Date(stockCheckTo).getTime() - new Date(stockCheckFrom).getTime()) / 86_400_000) + 1
+      : 0;
+  const isStockCheckRangeClamped = stockCheckDayCount > MAX_STOCK_CHECK_DAYS;
 
   return (
     <div className="p-6">
@@ -1042,11 +1122,53 @@ function ManagerOrderDetailContent() {
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
                 <div>
                   <h4 className="text-sm font-bold text-slate-950">Quản lý phân bổ thiết bị & chuẩn bị kho</h4>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {!stockCheckFrom || !stockCheckTo ? (
+                      'Chọn đủ "Từ ngày" và "Đến ngày" để kiểm tra tồn kho.'
+                    ) : isStockCheckRangeInvalid ? (
+                      <span className="text-amber-600">
+                        "Từ ngày" đang sau "Đến ngày" — hệ thống chỉ kiểm tra đúng ngày <strong>{formatDate(stockCheckFrom)}</strong>.
+                      </span>
+                    ) : stockCheckFrom === stockCheckTo ? (
+                      <>
+                        Đang kiểm tra tồn kho ngày <strong className="text-slate-700">{formatDate(stockCheckFrom)}</strong>.
+                      </>
+                    ) : (
+                      <>
+                        Đang kiểm tra tồn kho từ ngày <strong className="text-slate-700">{formatDate(stockCheckFrom)}</strong> đến ngày{' '}
+                        <strong className="text-slate-700">{formatDate(stockCheckTo)}</strong> — lấy ngày có số lượng ít hơn cho từng hạng mục.
+                      </>
+                    )}
+                    {isStockCheckRangeClamped && (
+                      <span className="ml-1 text-amber-600">(khoảng quá dài — chỉ kiểm tra {MAX_STOCK_CHECK_DAYS} ngày đầu từ ngày bắt đầu)</span>
+                    )}
+                  </p>
                 </div>
-                <Button size="sm" variant="secondary" onClick={handleOpenPicklist}>
-                  <Package className="h-4 w-4" />
-                  Xem phiếu chuẩn bị
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="w-full sm:w-36">
+                    <Input type="date" value={stockCheckFrom} onChange={(e) => setStockCheckFrom(e.target.value)} placeholder="Từ ngày" />
+                  </div>
+                  <span className="text-xs text-slate-400">đến</span>
+                  <div className="w-full sm:w-36">
+                    <Input type="date" value={stockCheckTo} onChange={(e) => setStockCheckTo(e.target.value)} placeholder="Đến ngày" />
+                  </div>
+                  {!isDefaultStockCheckRange && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStockCheckFrom(dayBeforeEventStr);
+                        setStockCheckTo(eventDateStr);
+                      }}
+                      className="text-xs font-semibold text-blue-600 hover:underline"
+                    >
+                      Đặt lại mặc định
+                    </button>
+                  )}
+                  <Button size="sm" variant="secondary" onClick={handleOpenPicklist}>
+                    <Package className="h-4 w-4" />
+                    Xem phiếu chuẩn bị
+                  </Button>
+                </div>
               </div>
 
               <div className="mt-4 overflow-x-auto rounded-lg border border-slate-100">
@@ -1118,9 +1240,12 @@ function ManagerOrderDetailContent() {
                           <td className="px-3 py-3 text-center font-bold text-slate-900">{item.quantity}</td>
                           <td className="px-3 py-3 text-center">
                             {inv ? (
-                              <span className={`font-bold ${inv.quantityAvailable < item.quantity ? 'text-red-600' : 'text-emerald-600'}`}>
-                                {inv.quantityAvailable}
-                              </span>
+                              <>
+                                <span className={`font-bold ${inv.quantityAvailable < item.quantity ? 'text-red-600' : 'text-emerald-600'}`}>
+                                  {inv.quantityAvailable}
+                                </span>
+                                <p className="mt-0.5 text-[10px] text-slate-400">ngày {formatDate(inventoryCheckDates[item.itemId] ?? eventDateStr)}</p>
+                              </>
                             ) : (
                               <span className="text-slate-300">—</span>
                             )}
@@ -1140,8 +1265,10 @@ function ManagerOrderDetailContent() {
                   </tfoot>
                 </table>
               </div>
-              <p className="mt-2 text-[10px] italic text-slate-400">
-                Cột "Tồn kho khả dụng" là số hiện tại tại thời điểm xem — hệ thống chưa hỗ trợ khóa tồn kho theo ngày lắp đặt (Date-based Inventory Lock).
+              <p className="mt-2 text-[10px] text-slate-400">
+                {isStockCheckRangeInvalid || stockCheckFrom === stockCheckTo
+                  ? `Số liệu "Tồn kho khả dụng" lấy theo đúng ngày đã chọn ở trên.`
+                  : `Số liệu "Tồn kho khả dụng" là số nhỏ nhất trong khoảng ngày đã chọn ở trên cho từng hạng mục — dòng nhỏ dưới số liệu cho biết đó là ngày nào.`}
               </p>
 
               <div className="mt-4 flex justify-end">
@@ -1498,6 +1625,14 @@ function ManagerOrderDetailContent() {
               <p className="font-bold uppercase tracking-wide text-slate-400">Tổng số hạng mục</p>
               <p className="mt-1 text-sm font-bold text-slate-900">{order.items.length} hạng mục</p>
             </div>
+            <div className="text-right">
+              <p className="font-bold uppercase tracking-wide text-slate-400">Ngày kiểm tra tồn kho</p>
+              <p className="mt-1 text-sm font-bold text-slate-900">
+                {isStockCheckRangeInvalid || stockCheckFrom === stockCheckTo
+                  ? formatDate(stockCheckFrom)
+                  : `${formatDate(stockCheckFrom)} → ${formatDate(stockCheckTo)} (lấy ngày ít hơn)`}
+              </p>
+            </div>
           </div>
 
           <div className="overflow-x-auto rounded-lg border border-slate-100">
@@ -1527,9 +1662,12 @@ function ManagerOrderDetailContent() {
                       </td>
                       <td className="px-3 py-3 text-center">
                         {inv ? (
-                          <span className={`font-bold ${inv.quantityAvailable < item.quantity ? 'text-red-600' : 'text-emerald-600'}`}>
-                            {inv.quantityAvailable}
-                          </span>
+                          <>
+                            <span className={`font-bold ${inv.quantityAvailable < item.quantity ? 'text-red-600' : 'text-emerald-600'}`}>
+                              {inv.quantityAvailable}
+                            </span>
+                            <p className="mt-0.5 text-[10px] font-normal text-slate-400">ngày {formatDate(inventoryCheckDates[item.itemId] ?? eventDateStr)}</p>
+                          </>
                         ) : (
                           <span className="text-slate-300">—</span>
                         )}

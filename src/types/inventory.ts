@@ -4,11 +4,15 @@
 // inventory.route.ts, inventory.validator.ts, inventory.service.ts.
 // Cập nhật 2026-07-20 (theo docs/tonkhodoanhnghiep_api.md + docs/more-require.md mục (u)): bảng
 // `inventory` thật ra ĐÃ được tạo (tin mới hơn ghi nhận cũ ở mục (b) — xác nhận qua curl), nhưng khác
-// giả định của doc gốc ở 3 điểm: (1) `search` hoạt động, nhưng `date`/`onlyDamaged`/`categoryId`
-// KHÔNG có tác dụng (backend nhận nhưng bỏ qua) — chưa implement công thức khóa kho theo ngày ở
-// mục 3 của doc; (2) `POST /inventory/adjust` dùng field `deltaTotal` (bắt buộc, khác 0) +
-// `deltaDamaged` (optional) — KHÔNG phải `movementType`/`quantityChange` như doc gốc đề xuất; (3)
-// `performedBy` trong `InventoryMovement` là OBJECT `{userId, fullName}`, không phải string.
+// giả định của doc gốc ở 2 điểm: (1) `onlyDamaged`/`categoryId` KHÔNG có tác dụng (backend nhận nhưng
+// bỏ qua); (2) `POST /inventory/adjust` dùng field `deltaTotal` (bắt buộc, khác 0) + `deltaDamaged`
+// (optional) — KHÔNG phải `movementType`/`quantityChange` như doc gốc đề xuất; (3) `performedBy` trong
+// `InventoryMovement` là OBJECT `{userId, fullName}`, không phải string.
+// ĐÍNH CHÍNH 2026-07-31 (docs/more-require.md mục (at)/(au), đọc thẳng source Backend thật): `date` giờ
+// ĐÃ có tác dụng thật — `quantityReserved`/`quantityAvailable` được tính lại mỗi lần gọi theo cơ chế
+// khóa tồn kho theo ngày (`getLockedQuantityByDate`, dựa trên lịch trình SETUP/COLLECT của các đơn khác
+// đang giữ chỗ item này). Nhận định "date KHÔNG ảnh hưởng" ở trên đã lỗi thời, chỉ còn đúng với
+// `onlyDamaged`/`categoryId`.
 
 // GET /api/v1/inventory
 export interface InventoryRow {
@@ -33,7 +37,7 @@ export interface GetInventoryQuery {
   itemId?: string;
   search?: string; // hoạt động thật (khớp itemName/itemCode)
   categoryId?: string; // BE nhận nhưng KHÔNG lọc — xem more-require.md mục (u)
-  date?: string; // BE nhận nhưng KHÔNG ảnh hưởng quantityReserved — xem more-require.md mục (u)
+  date?: string; // Đã hoạt động đúng — lọc quantityReserved/quantityAvailable theo ngày, xem mục (at)/(au)
   onlyDamaged?: boolean; // BE nhận nhưng KHÔNG lọc — xem more-require.md mục (u)
   page?: number;
   limit?: number;
