@@ -14,9 +14,11 @@ import type {
 export interface GetItemsQuery {
   page?: number;
   limit?: number;
-  search?: string;
+  status?: ItemStatus;
   typeId?: string;
-  status?: string;
+  categoryId?: string;
+  search?: string;
+  isCombo?: boolean;
 }
 
 export interface GetItemTypesQuery {
@@ -133,6 +135,12 @@ export const catalogApiService = {
   /** GET /api/v1/catalog/items/{id}/suppliers */
   async getItemSuppliers(itemId: string) {
     const response = await api.get(`/catalog/items/${itemId}/suppliers`);
+    return response.data;
+  },
+
+  /** GET /api/v1/catalog/items/{id}/components */
+  async getItemComponents(itemId: string) {
+    const response = await api.get(`/catalog/items/${itemId}/components`);
     return response.data;
   },
 };

@@ -96,6 +96,16 @@ export interface UpdateTypeSpecsPayload {
 }
 
 // GET /api/v1/catalog/items
+export interface GetItemsQuery {
+  page?: number;
+  limit?: number;
+  status?: ItemStatus;
+  typeId?: string;
+  categoryId?: string;
+  search?: string;
+  isCombo?: boolean;
+}
+
 export interface Item {
   itemId: string;
   itemCode: string;
@@ -113,21 +123,36 @@ export interface Item {
   configId?: string; // FK equipment_type_configs (schema mới, backend chưa trả)
   configName?: string; // join thêm khi GET (schema mới)
   typeDetailDescription?: string; // equipment_type_details.description (schema mới) — nội dung dùng làm fallback trên báo giá, xem src/utils/catalogItemContent.ts
+  isCombo: boolean;
   inventory?: { quantityTotal: number; quantityAvailable: number };
+  components?: ItemComponentDTO[];
   createdAt: string;
   updatedAt: string;
 }
 
 export interface CreateItemPayload {
-  itemCode: string;
+  itemCode?: string;
   itemName: string;
   typeId: string;
   description?: string;
   unit: string;
   rentalPrice: number;
+  purchasePrice?: number;
   priceValidFrom?: string;
+  priceValidTo?: string;
   imageUrl?: string;
   status?: ItemStatus;
+  components?: { componentItemId: string; quantity: number }[];
+}
+
+export interface ItemComponentDTO {
+  componentId: string;
+  childItemId: string;
+  childItemCode: string;
+  childItemName: string;
+  unit: string;
+  quantityAvailable: number;
+  quantity: number;
 }
 
 export interface UpdateItemPayload {
@@ -136,9 +161,12 @@ export interface UpdateItemPayload {
   typeId?: string;
   unit?: string;
   rentalPrice?: number;
+  purchasePrice?: number;
   priceValidFrom?: string;
+  priceValidTo?: string;
   imageUrl?: string;
   status?: ItemStatus;
+  components?: { componentItemId: string; quantity: number }[];
 }
 
 // PATCH /api/v1/catalog/items/:id/status

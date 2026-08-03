@@ -86,15 +86,7 @@ export default function Page() {
   };
 
   const columns: TableColumn<ItemCategory>[] = [
-    {
-      key: 'code',
-      label: 'Mã danh mục',
-      render: (row) => (
-        <span className="inline-flex items-center rounded bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-600">
-          {row.categoryCode || 'N/A'}
-        </span>
-      ),
-    },
+
     {
       key: 'name',
       label: 'Tên danh mục',
