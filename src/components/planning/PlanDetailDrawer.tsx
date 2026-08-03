@@ -10,7 +10,7 @@ import { ROLE_LABEL, SCHEDULE_STATUS_BADGE, SCHEDULE_STATUS_LABEL, getGroupStatu
 interface PlanDetailDrawerProps {
   group: OrderPlanGroup;
   onClose: () => void;
-  onEdit: (group: OrderPlanGroup) => void;
+  onEdit?: (group: OrderPlanGroup) => void;
   /** planId của thẻ công việc cụ thể vừa nhấn (từ lịch tháng/lịch ngày) — khi có, ưu tiên hiển thị công
    * việc đó ở tiêu đề & tô nổi bật đúng dòng trong danh sách, thay vì chỉ hiện chung theo mã đơn. */
   focusPlanId?: string | null;
@@ -162,15 +162,17 @@ export default function PlanDetailDrawer({ group, onClose, onEdit, focusPlanId }
           <Button variant="secondary" onClick={onClose}>
             Đóng lại
           </Button>
-          <Button
-            onClick={() => {
-              onEdit(group);
-              onClose();
-            }}
-          >
-            <Edit className="h-3.5 w-3.5" />
-            Chỉnh sửa kế hoạch
-          </Button>
+          {onEdit && (
+            <Button
+              onClick={() => {
+                onEdit(group);
+                onClose();
+              }}
+            >
+              <Edit className="h-3.5 w-3.5" />
+              Chỉnh sửa kế hoạch
+            </Button>
+          )}
         </div>
       </motion.div>
     </>
