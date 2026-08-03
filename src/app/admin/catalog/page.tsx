@@ -8,7 +8,6 @@ import { Pagination } from '@/components/ui/Pagination';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
-import { CatalogItemFormModal, CatalogItemFormValues } from '@/components/catalog/CatalogItemFormModal';
 import Reveal from '@/components/ui/Reveal';
 import { catalogApiService } from '@/services/catalog.service';
 import { usePagination } from '@/hooks/usePagination';
@@ -52,9 +51,6 @@ export default function Page() {
   const [statusFilter, setStatusFilter] = useState('');
 
   const { pagination, setPage, updatePagination } = usePagination(10);
-
-  const [formModal, setFormModal] = useState<{ mode: 'create' | 'edit'; item: Item | null } | null>(null);
-  const [formError, setFormError] = useState('');
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -136,34 +132,6 @@ export default function Page() {
     return filteredItems.slice(start, start + pagination.limit);
   }, [filteredItems, pagination.currentPage, pagination.limit]);
 
-  const handleCreateSubmit = async (values: CatalogItemFormValues) => {
-    setIsSubmitting(true);
-    setFormError('');
-    try {
-      await catalogApiService.createItem(values);
-      await fetchData();
-      setFormModal(null);
-    } catch (error) {
-      setFormError(getErrorMessage(error, 'Có lỗi xảy ra khi tạo thiết bị'));
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleEditSubmit = async (values: CatalogItemFormValues, item: Item) => {
-    setIsSubmitting(true);
-    setFormError('');
-    try {
-      await catalogApiService.updateItem(item.itemId, values);
-      await fetchData();
-      setFormModal(null);
-    } catch (error) {
-      setFormError(getErrorMessage(error, 'Có lỗi xảy ra khi cập nhật thiết bị'));
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   const handleDelete = async (item: Item) => {
     if (!window.confirm(`Xóa sản phẩm "${item.itemName}"? Hành động này không thể hoàn tác.`)) return;
     try {
@@ -188,24 +156,7 @@ export default function Page() {
   };
 
   const columns: TableColumn<Item>[] = [
-    {
-      key: 'image',
-      label: 'Ảnh',
-      render: (row) => (
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 overflow-hidden">
-          {row.imageUrl ? (
-            <img src={row.imageUrl} alt={row.itemName} className="h-full w-full object-cover" />
-          ) : (
-            <ImageIcon className="h-5 w-5 text-slate-300" />
-          )}
-        </div>
-      ),
-    },
-    { 
-      key: 'itemCode', 
-      label: 'Mã thiết bị', 
-      render: (row) => <span className="text-slate-600">{row.itemCode}</span> 
-    },
+
     {
       key: 'itemName',
       label: 'Tên thiết bị',
@@ -223,8 +174,7 @@ export default function Page() {
       key: 'itemType',
       label: 'Loại hàng',
       render: (row) => {
-        const isBom = row.unit.toLowerCase() === 'bộ';
-        return isBom ? (
+        return row.isCombo ? (
           <span className="inline-flex items-center rounded bg-purple-50 px-2.5 py-0.5 text-xs font-medium text-purple-600">Ghép bộ</span>
         ) : (
           <span className="inline-flex items-center rounded bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-600">Đơn lẻ</span>
@@ -234,6 +184,7 @@ export default function Page() {
     { key: 'typeName', label: 'Thuộc nhóm', render: (row) => <span className="text-slate-600">{row.typeName ?? '—'}</span> },
     { key: 'unit', label: 'Đơn vị', render: (row) => <span className="text-slate-600">{row.unit}</span> },
     { key: 'rentalPrice', label: 'Giá cho thuê', render: (row) => <span className="text-slate-900">{formatCurrency(row.rentalPrice)}</span> },
+
     {
       key: 'status',
       label: 'Trạng thái',
@@ -260,7 +211,7 @@ export default function Page() {
                 type="button"
                 aria-label="Chỉnh sửa"
                 title="Chỉnh sửa"
-                onClick={() => router.push(`/admin/catalog/${row.itemId}`)}
+                onClick={() => router.push(`/admin/catalog/${row.itemId}/edit`)}
                 className="inline-flex rounded-md p-1.5 border border-slate-200 text-slate-400 hover:bg-amber-50 hover:text-amber-600"
               >
                 <Pencil className="h-4 w-4" />
@@ -289,7 +240,7 @@ export default function Page() {
           <p className="mt-1 text-sm text-slate-500">Quản lý thiết bị đơn lẻ và combo cấu kiện</p>
         </div>
         {canManage && (
-          <Button onClick={() => setFormModal({ mode: 'create', item: null })} className="bg-blue-600 hover:bg-blue-700 text-white rounded-md flex items-center gap-2 px-4 py-2">
+          <Button onClick={() => router.push('/admin/catalog/create')} className="bg-blue-600 hover:bg-blue-700 text-white rounded-md flex items-center gap-2 px-4 py-2">
             <Plus className="h-4 w-4" />
             Thêm thiết bị
           </Button>
@@ -369,25 +320,6 @@ export default function Page() {
         />
       </Reveal>
 
-      <CatalogItemFormModal
-        isOpen={!!formModal}
-        mode={formModal?.mode ?? 'create'}
-        item={formModal?.item}
-        types={types}
-        isSubmitting={isSubmitting}
-        errorMessage={formError}
-        onClose={() => {
-          setFormModal(null);
-          setFormError('');
-        }}
-        onSubmit={(values) => {
-          if (formModal?.mode === 'edit' && formModal.item) {
-            handleEditSubmit(values, formModal.item);
-          } else {
-            handleCreateSubmit(values);
-          }
-        }}
-      />
 
     </div>
   );

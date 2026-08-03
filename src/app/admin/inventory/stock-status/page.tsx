@@ -95,7 +95,7 @@ export default function AdminStockStatusPage() {
   }, [rows]);
 
   const kpiItems: KpiCardItem[] = useMemo(() => [
-    { label: 'Tổng loại thiết bị', value: summary.totalItems, icon: Box, iconColor: 'slate' },
+    { label: 'Tổng loại thiết bị', value: summary.totalItems, icon: Box },
     { label: 'Đang khả dụng', value: summary.totalAvailable, icon: CheckCircle2, iconColor: 'green' },
     { label: 'Đang giữ (Reserved)', value: summary.totalReserved, icon: Lock, iconColor: 'blue' },
     { label: 'Đang hỏng', value: summary.totalDamaged, icon: XCircle, iconColor: 'red' },
