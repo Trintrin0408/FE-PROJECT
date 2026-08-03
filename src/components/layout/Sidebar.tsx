@@ -145,7 +145,7 @@ const MANAGER_NAV_SECTIONS: NavSection[] = [
         icon: Package,
         children: [
           { label: 'Tồn kho doanh nghiệp', href: '/manager/inventory/stock-check', icon: Warehouse },
-          { label: 'Pick-list xuất kho', href: '/manager/inventory/picklists', icon: ClipboardList },
+          { label: 'Xuất kho và bàn giao', href: '/manager/inventory/picklists', icon: ClipboardList },
           { label: 'Thu hồi & hoàn kho', href: '/manager/inventory/returns', icon: RotateCcw },
         ],
       },
