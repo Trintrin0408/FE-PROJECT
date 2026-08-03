@@ -4,6 +4,7 @@
 // Lịch timeline/Danh sách kế hoạch) và PlanDetailDrawer/PlanFormDrawer — tránh lặp lại thuật toán ở
 // 2 trang mirror (admin/coordination/planning, manager/schedule/plans).
 import type { SchedulePlan, ScheduleStatus } from '@/types/schedulePlan';
+import { computeOrderLockWindow } from './inventoryLock';
 
 export interface OrderPlanGroup {
   orderId: string;
@@ -11,6 +12,7 @@ export interface OrderPlanGroup {
   customerName: string;
   eventName: string;
   eventDate: string;
+  endDate?: string | null;
   location: string;
   rows: SchedulePlan[]; // sắp xếp theo startTime tăng dần
 }
@@ -26,6 +28,7 @@ export function groupPlansByOrder(plans: SchedulePlan[]): OrderPlanGroup[] {
         customerName: p.customerName ?? '',
         eventName: p.eventName ?? '',
         eventDate: p.eventDate ?? p.startTime,
+        endDate: p.orderEndDate ?? null,
         location: p.orderLocation ?? '',
         rows: [],
       };
@@ -65,16 +68,14 @@ export function getGroupStatusInfo(rows: SchedulePlan[]): { label: string; badge
   return { label: 'Chuẩn bị', badgeClass: 'bg-amber-50 text-amber-700', dotColorClass: 'bg-amber-500' };
 }
 
-/** Khoảng ngày của 1 nhóm — MIN(startTime)/MAX(endTime) các dòng trong nhóm. Dùng cho cả cột "Ngày thi
- * công" ở bảng "Danh sách kế hoạch" (docs/kehoachvaphancong_api.md mục 5) LẪN thanh "Lịch timeline"
- * (đổi quyết định 2026-07-21 theo yêu cầu người dùng — trước đó timeline dùng riêng
- * `orders.event_date` làm rangeStart theo docs/lichtimeline_api.md mục 1, nay thống nhất 1 công thức
- * duy nhất: xét từ ngày công việc bắt đầu sớm nhất đến ngày công việc kết thúc muộn nhất). */
+/** Khoảng ngày khóa kho của 1 nhóm — sử dụng computeOrderLockWindow (tính từ order.eventDate/endDate và các schedulePlans SETUP/COLLECT có đệm ±6 tiếng). 
+ * Trả về [lockFrom, lockUntil] dưới dạng mảng string (ISO format). Nếu lockUntil null, mặc định bằng lockFrom. */
 export function getGroupMinMaxRange(group: OrderPlanGroup): [string, string] {
-  const withEnd = group.rows.filter((r) => r.endTime);
-  const starts = group.rows.map((r) => r.startTime).sort();
-  const ends = (withEnd.length > 0 ? withEnd.map((r) => r.endTime as string) : group.rows.map((r) => r.startTime)).sort();
-  return [starts[0] ?? group.eventDate, ends.at(-1) ?? group.eventDate];
+  const { lockFrom, lockUntil } = computeOrderLockWindow(
+    { eventDate: group.eventDate, endDate: group.endDate },
+    group.rows
+  );
+  return [new Date(lockFrom).toISOString(), new Date(lockUntil || lockFrom).toISOString()];
 }
 
 /** LEAD của dòng có start_time sớm nhất trong tập rows đang xét — dùng cho "Chỉ huy" (mục 3) và vai
