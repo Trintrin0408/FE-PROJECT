@@ -409,6 +409,13 @@ export default function AdminOrderDetailPage() {
                   </p>
                 </div>
                 <div className="space-y-1.5">
+                  <span className="block font-semibold uppercase text-slate-400">Ngày kết thúc</span>
+                  <p className="flex items-center gap-1.5 text-sm font-bold text-slate-900">
+                    <Calendar className="h-4 w-4 text-slate-400" />
+                    {order.endDate ? formatDate(order.endDate) : '—'}
+                  </p>
+                </div>
+                <div className="space-y-1.5">
                   <span className="block font-semibold uppercase text-slate-400">Khách mời dự kiến</span>
                   <p className="flex items-center gap-1.5 text-sm font-bold text-slate-900">
                     <Users className="h-4 w-4 text-slate-400" />
@@ -565,7 +572,14 @@ export default function AdminOrderDetailPage() {
                     {order.orderStatus === 'IN_PROGRESS' ? 'Đang chạy trực tiếp' : order.orderStatus === 'COMPLETED' ? 'Đã kết thúc' : 'Chưa bắt đầu'}
                   </Badge>
                 </div>
-                <p className="mt-2 text-xs text-slate-500">Ngày tổ chức chính thức: <strong className="text-slate-800">{formatDate(order.eventDate)}</strong></p>
+                <p className="mt-2 text-xs text-slate-500">
+                  Ngày tổ chức chính thức: <strong className="text-slate-800">{formatDate(order.eventDate)}</strong>
+                  {order.endDate && (
+                    <>
+                      {' '}— Ngày kết thúc: <strong className="text-slate-800">{formatDate(order.endDate)}</strong>
+                    </>
+                  )}
+                </p>
                 <div className="mt-3 space-y-1.5">
                   {LIVE_CHECKLIST_ITEMS.map((item) => (
                     <label key={item.key} className="flex items-center gap-2.5 text-xs text-slate-700">

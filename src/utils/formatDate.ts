@@ -13,3 +13,18 @@ export function formatTime(value: string): string {
   if (Number.isNaN(date.getTime())) return value;
   return new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: VN_TIME_ZONE }).format(date);
 }
+
+/** Ngày + giờ trên cùng 1 chuỗi (vd "03/08/2026 14:30") — dùng khi cần hiện cả mốc giờ, không chỉ ngày. */
+export function formatDateTime(value: string | number): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return new Intl.DateTimeFormat('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: VN_TIME_ZONE,
+  }).format(date);
+}

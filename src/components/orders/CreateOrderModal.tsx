@@ -44,6 +44,7 @@ export default function CreateOrderModal({ isOpen, customers, onClose, onCreated
   const [eventName, setEventName] = useState('');
   const [eventType, setEventType] = useState('');
   const [eventDate, setEventDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [location, setLocation] = useState('');
   const [latitude, setLatitude] = useState<number | undefined>(undefined);
   const [longitude, setLongitude] = useState<number | undefined>(undefined);
@@ -84,6 +85,7 @@ export default function CreateOrderModal({ isOpen, customers, onClose, onCreated
     setEventName('');
     setEventType('');
     setEventDate('');
+    setEndDate('');
     setLocation('');
     setLatitude(undefined);
     setLongitude(undefined);
@@ -110,6 +112,12 @@ export default function CreateOrderModal({ isOpen, customers, onClose, onCreated
       next.eventDate = 'Ngày tổ chức phải sau ngày hôm nay';
     }
 
+    if (!endDate) {
+      next.endDate = 'Vui lòng chọn ngày kết thúc';
+    } else if (eventDate && endDate < eventDate) {
+      next.endDate = 'Ngày kết thúc phải sau ngày tổ chức';
+    }
+
     if (!eventType) next.eventType = 'Vui lòng chọn loại sự kiện';
     if (!location.trim()) next.location = 'Vui lòng nhập địa điểm tổ chức';
     if (guestCount && Number(guestCount) < 1) next.guestCount = 'Số lượng khách phải lớn hơn 0';
@@ -130,6 +138,7 @@ export default function CreateOrderModal({ isOpen, customers, onClose, onCreated
         ...(eventName.trim() ? { eventName: eventName.trim() } : {}),
         eventType,
         eventDate: new Date(eventDate).toISOString(),
+        endDate: new Date(endDate).toISOString(),
         location: location.trim(),
         ...(latitude !== undefined ? { latitude } : {}),
         ...(longitude !== undefined ? { longitude } : {}),
@@ -258,6 +267,15 @@ export default function CreateOrderModal({ isOpen, customers, onClose, onCreated
               value={eventDate}
               error={errors.eventDate}
               onChange={(e) => setEventDate(e.target.value)}
+            />
+            <Input
+              type="date"
+              label="Ngày kết thúc"
+              required
+              min={eventDate || undefined}
+              value={endDate}
+              error={errors.endDate}
+              onChange={(e) => setEndDate(e.target.value)}
             />
             <Input
               type="number"

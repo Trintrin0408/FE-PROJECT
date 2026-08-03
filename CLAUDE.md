@@ -4,6 +4,27 @@
 
 ## Lưu ý: không tự ý sửa UI, và BE
 
+## Lưu ý: đường dẫn repo Backend thật
+
+Khi cần đối chiếu code Backend thật (route/controller/service/schema/migration...) để trả lời câu hỏi hay kiểm tra API đã implement hay chưa, **chỉ đọc tại `D:\sep490-backend-api`** — đây là repo backend đang dùng cho dự án này (nhánh `main`). **Không dùng nhầm** sang các thư mục backend khác có thể còn sót lại trên máy (vd `D:\bnwems-backend-api`) dù tên gần giống — đó là repo cũ/không phải bản đang chạy, đối chiếu nhầm sẽ ra kết luận sai (đã xảy ra thật: kết luận nhầm 1 endpoint là "chưa có" trong khi nó đã tồn tại ở đúng repo `sep490-backend-api`).
+
+## Lưu ý: nút "Xuất thiết bị" (trang chi tiết báo giá) — CHỈ gọi 1 API đồng bộ, KHÔNG gọi thêm API nào khác
+
+Nút "Xuất thiết bị" ở trang chi tiết báo giá (`Báo giá > QUO-xxx`, gọi
+`POST /orders/:orderId/export-equipment`) **chỉ được phép làm đúng 1 việc**: đồng bộ `order_items`
+theo `quotation_items` của báo giá đã liên kết. **Không được gọi thêm bất kỳ API nào khác** ở hành
+động này — đặc biệt **không** gọi API kiểm tra/trừ tồn kho thật (`inventory`/`inventory_movements`).
+Nút bấm luôn phải thành công (miễn đơn đã liên kết báo giá), không được chặn hay hiện lỗi "Tồn kho
+không đủ" nữa.
+
+Đây là quyết định đã chốt trực tiếp bởi người dùng (2026-08-03) — **đảo ngược lại** quyết định (at)/(au)
+2026-07-31 ở `docs/more-require.md` (lúc đó từng chốt ngược lại: cố ý trừ kho thật ở bước này). Đặc tả
+đầy đủ + lý do đổi qua đổi lại: `docs/xuatthietbi_tubaogia_api.md` mục 8, `docs/more-require.md` mục
+(av). **Đã sửa xong cả Backend (`D:\sep490-backend-api`, `order.repository.ts` hàm `exportEquipment`)
+lẫn FE cùng ngày** — modal "Tồn kho không đủ để xuất thiết bị" đã gỡ hẳn khỏi
+`src/app/manager/quotations/[id]/page.tsx`. Nếu sau này thấy modal đó xuất hiện lại, nghĩa là có ai đó
+đã vô tình khôi phục hành vi cũ — không phải trạng thái đúng cần giữ.
+
 ## 0. ƯU TIÊN HIỆN TẠI: Giai đoạn dựng giao diện thuần (tạm thời)
 
 > **Trạng thái: đang áp dụng.** Gỡ bỏ mục này (và khôi phục lại đầy đủ ràng buộc bên dưới) ngay khi dự án quay lại giai đoạn nối API/backend thật.

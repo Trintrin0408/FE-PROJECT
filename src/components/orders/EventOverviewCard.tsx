@@ -33,6 +33,10 @@ export default function EventOverviewCard({
             <p className="text-sm font-semibold text-slate-900">{formatDate(order.eventDate)}</p>
           </div>
           <div>
+            <p className="text-xs font-bold uppercase text-slate-400">Ngày kết thúc</p>
+            <p className="text-sm font-semibold text-slate-900">{order.endDate ? formatDate(order.endDate) : '—'}</p>
+          </div>
+          <div>
             <p className="text-xs font-bold uppercase text-slate-400">Ngày tạo đơn</p>
             <p className="text-sm font-semibold text-slate-900">{formatDate(order.createdAt)}</p>
           </div>

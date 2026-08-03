@@ -36,6 +36,10 @@ export interface Order {
   eventType: string;
   eventName?: string;
   eventDate: string;
+  // Cột `orders.end_date` thêm 2026-08-03 (migration `add_order_end_date_and_schedule_lat_lng`) — GET
+  // /orders và /orders/:id đã trả field này (nullable). CreateOrderBody thật (order.validators.ts) CHƯA
+  // nhận endDate khi tạo đơn và chưa có endpoint cập nhật riêng — xem docs/more-require.md mục mới nhất.
+  endDate?: string | null;
   location: string;
   /** Tọa độ địa điểm tổ chức — backend thật đã có sẵn 2 cột này (Prisma `Order.latitude/longitude`,
    * thêm cho tính năng GPS check-in nhân viên kỹ thuật), FE gán qua Goong Place Detail khi Manager chọn
@@ -138,6 +142,9 @@ export interface CreateOrderPayload {
   eventName?: string;
   eventType: string;
   eventDate: string; // ISO datetime string
+  // Backend hiện CHƯA nhận field này ở POST /orders (createOrderBodySchema chưa khai báo endDate) —
+  // gửi lên tạm thời sẽ bị bỏ qua, xem comment ở `Order.endDate` trên và docs/more-require.md.
+  endDate?: string; // ISO datetime string, optional
   location: string;
   latitude?: number;
   longitude?: number;
@@ -192,18 +199,11 @@ export interface UpdateOrderQuotationPayload {
   quotationId: string | null;
 }
 
-// POST /api/v1/orders/:orderId/export-equipment — docs/xuatthietbi_tubaogia_api.md mục 4.3 (bản v2:
-// reconcile theo báo giá liên kết — đồng bộ order_items theo quotation_items rồi xuất bù OUTBOUND /
-// thu hồi chênh lệch INBOUND; bấm lặp lại hợp lệ, no-op trả unchanged: true). Chỉ dòng source=INTERNAL
-// mới đụng kho; dòng SUPPLIER trả về ở skippedSupplierItems.
+// POST /api/v1/orders/:orderId/export-equipment — docs/xuatthietbi_tubaogia_api.md mục 8 (CẬP NHẬT
+// LẦN 3, 2026-08-03): CHỈ đồng bộ order_items theo quotation_items của báo giá liên kết — KHÔNG còn
+// đụng tồn kho thật, không còn tạo inventory_movements. Bấm lặp lại hợp lệ, no-op trả unchanged: true.
 export interface ExportEquipmentPayload {
   notes?: string;
-  // Yêu cầu người dùng 2026-07-30: khi thiếu tồn kho, Manager xác nhận vẫn muốn xuất thì gửi lại kèm
-  // force=true. Backend hiện tại (doc mục 4.2) CHƯA hỗ trợ field này — vẫn rollback + trả 400 dù có
-  // force hay không (kiểm tra quantity_available >= delta là điều kiện cứng trong transaction, không
-  // có nhánh bỏ qua). Field này gửi sẵn để khớp UI ngay, nhưng cần Backend bổ sung nhánh xử lý mới có
-  // tác dụng thật — xem docs/more-require.md mục (aq).
-  force?: boolean;
 }
 
 export interface ExportEquipmentMovement {
@@ -220,16 +220,8 @@ export interface ExportEquipmentResult {
   syncedQuotationCode: string;
   pickedUpAt: string | null;
   pickedUpBy: string | null;
+  // Luôn là mảng rỗng từ 2026-08-03 — giữ field để tương thích, endpoint không còn tạo movement nào.
   movements: ExportEquipmentMovement[];
   skippedSupplierItems: { itemId: string; itemName: string; quantity: number }[];
   unchanged: boolean;
-}
-
-// Shape `details.items` của lỗi 400 "Tồn kho không đủ để xuất thiết bị" (envelope lỗi chung
-// { error: { code, message, details } }).
-export interface ExportEquipmentShortageItem {
-  itemId: string;
-  itemName: string;
-  required: number;
-  available: number;
 }

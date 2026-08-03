@@ -51,6 +51,7 @@ export default function CreateOrderFromQuotationModal({ isOpen, onClose, quotati
   const [eventName, setEventName] = useState('');
   const [eventType, setEventType] = useState('');
   const [eventDate, setEventDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [location, setLocation] = useState('');
   const [guestCount, setGuestCount] = useState('');
   const [notes, setNotes] = useState('');
@@ -72,6 +73,7 @@ export default function CreateOrderFromQuotationModal({ isOpen, onClose, quotati
     setEventName(`Sự kiện từ báo giá ${quotation.quotationCode}`);
     setEventType('');
     setEventDate('');
+    setEndDate('');
     setLocation('');
     setGuestCount('');
     setNotes(quotation.notes ?? '');
@@ -140,6 +142,11 @@ export default function CreateOrderFromQuotationModal({ isOpen, onClose, quotati
     } else if (eventDate <= todayStr) {
       next.eventDate = 'Ngày tổ chức phải sau ngày hôm nay';
     }
+    if (!endDate) {
+      next.endDate = 'Vui lòng chọn ngày kết thúc';
+    } else if (eventDate && endDate < eventDate) {
+      next.endDate = 'Ngày kết thúc phải sau ngày tổ chức';
+    }
     if (!eventType) next.eventType = 'Vui lòng chọn loại sự kiện';
     if (!location.trim()) next.location = 'Vui lòng nhập địa điểm tổ chức';
     if (guestCount && Number(guestCount) < 1) next.guestCount = 'Số lượng khách phải lớn hơn 0';
@@ -162,6 +169,7 @@ export default function CreateOrderFromQuotationModal({ isOpen, onClose, quotati
         eventName: eventName.trim() || undefined,
         eventType,
         eventDate: new Date(eventDate).toISOString(),
+        endDate: new Date(endDate).toISOString(),
         location: location.trim(),
         ...(guestCount ? { guestCount: Number(guestCount) } : {}),
         items: items.map((item) => ({ itemId: item.itemId, quantity: item.quantity, unitPrice: item.unitPrice })),
@@ -240,6 +248,15 @@ export default function CreateOrderFromQuotationModal({ isOpen, onClose, quotati
               value={eventDate}
               error={errors.eventDate}
               onChange={(e) => setEventDate(e.target.value)}
+            />
+            <Input
+              type="date"
+              label="Ngày kết thúc"
+              required
+              min={eventDate || undefined}
+              value={endDate}
+              error={errors.endDate}
+              onChange={(e) => setEndDate(e.target.value)}
             />
             <Input
               type="number"

@@ -13,6 +13,8 @@ import { schedulePlanApiService } from '@/services/schedulePlan.service';
 import { workTaskApiService } from '@/services/workTask.service';
 import { userApiService } from '@/services/user.service';
 import { orderApiService } from '@/services/order.service';
+import { useStaffConflictPlans, type StaffConflictDateWindow } from '@/hooks/useStaffConflictPlans';
+import { DEFAULT_TASK_DURATION_MS, buildStaffConflictMap, type StaffConflict } from '@/utils/staffAvailability';
 import type { WorkTask } from '@/types/workTask';
 import type { AdminUser } from '@/types/user';
 
@@ -175,6 +177,38 @@ export default function PlanFormDrawer({ isOpen, editingGroup, selectableOrders,
   }, [selectableOrders, searchedOrders]);
 
   const orderInfo = editingGroup ?? combinedOrders.find((o) => o.orderId === orderId);
+
+  // Check trùng lịch nhân sự: gộp khung giờ của mọi hoạt động đang cần chọn người trong drawer này
+  // (hoạt động mới đang nhập + hoạt động đã có sẵn khi sửa kế hoạch) thành 1 khoảng ngày bao trùm, gọi
+  // API 1 lần duy nhất thay vì gọi riêng từng dòng — chỉ để CẢNH BÁO MỀM, không chặn chọn người đang
+  // bận (giống CreateSchedulePlanModal.tsx, xác nhận với người dùng: không chặn cứng).
+  const itemTimeRangesKey = items.map((i) => `${i.start}|${i.end}`).join(',');
+  const dateWindow: StaffConflictDateWindow | null = useMemo(() => {
+    const starts: number[] = [];
+    const ends: number[] = [];
+    for (const item of items) {
+      if (!item.start) continue;
+      const s = new Date(item.start).getTime();
+      starts.push(s);
+      ends.push(item.end ? new Date(item.end).getTime() : s + DEFAULT_TASK_DURATION_MS);
+    }
+    for (const row of editingGroup?.rows ?? []) {
+      const s = new Date(row.startTime).getTime();
+      starts.push(s);
+      ends.push(row.endTime ? new Date(row.endTime).getTime() : s + DEFAULT_TASK_DURATION_MS);
+    }
+    if (starts.length === 0) return null;
+    return { from: new Date(Math.min(...starts)).toISOString().slice(0, 10), to: new Date(Math.max(...ends)).toISOString().slice(0, 10) };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- dùng itemTimeRangesKey (chuỗi start|end) làm dep thay cho items để tránh re-run vì đổi field khác (taskId, notes...)
+  }, [itemTimeRangesKey, editingGroup?.rows]);
+  const { plans: conflictPlans, isLoading: checkingConflicts } = useStaffConflictPlans(dateWindow);
+
+  const conflictsForLocalRange = (startLocal: string, endLocal: string, excludePlanId?: string): Map<string, StaffConflict[]> => {
+    if (!startLocal) return new Map();
+    return buildStaffConflictMap(conflictPlans, new Date(startLocal).toISOString(), endLocal ? new Date(endLocal).toISOString() : undefined, excludePlanId);
+  };
+  const conflictsForRow = (row: { startTime: string; endTime?: string; planId: string }): Map<string, StaffConflict[]> =>
+    buildStaffConflictMap(conflictPlans, row.startTime, row.endTime, row.planId);
 
   if (!isOpen) return null;
 
@@ -496,48 +530,70 @@ export default function PlanFormDrawer({ isOpen, editingGroup, selectableOrders,
                           </div>
                           {assigneePickerRowId === row.planId && (() => {
                             const rowHasLead = row.assignees?.some((a) => a.role === 'LEAD') ?? false;
+                            const rowConflictMap = conflictsForRow(row);
+                            const pickable = staff.filter((u) => !row.assignees?.some((a) => a.userId === u.userId));
+                            const pickFree = pickable.filter((u) => !rowConflictMap.get(u.userId)?.length);
+                            const pickBusy = pickable.filter((u) => (rowConflictMap.get(u.userId)?.length ?? 0) > 0);
+                            const pickedConflicts = assigneePickUserId ? rowConflictMap.get(assigneePickUserId) : undefined;
                             return (
-                              <div className="flex items-center gap-2 rounded-lg bg-white p-2">
-                                <select
-                                  value={assigneePickUserId}
-                                  onChange={(e) => setAssigneePickUserId(e.target.value)}
-                                  className="flex-1 rounded-lg border border-slate-200 p-1.5 text-xs"
-                                >
-                                  <option value="">Chọn người...</option>
-                                  {staff
-                                    .filter((u) => !row.assignees?.some((a) => a.userId === u.userId))
-                                    .map((u) => (
-                                      <option key={u.userId} value={u.userId}>
-                                        {u.fullName}
-                                      </option>
-                                    ))}
-                                </select>
-                                <div className="flex shrink-0 overflow-hidden rounded-lg border border-slate-200 text-[10px] font-bold">
+                              <div className="space-y-1.5 rounded-lg bg-white p-2">
+                                <div className="flex items-center gap-2">
+                                  <select
+                                    value={assigneePickUserId}
+                                    onChange={(e) => setAssigneePickUserId(e.target.value)}
+                                    className="flex-1 rounded-lg border border-slate-200 p-1.5 text-xs"
+                                  >
+                                    <option value="">Chọn người...</option>
+                                    <optgroup label="Nhân sự rảnh">
+                                      {pickFree.map((u) => (
+                                        <option key={u.userId} value={u.userId}>
+                                          {u.fullName}
+                                        </option>
+                                      ))}
+                                    </optgroup>
+                                    {pickBusy.length > 0 && (
+                                      <optgroup label="Nhân sự đang bận (trùng lịch)">
+                                        {pickBusy.map((u) => (
+                                          <option key={u.userId} value={u.userId}>
+                                            {u.fullName} — Bận {formatTime(rowConflictMap.get(u.userId)![0].startTime)}
+                                          </option>
+                                        ))}
+                                      </optgroup>
+                                    )}
+                                  </select>
+                                  <div className="flex shrink-0 overflow-hidden rounded-lg border border-slate-200 text-[10px] font-bold">
+                                    <button
+                                      type="button"
+                                      disabled={rowHasLead}
+                                      onClick={() => setAssigneePickRole('LEAD')}
+                                      title={rowHasLead ? 'Kế hoạch này đã có người vai trò LEAD' : undefined}
+                                      className={`px-2 py-1.5 ${assigneePickRole === 'LEAD' ? 'bg-blue-600 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'} disabled:cursor-not-allowed disabled:opacity-40`}
+                                    >
+                                      LEAD
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => setAssigneePickRole('TECHNICAL')}
+                                      className={`border-l border-slate-200 px-2 py-1.5 ${assigneePickRole === 'TECHNICAL' ? 'bg-blue-600 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}
+                                    >
+                                      KT
+                                    </button>
+                                  </div>
                                   <button
                                     type="button"
-                                    disabled={rowHasLead}
-                                    onClick={() => setAssigneePickRole('LEAD')}
-                                    title={rowHasLead ? 'Kế hoạch này đã có người vai trò LEAD' : undefined}
-                                    className={`px-2 py-1.5 ${assigneePickRole === 'LEAD' ? 'bg-blue-600 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'} disabled:cursor-not-allowed disabled:opacity-40`}
+                                    disabled={!assigneePickUserId || busy || (assigneePickRole === 'LEAD' && rowHasLead)}
+                                    onClick={() => assignToRow(row)}
+                                    className="rounded-lg bg-blue-600 px-2.5 py-1.5 font-bold text-white disabled:opacity-60"
                                   >
-                                    LEAD
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => setAssigneePickRole('TECHNICAL')}
-                                    className={`border-l border-slate-200 px-2 py-1.5 ${assigneePickRole === 'TECHNICAL' ? 'bg-blue-600 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}
-                                  >
-                                    KT
+                                    <Check className="h-3.5 w-3.5" />
                                   </button>
                                 </div>
-                                <button
-                                  type="button"
-                                  disabled={!assigneePickUserId || busy || (assigneePickRole === 'LEAD' && rowHasLead)}
-                                  onClick={() => assignToRow(row)}
-                                  className="rounded-lg bg-blue-600 px-2.5 py-1.5 font-bold text-white disabled:opacity-60"
-                                >
-                                  <Check className="h-3.5 w-3.5" />
-                                </button>
+                                {pickedConflicts && pickedConflicts.length > 0 && (
+                                  <p className="flex items-start gap-1 text-[10px] text-amber-600">
+                                    <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
+                                    Trùng lịch: {pickedConflicts.map((c) => `${c.orderCode ?? c.planCode} (${formatTime(c.startTime)}${c.endTime ? `–${formatTime(c.endTime)}` : ''})`).join('; ')}
+                                  </p>
+                                )}
                               </div>
                             );
                           })()}
@@ -567,7 +623,10 @@ export default function PlanFormDrawer({ isOpen, editingGroup, selectableOrders,
               </p>
             ) : (
               <div className="space-y-3.5">
-                {items.map((item) => (
+                {items.map((item) => {
+                  const itemConflictMap = conflictsForLocalRange(item.start, item.end);
+                  const leadConflicts = item.leadUserId ? itemConflictMap.get(item.leadUserId) : undefined;
+                  return (
                   <div key={item.localId} className="relative space-y-3 rounded-xl border border-slate-150 bg-slate-50/50 p-4">
                     <button
                       type="button"
@@ -632,7 +691,10 @@ export default function PlanFormDrawer({ isOpen, editingGroup, selectableOrders,
                         />
                       </div>
                       <div>
-                        <label className="mb-1 block text-[10px] font-bold uppercase text-slate-400">Phụ trách chính (LEAD)</label>
+                        <label className="mb-1 flex items-center gap-1 text-[10px] font-bold uppercase text-slate-400">
+                          Phụ trách chính (LEAD)
+                          {checkingConflicts && <Loader2 className="h-2.5 w-2.5 animate-spin normal-case" />}
+                        </label>
                         <select
                           value={item.leadUserId}
                           onChange={(e) => {
@@ -645,22 +707,45 @@ export default function PlanFormDrawer({ isOpen, editingGroup, selectableOrders,
                           className="w-full rounded-lg border border-slate-200 bg-white p-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
                         >
                           <option value="">Chưa chọn</option>
-                          {staff.map((u) => (
-                            <option key={u.userId} value={u.userId}>
-                              {u.fullName}
-                            </option>
-                          ))}
+                          <optgroup label="Nhân sự rảnh">
+                            {staff.filter((u) => !itemConflictMap.get(u.userId)?.length).map((u) => (
+                              <option key={u.userId} value={u.userId}>
+                                {u.fullName}
+                              </option>
+                            ))}
+                          </optgroup>
+                          {staff.some((u) => (itemConflictMap.get(u.userId)?.length ?? 0) > 0) && (
+                            <optgroup label="Nhân sự đang bận (trùng lịch)">
+                              {staff.filter((u) => (itemConflictMap.get(u.userId)?.length ?? 0) > 0).map((u) => (
+                                <option key={u.userId} value={u.userId}>
+                                  {u.fullName} — Bận {formatTime(itemConflictMap.get(u.userId)![0].startTime)}
+                                </option>
+                              ))}
+                            </optgroup>
+                          )}
                         </select>
+                        {leadConflicts && leadConflicts.length > 0 && (
+                          <p className="mt-1 flex items-start gap-1 text-[10px] text-amber-600">
+                            <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
+                            Trùng lịch: {leadConflicts.map((c) => `${c.orderCode ?? c.planCode} (${formatTime(c.startTime)}${c.endTime ? `–${formatTime(c.endTime)}` : ''})`).join('; ')}
+                          </p>
+                        )}
                       </div>
                       <div>
                         <label className="mb-1 block text-[10px] font-bold uppercase text-slate-400">Kỹ thuật viên đồng hành</label>
                         <div className="flex flex-wrap gap-1.5">
                           {staff.filter((u) => u.userId !== item.leadUserId).map((u) => {
                             const checked = item.technicalUserIds.includes(u.userId);
+                            const conflicts = itemConflictMap.get(u.userId);
+                            const isBusy = (conflicts?.length ?? 0) > 0;
+                            const title = isBusy
+                              ? `Trùng lịch: ${conflicts!.map((c) => `${c.orderCode ?? c.planCode} (${formatTime(c.startTime)}${c.endTime ? `–${formatTime(c.endTime)}` : ''})`).join('; ')}`
+                              : undefined;
                             return (
                               <button
                                 type="button"
                                 key={u.userId}
+                                title={title}
                                 onClick={() =>
                                   updateItem(item.localId, {
                                     technicalUserIds: checked
@@ -668,10 +753,15 @@ export default function PlanFormDrawer({ isOpen, editingGroup, selectableOrders,
                                       : [...item.technicalUserIds, u.userId],
                                   })
                                 }
-                                className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${
-                                  checked ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-slate-200 text-slate-600'
+                                className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${
+                                  checked
+                                    ? 'border-blue-600 bg-blue-50 text-blue-700'
+                                    : isBusy
+                                      ? 'border-amber-300 bg-amber-50 text-amber-700'
+                                      : 'border-slate-200 text-slate-600'
                                 }`}
                               >
+                                {isBusy && <AlertTriangle className="h-2.5 w-2.5" />}
                                 {u.fullName}
                               </button>
                             );
@@ -681,7 +771,8 @@ export default function PlanFormDrawer({ isOpen, editingGroup, selectableOrders,
                       </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
                 {items.length === 0 && (
                   <p className="rounded-lg bg-slate-50 py-2 text-center text-[11px] italic text-slate-400">Chưa có hoạt động nào.</p>
                 )}

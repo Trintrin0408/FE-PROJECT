@@ -2190,3 +2190,185 @@ trả sẵn).
   đồng bộ hoàn toàn cách tính "đủ hàng" giữa 2 nơi; chưa làm trong đợt này vì người dùng chỉ yêu cầu sửa
   phần hiển thị "đã khóa" ở tồn kho.
 - **`npx tsc --noEmit` ở Backend chạy sạch (exit code 0)** sau khi sửa.
+
+## (av) 2026-08-03 — ĐẢO NGƯỢC LẦN NỮA (at)/(au): "Xuất thiết bị" không còn trừ tồn kho thật, chỉ đồng bộ order_items theo quotation_items
+
+- **Bối cảnh**: gặp lỗi thật khi bấm "Xác nhận xuất kho" ở `admin/inventory/outbound/page.tsx` cho 1
+  đơn — báo giá liên kết yêu cầu 300 "Bàn hội nghị chữ nhật 1m2" nhưng kho khả dụng chỉ 137 →
+  `export-equipment` chặn 400 đúng theo thiết kế đã chốt ở mục (at) ("Xuất thiết bị" cố ý trừ thật
+  `quantity_total`, đại diện lúc thiết bị rời kho vật lý, tách biệt khỏi khóa-ảo-theo-ngày).
+- **Đã nhắc lại đầy đủ lý do của (at)/(au) cho người dùng trước khi đổi** (2 cơ chế song song: khóa ảo
+  theo ngày qua lịch SETUP/COLLECT vs. trừ thật lúc xuất — xem lại (at)) — người dùng **vẫn xác nhận
+  muốn đổi lại**: nút "Xuất thiết bị" **không được trừ tồn kho thật nữa**, chỉ đồng bộ `order_items`
+  theo `quotation_items` của báo giá liên kết (giữ nguyên Bước 1 ở
+  `docs/xuatthietbi_tubaogia_api.md` mục 4.1, bỏ hẳn Bước 2 — chi tiết đầy đủ + lý do ở
+  `docs/xuatthietbi_tubaogia_api.md` mục 8, đã viết lại đồng bộ).
+- **Hệ quả cần biết** (đã nói rõ với người dùng, chấp nhận đánh đổi): sau thay đổi này, **toàn hệ
+  thống không còn hành động nào trừ thật `items.quantity_total`** — chỉ còn khóa ảo theo ngày (không
+  đụng `quantity_total`, tự hết hạn qua ngày Thu hồi). Gap "check nội bộ chưa trừ phần thuê bù NCC" ghi
+  ở mục (au) coi như **hết ý nghĩa** vì cả nhánh kiểm tra tồn kho trong `export-equipment` bị bỏ luôn,
+  không cần sửa gap đó nữa.
+- **Việc Backend cần làm**: sửa `order.service.ts`/`order.repository.ts` hàm `exportEquipment` — bỏ
+  hẳn Bước 2 (mục 4.1 cũ): không còn tính `net_exported`/`delta`, không `SELECT ... FOR UPDATE` trên
+  `inventory`, không `quantityTotal: { decrement }`, không tạo `inventory_movements`; đổi điều kiện set
+  `picked_up_at`/`picked_up_by` sang "có ≥ 1 thay đổi thực ở Bước 1" thay vì "có movement". Chi tiết đầy
+  đủ từng điểm ở `docs/xuatthietbi_tubaogia_api.md` mục 8.2.
+- **Trạng thái: ĐÃ SỬA XONG cả Backend lẫn FE (2026-08-03, cùng phiên)** — không còn dừng ở mức tài
+  liệu như ghi nhận trước đó trong mục này. Backend (`D:\sep490-backend-api`): đã sửa
+  `order.repository.ts`/`order.service.ts`/`order.controller.ts`/`order.validators.ts`/`order.routes.ts`
+  đúng theo mục 8.2 ở `docs/xuatthietbi_tubaogia_api.md`, xoá luôn class `InsufficientStockError`, viết
+  lại test tích hợp — `npx tsc --noEmit` sạch, `npx jest src/modules/sales/` 139/139 pass. FE: gỡ modal
+  "Tồn kho không đủ để xuất thiết bị" + state `stockShortage` + tham số `force` ở
+  `quotations/[id]/page.tsx`, dọn nhánh hiển thị `details.items` ở `admin/inventory/outbound/page.tsx`,
+  xoá `ExportEquipmentShortageItem`/`force` khỏi `types/order.ts`. Chi tiết đầy đủ:
+  `docs/xuatthietbi_tubaogia_api.md` mục 8.5.
+
+## (aw) 2026-08-03 — Backend đã thêm cột `orders.end_date` nhưng CHƯA có API nào cho phép ghi giá trị này
+
+- **Bối cảnh**: migration `add_order_end_date_and_schedule_lat_lng` (2026-08-03,
+  `D:\sep490-backend-api\prisma\migrations\`) thêm `orders.end_date TIMESTAMP(0) NULL`. `order.service.ts`
+  (`mapListItem`) đã map field này vào response — `GET /api/v1/orders` và `GET /api/v1/orders/:id` **đã
+  trả `endDate`** (nullable) cho mọi order thật.
+- **Vấn đề**: `createOrderBodySchema`/`CreateOrderBody` (`order.validators.ts`) **chưa khai báo `endDate`**
+  — `POST /api/v1/orders` không nhận field này (zod bỏ qua field lạ do không dùng `.strict()`, không lỗi
+  400 nhưng cũng không lưu). Cũng **chưa có endpoint cập nhật thông tin đơn** (`eventDate`/`eventName`/
+  `location`/`endDate`...) sau khi tạo — các PUT/PATCH hiện có trên `orders` chỉ sửa
+  `status`/`items`/`live-checklist`/`quotation`/`close`. Nghĩa là hiện tại **không có cách nào set
+  `endDate` khác NULL qua API thật**.
+- **FE đã làm trước khi có API ghi** (theo yêu cầu người dùng 2026-08-03 — "chỗ nào có start-date thì
+  cũng có end-date, cả tạo đơn cũng thêm mục end-date"): thêm `Order.endDate`/`CreateOrderPayload.endDate`
+  vào `types/order.ts`, thêm input "Ngày kết thúc" (optional, validate `endDate >= eventDate`) vào
+  `CreateOrderModal.tsx`, `CreateOrderFromQuotationModal.tsx`, wizard mock
+  `admin/quotations/[id]/create-order/page.tsx`; hiển thị `endDate` (khi có) cạnh mọi chỗ đang hiển thị
+  `eventDate` của Order thật: `OrderDetailHeader`, `EventOverviewCard`, `OrderQuickViewModal`,
+  `CancelOrderModal`, danh sách đơn (`manager/orders`, `admin/orders_audit`), chi tiết đơn
+  (`manager/orders/[id]`, `admin/orders_audit/[id]`), `DepositDetailView`, `SettlementDetailView`,
+  `admin/inventory/outbound`, `admin/inventory/availability`, `manager/inventory/picklists`. Do gap trên,
+  form tạo đơn hiện gửi `endDate` lên `POST /orders` nhưng backend sẽ **âm thầm bỏ qua** — mọi order tạo
+  mới vẫn có `endDate = null` cho tới khi Backend làm xong 2 việc dưới đây.
+- **Việc Backend cần làm**: (1) thêm `endDate: z.coerce.date().optional()` vào `createOrderBodySchema` +
+  truyền qua `orderRepository.create()` (hiện `createOrder()` ở `order.service.ts` dòng ~288-302 không có
+  `endDate` trong object truyền cho repository); (2) cân nhắc thêm 1 endpoint cập nhật thông tin sự kiện
+  của order đã tồn tại (tối thiểu `endDate`, lý tưởng gồm cả `eventDate`/`eventName`/`location`/
+  `guestCount`) vì hiện tại sau khi tạo đơn không có cách nào sửa lại các field này qua API — cần Product
+  xác nhận có cho sửa `eventDate` sau khi đã tạo đơn (ảnh hưởng lịch trình/khóa kho đã lập) hay chỉ cho
+  sửa `endDate`.
+- **Phạm vi KHÔNG đổi trong đợt này**: các trang dùng dữ liệu mock riêng không liên quan `Order` thật
+  (`RecentOrdersCard`/`adminDashboard.ts`, `admin/contracts` + `adminContractsMock.ts`,
+  `admin/coordination/planning`, `manager/schedule/plans`, `manager/field-ops/progress` — các trang này
+  đọc `eventDate` từ `SchedulePlan`/`AdminOrderRow` mock, không phải `Order.endDate` thật) — không thêm
+  `endDate` vào các pipeline mock này vì không phản ánh cột DB thật nào tương ứng.
+
+## (ax) 2026-08-03 — Chốt lại công thức khóa/nhả kho theo ngày: min/max mốc thời gian (Order + Lịch trình) ± 6 tiếng
+
+- **Bối cảnh**: `getLockedQuantityByDate` (`D:\sep490-backend-api\src\modules\inventory\inventory.repository.ts`)
+  đã bị đổi công thức **3 lần trong cùng ngày 2026-08-03** (đối chiếu `git log` trên file này):
+  1. `8924984` — bỏ hẳn cột `reserved`/`available` tĩnh, chuyển sang tính động theo ngày mỗi lần đọc.
+  2. `8eaad5e` — tính `lockStart`/`lockEnd` từ `schedule_plans` join `work_tasks.taskCode`: `lockStart` =
+     giờ bắt đầu lịch có `taskCode = 'SETUP'` (fallback: giờ bắt đầu sớm nhất trong các lịch của đơn nếu
+     không có SETUP); `lockEnd` = giờ bắt đầu lịch có `taskCode = 'COLLECT'` (fallback `Infinity` nếu
+     chưa có lịch Thu hồi); gate `orderStatus ∈ {CONFIRMED, IN_PROGRESS}`. Đây là công thức đã được ghi ở
+     mục (at)/(au) — **nay đã lỗi thời**, không còn khớp code thật.
+  3. `7d619f0` (mới nhất, cùng ngày) — bỏ hẳn `schedule_plans` khỏi hàm này: `lockStart = order.eventDate`
+     (không buffer), `lockEnd = order.endDate ? order.endDate + 6 giờ : Infinity`, thu hẹp gate còn đúng
+     `orderStatus = 'CONFIRMED'`. Bản này không dùng lịch trình thật (SETUP/COLLECT) nữa, và chỉ cộng
+     buffer 6 giờ ở đầu ra (release), không trừ buffer ở đầu vào (lock).
+  - Do `endDate` mới có cột DB (mục (aw)) nhưng **chưa có API nào ghi được**, bản `7d619f0` hiện tại sẽ
+    khiến hầu hết order thật có `endDate = null` → `lockEnd = Infinity` (khóa vô thời hạn) cho tới khi
+    (aw) được Backend xử lý xong.
+- **Yêu cầu chính thức từ người dùng (2026-08-03)**: gộp cả 2 nguồn mốc thời gian (Order **và** Lịch
+  trình) thay vì chỉ dùng 1 nguồn như 2 bản trên, cộng thêm khoảng đệm an toàn ("GAP") 6 tiếng ở **cả hai
+  đầu** (không chỉ đầu ra như `7d619f0`). **Cập nhật cùng ngày**: các `schedule_plans` đưa vào tập hợp
+  mốc thời gian **chỉ được tính nếu diễn ra SAU thời điểm đơn chuyển sang `CONFIRMED`** — lịch trình nào
+  có mốc thời gian trước lúc đơn được confirm (vd buổi khảo sát hiện trường đã diễn ra từ giai đoạn báo
+  giá, trước khi đơn tồn tại/được chốt) thì loại khỏi tập hợp, không tính vào `min`/`max`. Ví dụ người
+  dùng đưa ra: đơn chuyển `CONFIRMED` (xác nhận cọc) ngày 16/7 → chỉ xét các lịch trình có mốc sau 16/7.
+
+  ```pseudocode
+  // "thời điểm order chuyển CONFIRMED" KHÔNG có cột riêng trong DB (xem phần phát hiện bên dưới) —
+  // đã CHỐT (2026-08-03) dùng Deposit.approvedAt sớm nhất của đơn làm giá trị xấp xỉ, KHÔNG thêm cột
+  // orders.confirmed_at mới.
+  confirmedAtProxy = MIN(deposit.approvedAt) trong số deposits(order) có approvedAt IS NOT NULL
+  // nếu đơn CONFIRMED nhưng chưa có deposit nào được duyệt (chưa xác nhận cọc) → không có mốc nào để so
+  // sánh, coi như KHÔNG lọc (giữ nguyên toàn bộ schedule_plans, không loại cái nào)
+
+  candidates = [order.eventDate]
+  if order.endDate: candidates.push(order.endDate)
+  for plan in schedulePlans(order):
+    if confirmedAtProxy is null OR plan.startTime >= confirmedAtProxy:
+      candidates.push(plan.startTime)
+      if plan.endTime: candidates.push(plan.endTime)
+
+  lockStart = min(candidates) - 6 giờ
+  lockEnd   = max(candidates) + 6 giờ
+
+  // gate: orderStatus IN ('CONFIRMED', 'IN_PROGRESS') — ĐÃ CHỐT LẠI 2026-08-03, xem phần dưới
+  ```
+
+  **⚠️ Phát hiện quan trọng khi tra cứu để viết mục này**: "thời điểm order chuyển CONFIRMED" **không có
+  sẵn ở bất kỳ đâu trong DB thật**. Đã đối chiếu `prisma/schema.prisma` (`D:\sep490-backend-api`, chỉ
+  đọc) — model `Order` **không có cột `confirmed_at`** (3 chỗ có cột `confirmed_at` trong schema là của 3
+  model khác hẳn: `SurveyReport`, `Settlement`, `CollectedEquipmentReport` — không liên quan tới việc
+  order chuyển trạng thái). Đối chiếu `order.service.ts`/`order.repository.ts` cũng xác nhận: **không có
+  đoạn code nào tự động chuyển `orderStatus` sang `CONFIRMED`** khi duyệt cọc — việc đổi sang `CONFIRMED`
+  chỉ xảy ra khi Manager tự gọi `PUT /orders/:orderId/status` (hàm `updateOrderStatus`, generic cho mọi
+  trạng thái), **độc lập hoàn toàn** với việc duyệt cọc (`Deposit.approvedAt`). Cũng không có bảng lịch sử
+  đổi trạng thái (`order_status_history`/`audit_log`) nào trong schema để tra ngược lại thời điểm đổi.
+  `order.updatedAt` (Prisma `@updatedAt`) **không dùng được thay thế** vì nó bị ghi đè bởi MỌI lần update
+  sau đó (link báo giá, sửa items, xuất thiết bị, đóng đơn...), không riêng gì lần đổi status.
+
+  **Đã CHỐT (2026-08-03, theo yêu cầu người dùng)**: dùng thẳng **`Deposit.approvedAt`** (lấy khoản cọc
+  được duyệt **sớm nhất** của đơn) làm giá trị xấp xỉ thay cho "thời điểm confirmed" — **không thêm cột
+  `orders.confirmed_at` mới**. Chấp nhận đánh đổi độ chính xác (về nguyên tắc Manager có thể đổi status
+  độc lập với việc duyệt cọc, nên 2 mốc này có thể lệch nhau) để tránh phải thêm migration/cột mới. Nếu
+  đơn `CONFIRMED` nhưng chưa từng có deposit nào được duyệt (Manager tự đổi status tay, không qua luồng
+  cọc) → không có mốc `approvedAt` nào để so sánh, xử lý bằng cách **không lọc gì cả** (coi mọi
+  `schedule_plans` của đơn đều hợp lệ), tránh loại nhầm toàn bộ lịch trình chỉ vì thiếu dữ liệu cọc.
+
+  Lý do gộp cả 2 nguồn: lịch trình thật (lắp đặt/thu hồi) thường diễn ra **trước** `eventDate` và **sau**
+  `endDate` (vd lắp đặt trước 1 ngày, thu hồi hôm sau) — nếu chỉ dùng `eventDate`/`endDate` như `7d619f0`
+  thì thiếu phần đệm thi công thật; nếu chỉ dùng `schedule_plans` như `8eaad5e` thì đơn đã `CONFIRMED`
+  nhưng chưa lên lịch nhân sự nào sẽ không bị khóa gì cả (sai, vì giữ chỗ thiết bị đã có hiệu lực ngay khi
+  `CONFIRMED`, không phụ thuộc đã lên lịch hay chưa). Lấy min/max của cả 2 nguồn xử lý đúng cả 2 tình
+  huống, và khoảng đệm 6 tiếng ở cả 2 đầu (không chỉ đầu ra) tránh 2 đơn liền kề tranh chấp thiết bị khi
+  vận chuyển/dọn dẹp thực tế chưa kịp xong đúng giờ.
+- **Điểm cần Backend/Product xác nhận thêm trước khi code** (nêu để hỏi, chưa tự chốt thay):
+  - Khi đơn `CONFIRMED` nhưng **chưa có `endDate` và chưa có `schedule_plans` nào** (mới confirm, chưa
+    lên lịch gì) → theo công thức trên `candidates = [eventDate]` nên `lockStart = eventDate - 6h`,
+    `lockEnd = eventDate + 6h` — chỉ khóa đúng 12 tiếng quanh giờ tổ chức. Bản `8eaad5e` cũ dùng
+    `Infinity` cho tình huống tương tự (an toàn hơn, khóa vô thời hạn tới khi có lịch Thu hồi) — cần xác
+    nhận có giữ fallback `Infinity` cho đúng trường hợp "chưa có `endDate` lẫn chưa có lịch trình nào"
+    hay chấp nhận cửa sổ ngắn 12 tiếng theo công thức thuần túy ở trên.
+  - ~~Có phục hồi lại `orderStatus ∈ {CONFIRMED, IN_PROGRESS}` như `8eaad5e` không~~ — **ĐÃ CHỐT
+    (2026-08-03)**: giữ nguyên `{CONFIRMED, IN_PROGRESS}` như code thật hiện tại (`a28c8a4`) — đơn đã
+    chuyển `IN_PROGRESS` (đang thi công, thiết bị đang ở hiện trường) **vẫn tính vào "đã khóa"**, không
+    quay lại giới hạn "chỉ `CONFIRMED`" đã ghi ở lần chốt trước đó trong mục này. Không cần Backend sửa gì
+    thêm ở điểm này.
+  - Phần trừ số lượng đã có giao dịch thuê Supplier che phủ (`supplierCoveredByOrder`, đã sửa đúng ở mục
+    (au) và vẫn còn giữ nguyên ở `7d619f0`/`a28c8a4`) — không liên quan tới cách tính
+    `lockStart`/`lockEnd` ở trên, giữ nguyên logic đó, chỉ thay phần tính `lockStart`/`lockEnd`.
+- **Việc Backend cần làm**: sửa `getLockedQuantityByDate` theo đúng pseudocode trên — thêm truy vấn lấy
+  `MIN(deposit.approvedAt)` (deposits đã duyệt) của từng đơn làm `confirmedAtProxy`, dùng giá trị này để
+  lọc `schedule_plans` theo `startTime >= confirmedAtProxy` (bỏ qua lọc nếu `confirmedAtProxy` null) rồi
+  mới tính `min`/`max` trên toàn bộ tập hợp còn lại. **Không cần thêm cột/migration mới** (đã chốt dùng
+  `Deposit.approvedAt` sẵn có thay vì `orders.confirmed_at`).
+- **Trạng thái implement thật (2026-08-03, cập nhật sau khi Backend báo đã sửa)**: đã đối chiếu code ở
+  commit `a28c8a4 fix(inventory): update inventory locking formula to merge order and schedule dates with
+  6h buffer` (`D:\sep490-backend-api\src\modules\inventory\inventory.repository.ts`, chỉ đọc — không sửa
+  từ phiên FE này):
+  - ✅ Đã gộp đúng 2 nguồn mốc thời gian (Order + toàn bộ `schedule_plans`) và cộng/trừ buffer 6 tiếng ở
+    **cả hai đầu** (khác `7d619f0` cũ chỉ buffer 1 đầu) — đúng yêu cầu "GAP".
+  - ✅ Vẫn giữ fallback `Infinity` khi không có tín hiệu "kết thúc" nào (không `endDate`, không plan nào
+    có `endTime`) — an toàn, đúng hướng đã trao đổi.
+  - ✅ Gate trạng thái `orderStatus: { in: ['CONFIRMED', 'IN_PROGRESS'] }` — **giữ nguyên, đã được người
+    dùng xác nhận lại** (2026-08-03), không cần sửa nữa (đảo ngược lại quyết định "chỉ `CONFIRMED`" ghi ở
+    bản chốt đầu tiên của mục này).
+  - ❌ **Chưa lọc `schedule_plans` theo mốc "order chuyển CONFIRMED"** (`confirmedAtProxy`/
+    `Deposit.approvedAt`) — code hiện tính toàn bộ `schedule_plans` của đơn không phân biệt thời điểm,
+    vì tại lúc code phần này Backend chưa có hướng dẫn dùng `Deposit.approvedAt` (mới chốt ở mục này).
+    Cần Backend áp dụng tiếp phần lọc theo đúng pseudocode đã cập nhật ở trên.
+- **Phạm vi KHÔNG đổi trong đợt này**: chỉ ghi đặc tả ở mục này — **không sửa code** ở
+  `D:\sep490-backend-api` (repo backend trong phiên làm việc FE này chỉ để đọc đối chiếu, theo CLAUDE.md).
+  Tab "Chuẩn bị kho" ở `manager/orders/[id]/page.tsx` (đang dùng heuristic riêng phía client
+  `[eventDate - 1 ngày, eventDate]`, xem mục (aw)) **vẫn là ước tính độc lập**, chưa đồng bộ với công thức
+  min/max ± 6h này — để dành cho đợt sau nếu cần khớp chính xác giữa preview FE và lock thật của Backend.

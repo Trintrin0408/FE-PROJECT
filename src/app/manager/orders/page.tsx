@@ -312,7 +312,10 @@ export default function ManagerOrdersPage() {
                       <p className="max-w-[200px] truncate font-semibold text-slate-950">{o.eventName || o.eventType}</p>
                       <p className="mt-0.5 text-[10px] font-medium text-slate-400">{o.customerName}</p>
                     </td>
-                    <td className="px-5 py-3 font-medium text-slate-700">{formatDate(o.eventDate)}</td>
+                    <td className="px-5 py-3 font-medium text-slate-700">
+                      {formatDate(o.eventDate)}
+                      {o.endDate && <p className="mt-0.5 text-[10px] font-medium text-slate-400">đến {formatDate(o.endDate)}</p>}
+                    </td>
                     <td className="max-w-[150px] truncate px-5 py-3 text-slate-600">{o.location}</td>
                     <td className="px-5 py-3 text-center font-bold text-slate-700">{o.guestCount ?? '—'}</td>
                     <td className="px-5 py-3 text-right font-black text-slate-900">{formatCurrency(o.totalAmount)}</td>

@@ -1,5 +1,19 @@
 # API cho nút "Xuất thiết bị" trên màn chi tiết báo giá
 
+> **CẬP NHẬT LẦN 3 (2026-08-03) — ĐẢO NGƯỢC mục 4.1 Bước 2, ĐỒNG THỜI ĐẢO NGƯỢC LẦN NỮA quyết định
+> (at)/(au) 2026-07-31 ở `docs/more-require.md`**: theo xác nhận trực tiếp của người dùng **sau khi đã
+> được nhắc lại rõ quyết định (at)/(au)** (quyết định đó nói "Xuất thiết bị" CỐ Ý trừ kho thật, đại
+> diện lúc thiết bị rời kho vật lý — khác hẳn khóa-theo-ngày tự động qua lịch trình SETUP/COLLECT,
+> `getLockedQuantityByDate`, xem mục (at)) — người dùng vẫn chọn đổi lại: nút "Xuất thiết bị" **không
+> được gọi API trừ tồn kho thật** — chỉ đồng bộ `order_items` theo `quotation_items` (mục 4.1 Bước 1),
+> **bỏ hẳn** bước kiểm tra/trừ `inventory.quantity_total` và ghi `inventory_movements` (Bước 2 cũ).
+> Đây là quyết định có chủ đích, biết rõ và chấp nhận đánh đổi: hệ thống **sẽ không còn nơi nào** ghi
+> nhận "thiết bị đã thực sự rời kho vật lý" nữa (xem mục 8.3 để biết rõ hệ quả) — nếu sau này cần lại
+> mốc đó, phải làm lại từ đầu, không phải khôi phục đơn giản. Chi tiết xem mục 8. Toàn bộ mục 4.1 Bước
+> 2, mục 4.2 (dòng lỗi 400 thiếu tồn kho), mục 6 điểm 1 (phần "đổi phần trừ kho...") ở dưới đây **đã
+> lỗi thời** — giữ lại để có bối cảnh lịch sử vì sao endpoint từng được thiết kế thế, không phải đặc tả
+> hiện hành.
+>
 > **CẬP NHẬT LẦN 2 (2026-07-21, sau khi Backend đã implement bản v1)** — đổi yêu cầu theo quyết định
 > mới của người dùng: bấm "Xuất thiết bị" **bao nhiêu lần cũng được**, và sau mỗi lần bấm thành công,
 > tab "Thiết bị & Kho hàng" của đơn liên kết phải hiển thị **đúng y hệt danh sách hạng mục trong báo
@@ -238,3 +252,91 @@ nhận "Invalid request". (ORD-001 1 hạng mục chạy lọt là do may mắn 
    - Gộp các `create` movement thành 1 `tx.inventoryMovement.createMany`, các INSERT dòng
      `order_items` mới thành 1 `createMany`.
 3. Thêm test cho case đơn nhiều hạng mục (≥ 5 dòng) để chặn tái diễn.
+
+## 8. Cập nhật 2026-08-03 — ĐẢO NGƯỢC mục 4.1 Bước 2: bỏ hẳn trừ tồn kho thật khỏi "Xuất thiết bị"
+
+**Nguyên nhân đổi**: phát hiện qua case thật ORD `737a64cf-...` — báo giá liên kết yêu cầu 300
+"Bàn hội nghị chữ nhật 1m2" nhưng kho khả dụng chỉ 137 → endpoint (đúng theo mục 4.1 Bước 2 v2) chặn
+400 "Tồn kho không đủ để xuất thiết bị", không xuất được. Người dùng xác nhận trực tiếp: thiết kế Bước
+2 (kiểm tra + trừ `inventory.quantity_available`, ghi `inventory_movements`) là **sai** — nút "Xuất
+thiết bị" **chỉ nên đồng bộ dữ liệu** `order_items` theo `quotation_items`, không được phép chặn hay
+đụng tới tồn kho thật.
+
+### 8.1. Vì sao bỏ Bước 2 — quyết định có chủ đích, ngược lại (at)/(au) đã chốt trước đó
+
+`docs/more-require.md` mục (at)/(au) (2026-07-31, đối chiếu trực tiếp source Backend thật + test bằng
+`curl`) từng kết luận rất rõ ràng và có vẻ hợp lý: hệ thống có **2 cơ chế song song, khác mục đích**—
+(1) khóa tồn kho theo ngày (`getLockedQuantityByDate` ở `inventory.repository.ts`) tính **tự động, ảo,
+theo khoảng ngày** giữa lịch trình SETUP ("Lắp đặt thiết bị") và COLLECT ("Thu hồi thiết bị") của từng
+đơn, không đụng `quantity_total`, không cần API riêng để khóa/nhả; và (2) `export-equipment` trừ
+**thật, vĩnh viễn** vào `quantity_total` — đại diện đúng lúc thiết bị **rời kho vật lý**, cố ý tách
+biệt khỏi (1) vì (1) chỉ là "đã lên lịch dùng", chưa chắc đã thật sự mang đi. Theo đúng lý này thì lỗi
+400 vừa gặp (báo giá cần 300, kho 137) là **hành vi đúng thiết kế**, không phải bug.
+
+**Người dùng đã được nhắc lại đầy đủ lý do trên (2026-08-03) và vẫn xác nhận muốn đổi lại** — bỏ hẳn
+cơ chế (2), chấp nhận hệ thống không còn nơi nào ghi nhận "thiết bị đã thật sự rời kho" một cách tách
+biệt với "đã lên lịch dùng" nữa (hệ quả đầy đủ xem mục 8.3). Đây là quyết định nghiệp vụ của người
+dùng, ghi nhận lại nguyên trạng để không mất dấu lý do đổi qua đổi lại nhiều lần ở khu vực này.
+
+### 8.2. Thiết kế mới — endpoint chỉ còn đúng Bước 1 (đồng bộ), bỏ hẳn Bước 2
+
+- **Giữ nguyên** mục 4.1 Bước 0 (xác định báo giá nguồn, 409 nếu `quotation_id IS NULL`) và Bước 1
+  (đồng bộ `order_items` theo `quotation_items`: INSERT/UPDATE/DELETE theo `item_id`, giữ nguyên
+  `source` dòng đã có, `prepared_qty = LEAST(prepared_qty, quantity mới)`).
+- **Bỏ hẳn** Bước 2 (mục 4.1) — không còn tính `net_exported`/`delta`, không còn `SELECT ... FOR
+  UPDATE` trên `inventory`, không còn `quantity_available -= delta`/`quantity_reserved += delta`,
+  **không ghi `inventory_movements`** cho hành động này nữa.
+- **Bước 3 (cờ mức đơn) — đổi điều kiện set `picked_up_at`/`picked_up_by`**: vì không còn movement
+  nào được tạo ở endpoint này để làm căn cứ, đổi điều kiện sang **"có ≥ 1 thay đổi thực sự ở Bước 1"**
+  (có dòng `order_items` được INSERT, UPDATE với `quantity` khác giá trị cũ, hoặc DELETE) — không có
+  thay đổi nào (đơn đã khớp báo giá) → giữ nguyên `picked_up_at`/`picked_up_by` cũ, coi là `unchanged:
+  true` (giữ đúng ngữ nghĩa "bấm bao nhiêu lần cũng an toàn" của mục CẬP NHẬT LẦN 2).
+- **Mã lỗi (mục 4.2) — bỏ hẳn dòng** "Tồn kho không đủ để xuất bù ≥ 1 dòng `INTERNAL`" (400 +
+  `details.items`). Các dòng lỗi còn lại (404 đơn không tồn tại, 409 trạng thái kết thúc, 409 chưa
+  liên kết báo giá, 403 không phải MANAGER) giữ nguyên.
+- **Response (mục 4.3)** — `movements` giờ **luôn là mảng rỗng** (không còn nhánh nào tạo movement ở
+  endpoint này); giữ `syncedQuotationId`/`syncedQuotationCode`/`pickedUpAt`/`pickedUpBy`/`unchanged`/
+  `skippedSupplierItems` như cũ, nhưng `unchanged` giờ theo nghĩa mới ở trên (Bước 1 không đổi gì),
+  không còn dựa vào "có movement hay không".
+- **Dòng `source = 'SUPPLIER'`**: không đổi — vẫn không đụng `inventory`/`supplier_transactions` ở
+  endpoint này, vẫn trả về `skippedSupplierItems` như cũ (đơn giản vì hàng thuê ngoài vốn dĩ chưa từng
+  nằm trong Bước 2 sắp bị bỏ).
+
+### 8.3. Hệ quả thật — từ nay hệ thống KHÔNG còn nơi nào trừ `quantity_total` thật nữa, chỉ còn khóa ảo theo ngày
+
+Khác với suy nghĩ ban đầu ("chỗ khác đã lo tồn kho rồi") — sau khi đọc lại đúng mục (at)/(au), thật ra
+**chỉ có 2 cơ chế đụng tới tồn kho trong toàn hệ thống**: khóa ảo theo ngày
+(`getLockedQuantityByDate`, không đụng `quantity_total`, tự hết hạn khi qua ngày COLLECT) và chính
+`export-equipment` (Bước 2 cũ, trừ thật `quantity_total`). Bỏ hẳn Bước 2 nghĩa là **không còn hành
+động nào trong hệ thống trừ thật `quantity_total`** — số tồn kho vật lý (`items.quantity_total`) từ
+nay chỉ giảm qua con đường duy nhất còn lại: `POST /inventory/adjust` (Admin chỉnh tay) hoặc chưa có
+đường nào khác. Đây là đánh đổi người dùng đã biết và chấp nhận (xem mục 8.1) — không phải tác dụng
+phụ ngoài ý muốn. Nếu sau này cần lại 1 mốc "đã thực xuất vật lý khỏi kho" tách biệt với "đã lên lịch
+dùng", phải thiết kế lại từ đầu (có thể gắn vào tab "Chuẩn bị kho",
+`docs/thietbikhohang_api.md` mục 2b "Xác nhận đã chuẩn bị xong", hoặc 1 nút riêng khác) — ngoài phạm
+vi sửa lại của mục 8 này, cần Product xác nhận lại khi có nhu cầu thật.
+
+### 8.4. Tác dụng phụ tích cực — có thể giải quyết luôn BUG mục 7
+
+Bug transaction timeout ở mục 7 phần lớn đến từ khối lượng round-trip của chính Bước 2 (khóa dòng
+`inventory` FOR UPDATE, tính `net_exported` qua `groupBy` trên `inventory_movements`, tạo movement
+từng item). Bỏ hẳn Bước 2 nhiều khả năng đưa transaction về dưới ngưỡng 5s mặc định mà không cần nới
+timeout — nhưng vẫn giữ khuyến nghị tách `findUnique` cuối ra ngoài transaction (mục 7, điểm 2) vì đó
+là tối ưu độc lập, không phụ thuộc việc có Bước 2 hay không; cần Backend đo lại thời gian thực tế sau
+khi bỏ Bước 2 trước khi quyết định có cần áp `{ timeout, maxWait }` nữa không.
+
+### 8.5. Đã hoàn tất (2026-08-03) — cả Backend lẫn FE đã sửa xong theo mục 8.2
+
+- **Backend** (`D:\sep490-backend-api`): `order.repository.ts` (bỏ hẳn Bước 2, đổi điều kiện
+  `pickedUpAt` sang `itemsChanged`, `movements` luôn trả rỗng, xoá class `InsufficientStockError`),
+  `order.service.ts` (bỏ tham số `force`, bỏ nhánh catch `InsufficientStockError`),
+  `order.controller.ts`/`order.validators.ts` (bỏ field `force` khỏi body), `order.routes.ts` (cập nhật
+  lại comment). Test:
+  viết lại `order.export.integration.test.ts` (3 case, không còn case thiếu-tồn-kho/force), xoá 1 case
+  lỗi thời ở `order.export.test.ts`. `npx tsc --noEmit` sạch, `npx jest src/modules/sales/` 139/139 pass.
+- **FE**: `src/app/manager/quotations/[id]/page.tsx` — bỏ hẳn state `stockShortage`, modal "Tồn kho
+  không đủ để xuất thiết bị", tham số `force` ở `handleExportEquipment`. `src/app/admin/inventory/
+  outbound/page.tsx` — bỏ nhánh hiển thị `details.items`. `src/types/order.ts` — bỏ `force` khỏi
+  `ExportEquipmentPayload`, xoá hẳn `ExportEquipmentShortageItem`. `src/services/order.service.ts` —
+  cập nhật lại comment JSDoc. `npx tsc --noEmit` ở FE không phát sinh lỗi mới ở các file đã sửa (các lỗi
+  còn lại trong toàn repo là lỗi có sẵn từ trước, không liên quan tới đợt sửa này).

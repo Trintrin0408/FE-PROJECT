@@ -154,6 +154,7 @@ export default function CancelOrderModal({
           </p>
           <p>
             <span className="font-semibold text-slate-500">Ngày sự kiện:</span> {formatDate(order.eventDate)}
+            {order.endDate ? ` — ${formatDate(order.endDate)}` : ''}
           </p>
         </div>
 

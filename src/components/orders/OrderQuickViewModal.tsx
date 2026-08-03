@@ -103,6 +103,15 @@ export default function OrderQuickViewModal({ isOpen, onClose, orderId }: OrderQ
                     <span className="font-medium text-slate-700">{formatDate(order.eventDate)}</span>
                   </div>
                 </div>
+                {order.endDate && (
+                  <div className="flex items-start gap-3 text-sm">
+                    <Calendar className="h-4 w-4 text-slate-400 mt-0.5" />
+                    <div>
+                      <span className="text-slate-500">Ngày kết thúc: </span>
+                      <span className="font-medium text-slate-700">{formatDate(order.endDate)}</span>
+                    </div>
+                  </div>
+                )}
                 <div className="flex items-start gap-3 text-sm">
                   <MapPin className="h-4 w-4 text-slate-400 mt-0.5" />
                   <div>

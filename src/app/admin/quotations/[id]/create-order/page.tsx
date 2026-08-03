@@ -52,6 +52,7 @@ export default function CreateOrderFromQuotationPage() {
   const [currentStep, setCurrentStep] = useState(3);
   const [eventName, setEventName] = useState(() => (quotation ? `Sự kiện chốt từ báo giá ${quotation.code}` : ''));
   const [eventDate, setEventDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [venue, setVenue] = useState(VENUE_OPTIONS[0]);
   const [packageType, setPackageType] = useState(PACKAGE_OPTIONS[0]);
   const [coordinatorName, setCoordinatorName] = useState(() => quotation?.assignee ?? COORDINATOR_POOL[0]);
@@ -240,16 +241,19 @@ export default function CreateOrderFromQuotationPage() {
               <Input label="Ngày tổ chức sự kiện" type="date" required value={eventDate} onChange={(e) => setEventDate(e.target.value)} />
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Input label="Ngày kết thúc" type="date" min={eventDate || undefined} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
               <Select label="Sảnh tổ chức" required value={venue} onChange={(e) => setVenue(e.target.value)} options={VENUE_OPTIONS.map((v) => ({ value: v, label: v }))} />
-              <Input label="Số lượng khách mời" type="number" min={10} value={guestCount} onChange={(e) => setGuestCount(Number(e.target.value) || 0)} />
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Input label="Số lượng khách mời" type="number" min={10} value={guestCount} onChange={(e) => setGuestCount(Number(e.target.value) || 0)} />
               <Select
                 label="Gói dịch vụ"
                 value={packageType}
                 onChange={(e) => setPackageType(e.target.value)}
                 options={PACKAGE_OPTIONS.map((p) => ({ value: p, label: p }))}
               />
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Select
                 label="Điều phối viên phụ trách"
                 value={coordinatorName}
@@ -408,6 +412,9 @@ export default function CreateOrderFromQuotationPage() {
               <div className="grid grid-cols-1 gap-4 border-b border-slate-200 pb-3 sm:grid-cols-3">
                 <p>
                   <span className="text-slate-400">Ngày diễn ra:</span> <strong className="text-slate-900">{eventDate}</strong>
+                </p>
+                <p>
+                  <span className="text-slate-400">Ngày kết thúc:</span> <strong className="text-slate-900">{endDate || '—'}</strong>
                 </p>
                 <p>
                   <span className="text-slate-400">Số lượng khách:</span> <strong className="text-slate-900">{guestCount} khách</strong>

@@ -29,6 +29,11 @@ export interface SchedulePlan {
   createdAt: string;
   updatedAt: string;
   taskName?: string; // join thêm khi GET
+  // Đính chính 2026-08-03 (đọc source thật `schedule.service.ts` `SchedulePlanDTO`/`mapPlan` tại
+  // D:\sep490-backend-api): GET /schedule-plans đã trả sẵn `taskCode` ('SURVEY'/'SETUP'/'COLLECT', theo
+  // `work_tasks.task_code`) — dùng để phân biệt lịch trình có thật sự giữ thiết bị hay không (SETUP/
+  // COLLECT có, SURVEY thì không), vd khi tính khung giờ khóa kho (`utils/inventoryLock.ts`).
+  taskCode?: string;
   assigneeName?: string; // join thêm khi GET — KHÔNG khớp response thật, xem `assignees` dưới
   // Xác nhận qua curl thật 2026-07-20 (docs/more-require.md mục (f)): GET /schedule-plans trả đúng
   // model đa phân công thật (schedule_plan_assignees), không phải 1 assigneeName đơn.

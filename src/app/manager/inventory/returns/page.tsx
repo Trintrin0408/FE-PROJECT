@@ -50,7 +50,7 @@ export default function Page() {
       .catch(() => {
         if (cancelled) return;
         setReports([]);
-        setLoadError('Không tải được danh sách phiếu hoàn kho. Vui lòng thử lại.');
+        setLoadError('Không tải được danh sách báo cáo hoàn kho. Vui lòng thử lại.');
       })
       .finally(() => {
         if (!cancelled) setIsLoading(false);
@@ -75,7 +75,7 @@ export default function Page() {
   const columns: TableColumn<CollectedEquipmentReport>[] = [
     {
       key: 'id',
-      label: 'Mã phiếu',
+      label: 'Mã báo cáo',
       render: (r) => (
         <Link
           href={`/manager/inventory/returns/${r.reportId}`}
@@ -135,7 +135,7 @@ export default function Page() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-slate-900">Thu hồi &amp; hoàn kho</h1>
-          <p className="mt-1 text-sm text-slate-500">Danh sách phiếu hoàn kho thiết bị sau khi thi công xong sự kiện, kèm kiểm đếm hỏng/mất.</p>
+          <p className="mt-1 text-sm text-slate-500">Danh sách báo cáo hoàn kho thiết bị sau khi thi công xong sự kiện, kèm kiểm đếm hỏng/mất.</p>
         </div>
       </div>
 
@@ -143,7 +143,7 @@ export default function Page() {
         <div className="flex flex-wrap items-end gap-3">
           <div className="min-w-[240px] flex-1">
             <Input
-              placeholder="Tìm theo mã phiếu, mã đơn, người tạo (trong trang hiện tại)..."
+              placeholder="Tìm theo mã báo cáo, mã đơn, người tạo (trong trang hiện tại)..."
               icon={<Search className="h-4 w-4" />}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -174,8 +174,8 @@ export default function Page() {
         <Pagination pagination={pagination} onPageChange={setPage} />
 
         <p className="mt-3 text-[11px] italic text-slate-400">
-          Ghi chú: phiếu hoàn kho do Leader Staff ghi nhận tại hiện trường qua ứng dụng di động — web chỉ xem và xác
-          nhận, không có chức năng tạo phiếu trên web.
+          Ghi chú: báo cáo hoàn kho do Leader Staff ghi nhận tại hiện trường qua ứng dụng di động — web chỉ xem và xác
+          nhận, không có chức năng tạo báo cáo trên web.
         </p>
       </Reveal>
     </div>

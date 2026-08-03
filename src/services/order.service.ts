@@ -71,9 +71,10 @@ export const orderApiService = {
   },
 
   /**
-   * POST /api/v1/orders/{id}/export-equipment — xuất thiết bị theo đơn (transaction trừ kho + movement
-   * OUTBOUND + set picked_up_at), docs/xuatthietbi_tubaogia_api.md mục 4. Lỗi cần xử lý riêng ở UI:
-   * 409 đã xuất trước đó, 400 thiếu tồn kho (details.items: ExportEquipmentShortageItem[]).
+   * POST /api/v1/orders/{id}/export-equipment — đồng bộ order_items theo quotation_items của báo giá
+   * liên kết, KHÔNG đụng tồn kho thật (docs/xuatthietbi_tubaogia_api.md mục 8, CLAUDE.md mục "Xuất
+   * thiết bị"). Lỗi cần xử lý riêng ở UI: 404 đơn không tồn tại, 409 đơn đã kết thúc/chưa liên kết
+   * báo giá, 403 không phải Manager.
    */
   async exportEquipment(id: string, payload: ExportEquipmentPayload = {}) {
     const response = await api.post<{ data: ExportEquipmentResult }>(`/orders/${id}/export-equipment`, payload);

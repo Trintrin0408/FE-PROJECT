@@ -104,6 +104,33 @@
   **Đã sửa**: viết 2 component dùng chung mới `SettlementListView`/`SettlementDetailView` (`src/components/payments/`), theo đúng pattern đã chứng minh hoạt động ở `DepositListView`/`DepositDetailView` (mục (z) `docs/more-require.md`) — danh sách dùng N+1 tạm thời (`GET /orders` + `GET /orders/:id/settlement` từng đơn, chưa có endpoint gộp), trang chi tiết tái sử dụng đúng luồng lập/xác nhận đã hoạt động ở Mốc 5 (`recordSettlement` → `confirmSettlement` → tự động `updateOrderStatus COMPLETED`). Cổng thanh toán VietQR đổi từ mã giả (hoa văn ngẫu nhiên) sang mã VietQR thật qua `img.vietqr.io` (tái dùng `constants/company-bank.ts` đã có sẵn từ màn Đặt cọc). Admin chỉ xem (`canManage={false}`, đúng CLAUDE.md — Admin không xử lý vận hành).
   File đã thêm/sửa: `src/constants/settlement-status.ts` (mới), `src/components/payments/{SettlementListView,SettlementDetailView}.tsx` (mới), 4 trang `manager/payments/settlements/{page,[id]/page}.tsx` + `admin/orders_audit/settlements/{page,[id]/page}.tsx` viết lại thành wrapper mỏng gọi 2 component trên.
   Đã kiểm tra: `npx tsc --noEmit` sạch; `curl` xác nhận `POST /orders/:id/settlement` gọi lại nhiều lần trên cùng đơn trả về **cùng 1 `settlementId`** (cập nhật bản `DRAFT` hiện có, không tạo trùng — đúng hành vi component kỳ vọng khi bấm "Cập nhật biên bản"); `curl` cả 4 route xác nhận HTTP 200, không lỗi compile. Chưa có tool trình duyệt trong phiên này để tự bấm qua luồng lập → xác nhận quyết toán trên UI thật.
+- [X]  Đối chiếu lại mục 8 của `docs/thietbikhohang_api.md` (BOM `item_components`) với đúng repo Backend thật
+
+  **Phát hiện**: lần rà soát trước (2026-08-03) từng kết luận "Backend chưa có route đọc bảng `item_components`" — nhưng đó là do rà nhầm repo backend cũ đã lỗi thời (`D:\bnwems-backend-api`). Repo thật đang chạy là `D:\sep490-backend-api` (nhánh `main`) — đối chiếu lại đúng repo này xác nhận endpoint `GET /api/v1/catalog/items/:itemId/components` **đã có sẵn, đúng shape đề xuất**: route (`catalog.routes.ts:34-39`, gate `MANAGER`/`ADMIN`) → controller `getItemComponents` (`catalog.controller.ts:35-39`) → service (`catalog.service.ts:168-180`) → repository query thẳng bảng `item_components` thật (Prisma model `ItemComponent`) — kèm test đầy đủ (case có component, rỗng, 404).
+  **Đã ghi**: `docs/thietbikhohang_api.md` mục 9 (đối chiếu lại, xác nhận endpoint đã có), `CLAUDE.md` (thêm mục "Lưu ý: đường dẫn repo Backend thật" — luôn dùng `D:\sep490-backend-api`, không dùng nhầm `D:\bnwems-backend-api`).
+  **Cần bạn tự kiểm tra lại**: chỉ là rà soát tài liệu/xác nhận API đã tồn tại — **chưa đổi code FE nào** ở phần này (đúng giai đoạn UI-first, CLAUDE.md mục 0). Không có gì cần test trên trình duyệt.
+- [X]  Sửa nút "Xuất thiết bị" (trang chi tiết báo giá) — bỏ hẳn việc chặn/trừ tồn kho thật, chỉ đồng bộ dữ liệu theo báo giá
+
+  **Lỗi gốc phát hiện**: bấm "Xuất thiết bị"/"Xác nhận xuất kho" bị lỗi `[API 400] Tồn kho không đủ để xuất thiết bị` (vd đơn cần 300 "Bàn hội nghị chữ nhật 1m2" nhưng kho chỉ có 137) — do thiết kế cũ (`docs/xuatthietbi_tubaogia_api.md` mục 4.1, chốt lần trước ở `docs/more-require.md` mục (at)/(au)) cố ý kiểm tra + trừ tồn kho thật ở bước này.
+  **Quyết định mới của người dùng (2026-08-03, đảo ngược lại (at)/(au))**: nút này **chỉ được đồng bộ `order_items` theo `quotation_items`** của báo giá đã liên kết — không được gọi thêm bất kỳ API nào khác, không được chặn/trừ tồn kho thật nữa. Đã ghi rõ vào `CLAUDE.md` (mục "Lưu ý: nút Xuất thiết bị..."), `docs/xuatthietbi_tubaogia_api.md` mục 8, `docs/more-require.md` mục (av).
+
+  **Backend đã sửa** (`D:\sep490-backend-api`):
+
+  - [X]  `order.repository.ts` — bỏ hẳn bước kiểm tra/trừ `inventory` + tạo `inventory_movements`; chỉ giữ bước đồng bộ `order_items`; `pickedUpAt` đổi sang set theo "có thay đổi dữ liệu" thay vì "có movement"; xoá class `InsufficientStockError`.
+  - [X]  `order.service.ts`, `order.controller.ts`, `order.validators.ts` — bỏ hẳn tham số/field `force` (không còn tác dụng).
+  - [X]  `order.routes.ts` — cập nhật lại comment mô tả hành vi mới.
+  - [X]  Test: viết lại `order.export.integration.test.ts` (3 case, chạy trên DB thật — xác nhận tồn kho KHÔNG đổi dù báo giá vượt xa số thực có), xoá 1 case lỗi thời ở `order.export.test.ts`.
+  - [X]  Kiểm tra: `npx tsc --noEmit` sạch, `npx jest src/modules/sales/` → **139/139 pass**.
+
+  **FE đã sửa**:
+
+  - [X]  `src/app/manager/quotations/[id]/page.tsx` — gỡ hẳn modal "Tồn kho không đủ để xuất thiết bị", state `stockShortage`, tham số `force` ở `handleExportEquipment`.
+  - [X]  `src/app/admin/inventory/outbound/page.tsx` — dọn nhánh hiển thị chi tiết thiếu hàng (dead code sau khi Backend hết trả lỗi này); tiện thể sửa luôn 1 bug nhỏ đọc sai field lỗi (`error.message` lồng trong `error`, trước đó đọc nhầm field ngoài nên luôn hiện "Lỗi không xác định").
+  - [X]  `src/types/order.ts` — bỏ `force` khỏi `ExportEquipmentPayload`, xoá hẳn `ExportEquipmentShortageItem`.
+  - [X]  `src/services/order.service.ts` — cập nhật lại JSDoc cho khớp hành vi mới.
+  - [X]  Kiểm tra: `npx tsc --noEmit` không phát sinh lỗi mới ở các file đã sửa (các lỗi tsc còn lại trong repo là lỗi có sẵn từ trước, không liên quan tới đợt sửa này).
+
+  **Cần bạn tự kiểm tra lại trên trình duyệt** (chưa có tool trình duyệt trong phiên này): mở lại báo giá `QUO-026` (hoặc báo giá bất kỳ đã liên kết đơn), bấm "Xuất thiết bị" — kỳ vọng **luôn thành công**, điều hướng sang tab "Thiết bị & Kho hàng" của đơn, **không còn** hiện modal "Tồn kho không đủ" nữa dù số lượng trong báo giá vượt quá tồn kho thật.
 
 ---
 

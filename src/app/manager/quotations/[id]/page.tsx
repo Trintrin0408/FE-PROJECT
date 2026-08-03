@@ -17,7 +17,6 @@ import { quotationApiService } from '@/services/quotation.service';
 import { inventoryApiService } from '@/services/inventory.service';
 import { orderApiService } from '@/services/order.service';
 import type { QuotationDetailApi, QuotationDetailItem } from '@/types/quotation';
-import type { ExportEquipmentShortageItem } from '@/types/order';
 import type { InventoryRow } from '@/types/inventory';
 import { getAdminContracts } from '@/mocks/adminContractsMock';
 import CreateOrderFromQuotationModal from '@/components/quotations/CreateOrderFromQuotationModal';
@@ -102,7 +101,6 @@ export default function ManagerQuotationDetailPage() {
   const [isCreateOrderOpen, setIsCreateOrderOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
-  const [stockShortage, setStockShortage] = useState<ExportEquipmentShortageItem[] | null>(null);
   const [generalPolicies, setGeneralPolicies] = useState<BusinessPolicy[]>([]);
   const quotationCardRef = useRef<HTMLDivElement>(null);
 
@@ -159,37 +157,21 @@ export default function ManagerQuotationDetailPage() {
   const canCreateOrder = detail.status === 'approved' && !detail.linkedOrderId;
   const canExportEquipment = !!detail.linkedOrderId;
 
-  const handleExportEquipment = async (force = false) => {
+  const handleExportEquipment = async () => {
     if (!detail.linkedOrderId || isExporting) return;
     setIsExporting(true);
     setExportError(null);
     try {
-      // Backend v2 reconcile theo báo giá — bấm lặp lại hợp lệ, không còn 409 "đã xuất trước đó"
-      // (docs/xuatthietbi_tubaogia_api.md mục 4.2 bản v2). Toast hiển thị ở trang đích qua ?exported=
-      // (trang đơn tự xóa param sau khi hiện).
-      const res = await orderApiService.exportEquipment(detail.linkedOrderId, force ? { force: true } : undefined);
-      setStockShortage(null);
+      // Backend chỉ đồng bộ order_items theo quotation_items, không đụng tồn kho thật — bấm lúc nào
+      // cũng thành công miễn đơn đã liên kết báo giá (docs/xuatthietbi_tubaogia_api.md mục 8, CLAUDE.md
+      // mục "Xuất thiết bị"). Toast hiển thị ở trang đích qua ?exported= (trang đơn tự xóa param sau khi hiện).
+      const res = await orderApiService.exportEquipment(detail.linkedOrderId);
       const outcome = res.data?.unchanged ? 'unchanged' : 'success';
       router.push(`/manager/orders/${detail.linkedOrderId}?tab=items&exported=${outcome}`);
     } catch (err) {
-      const axiosError = err as AxiosError<{ error?: { message?: string; details?: { items?: ExportEquipmentShortageItem[] } } }>;
-      const status = axiosError.response?.status;
-      const message = axiosError.response?.data?.error?.message;
-      const shortageItems = axiosError.response?.data?.error?.details?.items;
-      if (status === 400 && shortageItems && shortageItems.length > 0) {
-        setStockShortage(shortageItems);
-        // KHÔNG còn nơi nào trong UI gọi handleExportEquipment(true) nữa (quyết định 2026-07-31, xem
-        // docs/more-require.md mục (ar)) — Backend xử lý force=true bằng cách trừ thẳng toàn bộ SL đặt
-        // vào quantity_total, gây tồn kho âm dùng chung cho mọi đơn, không đúng công thức delta đã tài
-        // liệu. Tham số `force` giữ nguyên (không xóa) để dễ mở lại nếu Backend xác nhận đã sửa đúng;
-        // nhánh dưới đây chỉ còn là dead code phòng hờ, không còn đường nào gọi tới với force=true.
-        if (force) {
-          setExportError('Hệ thống chưa hỗ trợ xuất vượt tồn kho khả dụng — cần bổ sung phía backend. Vui lòng giảm số lượng hoặc bổ sung tồn kho trước khi xuất.');
-        }
-      } else {
-        // Gồm cả 409 đơn CANCELLED/COMPLETED hoặc chưa liên kết báo giá — hiện nguyên văn từ backend
-        setExportError(message ?? 'Xuất thiết bị thất bại. Vui lòng thử lại.');
-      }
+      const axiosError = err as AxiosError<{ error?: { message?: string } }>;
+      // Chỉ còn 404 đơn không tồn tại / 409 đơn đã kết thúc hoặc chưa liên kết báo giá / 403.
+      setExportError(axiosError.response?.data?.error?.message ?? 'Xuất thiết bị thất bại. Vui lòng thử lại.');
       setIsExporting(false);
     }
   };
@@ -743,52 +725,6 @@ export default function ManagerQuotationDetailPage() {
         }
       >
         <div />
-      </Modal>
-
-      {/* Lỗi 400 thiếu tồn kho — doc mục 5.5 (v2): required là phần cần xuất THÊM so với đã xuất
-          trước đó, backend rollback toàn bộ lần chạy này nên chưa có thay đổi nào được ghi nhận.
-          Đã BỎ nút "Vẫn xuất" (force=true) — xác nhận qua curl thật (docs/more-require.md mục (ar)):
-          Backend trừ thẳng toàn bộ SL đặt vào quantity_total không giới hạn theo tồn thực có, gây tồn
-          kho âm dùng chung cho mọi đơn. Quyết định chính thức của người dùng: không chấp nhận tồn kho
-          âm — việc "trừ và khóa kho" thật sự chuyển sang đúng lúc tạo lịch trình "Lắp đặt thiết bị"
-          (CreateSchedulePlanModal.tsx tự gọi lại export-equipment KHÔNG force ở đó, an toàn vì rollback
-          400 thay vì âm nếu vẫn thiếu). Modal này giờ chỉ mang tính thông báo. */}
-      <Modal
-        isOpen={!!stockShortage}
-        onClose={() => setStockShortage(null)}
-        title="Tồn kho không đủ để xuất thiết bị"
-        subtitle="Các hạng mục dưới đây đang thiếu tồn kho khả dụng — đây là tình huống bình thường, không phải lỗi."
-        footer={
-          <Button onClick={() => setStockShortage(null)}>Đã hiểu</Button>
-        }
-      >
-        <div className="overflow-x-auto rounded-lg border border-slate-200">
-          <table className="w-full text-left text-xs">
-            <thead className="border-b border-slate-100 bg-slate-50 font-bold uppercase tracking-wider text-slate-600">
-              <tr>
-                <th className="px-3 py-2.5">Tên hạng mục</th>
-                <th className="w-24 px-3 py-2.5 text-center">Cần xuất thêm</th>
-                <th className="w-24 px-3 py-2.5 text-center">Khả dụng</th>
-                <th className="w-24 px-3 py-2.5 text-center">Thiếu</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {(stockShortage ?? []).map((item) => (
-                <tr key={item.itemId}>
-                  <td className="px-3 py-2.5 font-semibold text-slate-900">{item.itemName}</td>
-                  <td className="px-3 py-2.5 text-center text-slate-600">{item.required}</td>
-                  <td className="px-3 py-2.5 text-center text-slate-600">{item.available}</td>
-                  <td className="px-3 py-2.5 text-center font-bold text-red-600">{item.required - item.available}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <p className="mt-3 text-xs text-slate-500">
-          Hãy sang tab &quot;Thiết bị &amp; Kho hàng&quot; của đơn để tạo đơn thuê Nhà cung cấp cho phần
-          thiếu. Hệ thống sẽ tự kiểm tra lại tồn kho khi bạn tạo lịch trình &quot;Lắp đặt thiết bị&quot;
-          cho đơn này — chỉ tạo được khi đã đủ hàng.
-        </p>
       </Modal>
 
       <CreateOrderFromQuotationModal

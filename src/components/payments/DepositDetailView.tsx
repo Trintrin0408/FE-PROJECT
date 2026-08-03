@@ -233,6 +233,7 @@ export default function DepositDetailView({ canManage, backHref }: Readonly<Depo
               <span className="flex items-center gap-1.5">
                 <Calendar className="h-4 w-4" />
                 {formatDate(order.eventDate)}
+                {order.endDate ? ` — ${formatDate(order.endDate)}` : ''}
               </span>
               <span className="flex items-center gap-1.5">
                 <MapPin className="h-4 w-4" />

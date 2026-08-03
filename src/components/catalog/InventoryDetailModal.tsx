@@ -8,12 +8,16 @@ import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import { Input } from '@/components/ui/Input';
 import { formatCurrency } from '@/utils/formatCurrency';
-import { formatDate } from '@/utils/formatDate';
+import { formatDate, formatDateTime } from '@/utils/formatDate';
+import { computeOrderLockWindow, type LockWindow } from '@/utils/inventoryLock';
 import { inventoryApiService } from '@/services/inventory.service';
 import { catalogApiService } from '@/services/catalog.service';
 import { orderApiService } from '@/services/order.service';
-import type { InventoryMovement, InventoryRow } from '@/types/inventory';
+import { schedulePlanApiService } from '@/services/schedulePlan.service';
+import type { InventoryMovement, InventoryRow, PicklistItem } from '@/types/inventory';
 import type { Item } from '@/types/catalog';
+import type { SchedulePlan } from '@/types/schedulePlan';
+import type { Order } from '@/types/order';
 
 // Nối API thật theo docs/tonkhodoanhnghiep_api.md (2026-07-20) — component RIÊNG cho màn "Tồn kho
 // doanh nghiệp" (`/manager/inventory/stock-check`, `/admin/inventory/stock-status`), KHÔNG dùng chung
@@ -28,6 +32,14 @@ type AdjustKind = 'INBOUND' | 'RECOUNT';
 const MOCK_DIMENSIONS = '1.2m x 0.8m x 1.5m';
 const MOCK_MATERIAL = 'Nhựa ABS + kim loại';
 const MOCK_LOCATION = 'Kho A - Kệ 03';
+
+interface LockingOrderRow {
+  orderId: string;
+  orderCode: string;
+  customerName: string;
+  quantityLocked: number;
+  lockWindow: LockWindow;
+}
 
 interface InventoryDetailModalProps {
   isOpen: boolean;
@@ -50,6 +62,9 @@ export function InventoryDetailModal({ isOpen, onClose, itemId, selectedDate, on
   const [adjustReason, setAdjustReason] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  const [lockingOrders, setLockingOrders] = useState<LockingOrderRow[]>([]);
+  const [isLoadingLocks, setIsLoadingLocks] = useState(false);
 
   const load = (id: string) => {
     setIsLoading(true);
@@ -82,6 +97,63 @@ export function InventoryDetailModal({ isOpen, onClose, itemId, selectedDate, on
     setSaveError(null);
     load(itemId);
   }, [isOpen, itemId, selectedDate]);
+
+  // Bóc tách "Đã khóa (đơn hàng)" (số tổng hợp ở trên, luôn lấy thẳng từ GET /inventory) thành TỪNG đơn
+  // đang giữ chỗ item này — chỉ để Manager biết rõ đơn nào đang giữ, giữ trong khung giờ nào (công thức
+  // giống hệt Backend: min mốc bắt đầu -6h / max mốc kết thúc +6h, xem utils/inventoryLock.ts). Không
+  // dùng để tính lại quantityAvailable — số đó Backend là nguồn đúng duy nhất.
+  useEffect(() => {
+    if (!isOpen || !itemId) return;
+    let cancelled = false;
+    setIsLoadingLocks(true);
+    setLockingOrders([]);
+
+    (async () => {
+      try {
+        const orderRes = await orderApiService.getOrders({ orderStatus: 'CONFIRMED,IN_PROGRESS', limit: 100 });
+        const activeOrders = ((orderRes.data ?? []) as Order[]).filter((o) => !o.pickedUpAt);
+
+        const picklistResults = await Promise.all(
+          activeOrders.map((o) =>
+            inventoryApiService
+              .getPicklist(o.orderId)
+              .then((r) => ({ order: o, items: r.data ?? [] }))
+              .catch(() => ({ order: o, items: [] as PicklistItem[] })),
+          ),
+        );
+
+        const matched = picklistResults
+          .map(({ order, items }) => {
+            const match = items.find((it) => it.itemId === itemId && it.source === 'INTERNAL' && it.quantityOrdered > 0);
+            return match ? { order, quantityOrdered: match.quantityOrdered } : null;
+          })
+          .filter((v): v is { order: Order; quantityOrdered: number } => v !== null);
+
+        const rows = await Promise.all(
+          matched.map(async ({ order, quantityOrdered }) => {
+            const plansRes = await schedulePlanApiService.getSchedulePlans({ orderId: order.orderId }).catch(() => ({ data: [] }));
+            const plans = (plansRes.data ?? []) as SchedulePlan[];
+            const row: LockingOrderRow = {
+              orderId: order.orderId,
+              orderCode: order.orderCode,
+              customerName: order.customerName,
+              quantityLocked: quantityOrdered,
+              lockWindow: computeOrderLockWindow(order, plans),
+            };
+            return row;
+          }),
+        );
+
+        if (!cancelled) setLockingOrders(rows);
+      } finally {
+        if (!cancelled) setIsLoadingLocks(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, itemId]);
 
   if (!isOpen || !itemId) return null;
 
@@ -182,6 +254,40 @@ export function InventoryDetailModal({ isOpen, onClose, itemId, selectedDate, on
               </div>
             </div>
             <p className="mt-2 text-xs italic text-slate-400">Vị trí kho: {MOCK_LOCATION} (dữ liệu fix cứng — `inventory` chưa có cột `location`)</p>
+          </div>
+
+          <div>
+            <h3 className="text-sm font-semibold text-slate-900">Đơn hàng đang giữ chỗ ({lockingOrders.length})</h3>
+            {isLoadingLocks ? (
+              <p className="mt-2 text-sm text-slate-400">Đang tra các đơn đang giữ chỗ thiết bị này...</p>
+            ) : lockingOrders.length === 0 ? (
+              <p className="mt-2 text-sm text-slate-400">Hiện không có đơn hàng nào đang giữ chỗ thiết bị này.</p>
+            ) : (
+              <ul className="mt-2 space-y-2">
+                {lockingOrders.map((lo) => (
+                  <li key={lo.orderId} className="rounded-lg border border-blue-100 bg-blue-50/50 px-3 py-2 text-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="font-semibold text-slate-800">
+                        Đơn {lo.orderCode} — {lo.customerName}
+                      </span>
+                      <Badge variant="info">Giữ {lo.quantityLocked} {row?.unit ?? ''}</Badge>
+                    </div>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Khóa từ <strong className="text-slate-700">{formatDateTime(lo.lockWindow.lockFrom)}</strong> đến{' '}
+                      {lo.lockWindow.lockUntil ? (
+                        <strong className="text-slate-700">{formatDateTime(lo.lockWindow.lockUntil)}</strong>
+                      ) : (
+                        <span className="italic text-slate-400">chưa xác định</span>
+                      )}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className="mt-2 text-[10px] italic text-slate-400">
+              Số lượng ở đây lấy trực tiếp theo từng đơn (chưa trừ phần đã có Nhà cung cấp bù) — số &quot;Đã khóa (đơn hàng)&quot; ở trên (từ GET
+              /inventory) mới là số liệu chính xác cuối cùng.
+            </p>
           </div>
 
           <div className="rounded-lg border border-slate-200 p-4">

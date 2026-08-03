@@ -48,7 +48,7 @@ export default function OrderDetailHeader({
               <span className="font-medium text-slate-900">{customerName}</span>
             </div>
             <span className="text-slate-400">{order.location}</span>
-            <span>{formatDate(order.eventDate)}</span>
+            <span>{formatDate(order.eventDate)}{order.endDate ? ` — ${formatDate(order.endDate)}` : ''}</span>
           </div>
         </div>
 

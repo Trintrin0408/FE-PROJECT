@@ -19,6 +19,7 @@ interface ReservationRow {
   orderCode: string;
   customerName: string;
   eventDate: string;
+  endDate?: string | null;
   itemId: string;
   itemName: string;
   unit: string;
@@ -73,6 +74,7 @@ export default function AdminAvailabilityPage() {
               orderCode: order.orderCode,
               customerName: order.customerName,
               eventDate: order.eventDate,
+              endDate: order.endDate,
               itemId: item.itemId,
               itemName: item.itemName,
               unit: item.unit,
@@ -128,7 +130,16 @@ export default function AdminAvailabilityPage() {
       ),
     },
     { key: 'customerName', label: 'Khách hàng', render: (row) => <span className="font-medium text-slate-800">{row.customerName}</span> },
-    { key: 'eventDate', label: 'Ngày sự kiện', render: (row) => <span className="font-mono text-slate-600">{formatDate(row.eventDate)}</span> },
+    {
+      key: 'eventDate',
+      label: 'Ngày sự kiện',
+      render: (row) => (
+        <span className="font-mono text-slate-600">
+          {formatDate(row.eventDate)}
+          {row.endDate ? ` — ${formatDate(row.endDate)}` : ''}
+        </span>
+      ),
+    },
     {
       key: 'itemName',
       label: 'Thiết bị cần xuất',

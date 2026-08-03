@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
@@ -13,24 +13,28 @@ import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
 import RecordSettlementModal from '@/components/orders/RecordSettlementModal';
 import CreateSchedulePlanModal from '@/components/schedule/CreateSchedulePlanModal';
+import OrderTabs from '@/components/orders/OrderTabs';
 import CreateQuotationWizardModal from '@/components/quotations/CreateQuotationWizardModal';
 import PurchaseOrderFormModal, { type CreateFormPrefill } from '@/components/suppliers/PurchaseOrderFormModal';
 import PlanFormDrawer from '@/components/planning/PlanFormDrawer';
 import { groupPlansByOrder } from '@/utils/schedulePlanGroups';
 import { formatCurrency } from '@/utils/formatCurrency';
-import { formatDate, formatTime } from '@/utils/formatDate';
+import { formatDate, formatDateTime, formatTime } from '@/utils/formatDate';
 import { getUrgencyBadgeVariant } from '@/utils/eventDate';
+import { computeOrderLockWindow } from '@/utils/inventoryLock';
 import { orderApiService } from '@/services/order.service';
 import { customerApiService } from '@/services/customer.service';
 import { paymentApiService } from '@/services/payment.service';
 import { settlementApiService } from '@/services/settlement.service';
 import { schedulePlanApiService } from '@/services/schedulePlan.service';
 import { inventoryApiService } from '@/services/inventory.service';
+import { catalogApiService } from '@/services/catalog.service';
 import { evidenceApiService } from '@/services/evidence.service';
 import { quotationApiService } from '@/services/quotation.service';
 import { surveyApiService } from '@/services/survey.service';
 import { supplierApiService } from '@/services/supplier.service';
 import { QUOTATION_STATUS_META } from '@/mocks/db/quotations';
+import { explodePhysicalDemand } from '@/mocks/db/itemComponents';
 import { ORDER_PAYMENT_STATUS_LABEL, ORDER_STATUS_LABEL } from '@/constants/order-status';
 import type { CreateOrderItemPayload, LiveShowChecklist, OrderDetail, OrderItemSource, OrderStatus } from '@/types/order';
 import type { Customer } from '@/types/customer';
@@ -38,6 +42,7 @@ import type { Deposit } from '@/types/payment';
 import type { Settlement } from '@/types/settlement';
 import type { SchedulePlan } from '@/types/schedulePlan';
 import type { InventoryRow } from '@/types/inventory';
+import type { Item } from '@/types/catalog';
 import type { Evidence } from '@/types/evidence';
 import type { QuotationDetailApi, QuotationDetailItem, QuotationListItem } from '@/types/quotation';
 import type { SurveyReportListItem } from '@/types/survey';
@@ -97,6 +102,23 @@ import type { SurveyReportListItem } from '@/types/survey';
 // "chưa có bảng inventory" của doc gốc). Nút "Xác nhận đã chuẩn bị xong" tạm khóa — endpoint
 // `PUT /orders/:id/items/confirm-prepared` (mục 2b doc) test qua `curl` không hoạt động như mô tả
 // (rơi vào validate của route khác), xem docs/more-require.md mục (w).
+//
+// Cập nhật 2026-08-03 (tiếp) — tách nội dung tab "Thiết bị & Kho hàng" thành 2 sub-view độc lập:
+// "Thiết bị" (đọc thẳng order.items, cảnh báo thiếu hàng cố định đúng 2 ngày [ngày liền trước, ngày tổ
+// chức], thuần xem — không có action) và "Chuẩn bị kho" (giữ nguyên cơ chế cũ: khoảng ngày tùy chỉnh,
+// nút "Xem phiếu chuẩn bị", "Thuê từ NCC", nhưng nổ thêm các hạng mục dạng "gói" xuống từng vật tư vật
+// lý con qua bảng `item_components`). Bảng `item_components` (id/parent_id/child_id/quantity) là khái
+// niệm BOM CÓ THẬT trên đúng DB backend đang trỏ tới (đối chiếu USER()/@@port qua MySQL MCP khớp
+// DATABASE_URL trong bnwems-backend-api/.env, có 2 migration riêng chứng minh đây là tính năng có chủ
+// đích — add_item_components_baseline → remove_item_components_json_add_relation_table) — KHÁC với
+// nhận định cũ "không có bảng nào" ở docs/thietbikhohang_api.md mục 5 (nay đã lỗi thời). Nhưng repo
+// backend đang checkout (mọi nhánh, kể cả commit remote chưa pull) chưa có route/controller nào đọc
+// được bảng này — đã cân nhắc và LOẠI phương án dùng lại ItemTypeSpec/`GET .../types/:id/specs` (có
+// route thật nhưng bảng item_type_specs tương ứng không tồn tại trên DB thật). Đang mock tạm theo tên
+// hạng mục cha (src/mocks/db/itemComponents.ts, khớp đúng dữ liệu thật đã seed), tra itemId/unit thật
+// của từng vật tư con qua catalogApiService.getItems({search}) (endpoint thật, đang hoạt động) trước
+// khi gọi inventoryApiService.getInventory như cơ chế cũ. Xem đề xuất endpoint thật cần bổ sung ở
+// docs/thietbikhohang_api.md mục 8.
 
 type DetailTab = 'overview' | 'lifecycle' | 'items' | 'plans' | 'quotation';
 
@@ -246,6 +268,17 @@ function ManagerOrderDetailContent() {
   const [stockCheckTo, setStockCheckTo] = useState('');
   const [inventoryCheckDates, setInventoryCheckDates] = useState<Record<string, string>>({});
 
+  // Sub-view "Thiết bị"/"Chuẩn bị kho" của tab "Thiết bị & Kho hàng" (mặc định "Thiết bị").
+  const [equipmentSubView, setEquipmentSubView] = useState<'items' | 'stock'>('items');
+  // Mục "Thiết bị" — cảnh báo tồn kho CỐ ĐỊNH đúng 2 ngày [ngày liền trước, ngày tổ chức], độc lập hoàn
+  // toàn với khoảng ngày tùy chỉnh (stockCheckFrom/To) chỉ dùng cho mục "Chuẩn bị kho".
+  const [itemsViewInventory, setItemsViewInventory] = useState<Record<string, InventoryRow>>({});
+  const [itemsViewInventoryDate, setItemsViewInventoryDate] = useState<Record<string, string>>({});
+  // Mục "Chuẩn bị kho" — itemId/unit thật đã tra được của từng vật tư con nổ ra từ BOM mock
+  // (src/mocks/db/itemComponents.ts), key = physicalItemName. `null` = đã tra nhưng không tìm thấy.
+  const [resolvedPhysicalItems, setResolvedPhysicalItems] = useState<Record<string, { itemId: string; unit: string } | null>>({});
+  const requestedPhysicalItemNames = useRef<Set<string>>(new Set());
+
   const [cancelingPlanId, setCancelingPlanId] = useState<string | null>(null);
   const [isUpdatingPlanStatus, setIsUpdatingPlanStatus] = useState(false);
   const [evidenceModal, setEvidenceModal] = useState<{ isLoading: boolean; evidence: Evidence | null } | null>(null);
@@ -347,22 +380,16 @@ function ManagerOrderDetailContent() {
     setStockCheckTo(eventDateStr);
   }, [order?.eventDate]);
 
-  // Tồn kho khả dụng theo từng hạng mục — tải ngay khi order sẵn sàng (không chỉ khi mở Picklist) để
-  // tab "Thiết bị & Kho hàng" hiện được cảnh báo thiếu hàng ngay trên bảng chính.
-  //
-  // Cập nhật 2026-08-02: GET /inventory?date=... đã hoạt động đúng ở Backend theo cơ chế khóa tồn kho
-  // theo ngày thật (`getLockedQuantityByDate`, xem docs/more-require.md mục (at)/(au)) — không còn bị bỏ
-  // qua như ghi nhận cũ ở src/types/inventory.ts.
-  //
-  // Cập nhật 2026-08-03: đổi từ so sánh đúng 2 mốc cố định sang kiểm tra CẢ MỘT KHOẢNG ngày
-  // [stockCheckFrom, stockCheckTo] — mặc định là [ngày liền trước, ngày tổ chức] (set ở effect trên),
-  // Manager có thể sửa thành khoảng dài hơn (vd cả giai đoạn chuẩn bị → thu hồi thiết bị). Với mỗi hạng
-  // mục, lấy ngày có `quantityAvailable` ÍT HƠN trong suốt khoảng đã chọn, đảm bảo đủ hàng cho toàn bộ
-  // khoảng đó chứ không chỉ 1-2 ngày cố định.
+  // Mục "Thiết bị" — cảnh báo tồn kho CỐ ĐỊNH đúng 2 ngày [ngày liền trước, ngày tổ chức], đọc thẳng
+  // order.items (không nổ BOM) — hoàn toàn độc lập với stockCheckFrom/To (khoảng ngày tùy chỉnh chỉ
+  // phục vụ mục "Chuẩn bị kho" bên dưới), để đổi khoảng ngày ở "Chuẩn bị kho" không ảnh hưởng số liệu
+  // cảnh báo ở đây.
   useEffect(() => {
-    if (!order || order.items.length === 0 || !stockCheckFrom || !stockCheckTo) return;
+    if (!order || order.items.length === 0) return;
     let cancelled = false;
-    const datesToCheck = enumerateDates(stockCheckFrom, stockCheckTo);
+    const eventDateStr = order.eventDate.slice(0, 10);
+    const dayBeforeStr = new Date(new Date(order.eventDate).getTime() - 86_400_000).toISOString().slice(0, 10);
+    const datesToCheck = [dayBeforeStr, eventDateStr];
 
     Promise.all(
       order.items.map((item) =>
@@ -377,6 +404,97 @@ function ManagerOrderDetailContent() {
           const valid = results.filter((r): r is { date: string; row: InventoryRow } => Boolean(r.row));
           const picked = valid.length === 0 ? undefined : valid.reduce((min, cur) => (cur.row.quantityAvailable < min.row.quantityAvailable ? cur : min));
           return [item.itemId, picked] as const;
+        }),
+      ),
+    ).then((pairs) => {
+      if (cancelled) return;
+      const nextInventory: Record<string, InventoryRow> = {};
+      const nextDates: Record<string, string> = {};
+      pairs.forEach(([itemId, picked]) => {
+        if (picked) {
+          nextInventory[itemId] = picked.row;
+          nextDates[itemId] = picked.date;
+        }
+      });
+      setItemsViewInventory(nextInventory);
+      setItemsViewInventoryDate(nextDates);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ tải lại khi đơn/danh sách hạng mục đổi, KHÔNG phụ thuộc stockCheckFrom/To
+  }, [order?.orderId, order?.items, order?.eventDate]);
+
+  // Mục "Chuẩn bị kho" — nổ order.items thành nhu cầu vật tư vật lý thật qua BOM mock
+  // (src/mocks/db/itemComponents.ts, xem comment đầu file), tra itemId/unit thật của từng vật tư con
+  // qua catalogApiService.getItems({search}) (endpoint thật) trước khi kiểm tra tồn kho.
+  const explodedDemand = useMemo(() => (order ? explodePhysicalDemand(order.items) : []), [order?.items]);
+
+  useEffect(() => {
+    const namesNeedingLookup = explodedDemand
+      .filter((row) => !row.knownItemId && resolvedPhysicalItems[row.physicalItemName] === undefined && !requestedPhysicalItemNames.current.has(row.physicalItemName))
+      .map((row) => row.physicalItemName);
+    if (namesNeedingLookup.length === 0) return;
+    namesNeedingLookup.forEach((name) => requestedPhysicalItemNames.current.add(name));
+
+    Promise.all(
+      namesNeedingLookup.map((name) =>
+        catalogApiService
+          .getItems({ search: name, limit: 1 })
+          .then((res) => [name, (res.data ?? [])[0] as Item | undefined] as const)
+          .catch(() => [name, undefined] as const),
+      ),
+    ).then((pairs) => {
+      setResolvedPhysicalItems((prev) => {
+        const next = { ...prev };
+        pairs.forEach(([name, found]) => {
+          next[name] = found ? { itemId: found.itemId, unit: found.unit } : null;
+        });
+        return next;
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- dùng requestedPhysicalItemNames (ref) để chặn gọi lặp lại, không đưa resolvedPhysicalItems vào deps
+  }, [explodedDemand]);
+
+  // Tồn kho khả dụng theo từng vật tư vật lý cần chuẩn bị (đã nổ BOM + resolve itemId ở trên) — tải
+  // ngay khi order sẵn sàng để tab "Thiết bị & Kho hàng" mục "Chuẩn bị kho" hiện cảnh báo thiếu hàng
+  // ngay trên bảng chính.
+  //
+  // Cập nhật 2026-08-02: GET /inventory?date=... đã hoạt động đúng ở Backend theo cơ chế khóa tồn kho
+  // theo ngày thật (`getLockedQuantityByDate`, xem docs/more-require.md mục (at)/(au)) — không còn bị bỏ
+  // qua như ghi nhận cũ ở src/types/inventory.ts.
+  //
+  // Cập nhật 2026-08-03: đổi từ so sánh đúng 2 mốc cố định sang kiểm tra CẢ MỘT KHOẢNG ngày
+  // [stockCheckFrom, stockCheckTo] — mặc định là [ngày liền trước, ngày tổ chức] (set ở effect trên),
+  // Manager có thể sửa thành khoảng dài hơn (vd cả giai đoạn chuẩn bị → thu hồi thiết bị). Với mỗi hạng
+  // mục, lấy ngày có `quantityAvailable` ÍT HƠN trong suốt khoảng đã chọn, đảm bảo đủ hàng cho toàn bộ
+  // khoảng đó chứ không chỉ 1-2 ngày cố định.
+  useEffect(() => {
+    if (!order || explodedDemand.length === 0 || !stockCheckFrom || !stockCheckTo) return;
+    const physicalItemIds = Array.from(
+      new Set(
+        explodedDemand
+          .map((row) => row.knownItemId ?? resolvedPhysicalItems[row.physicalItemName]?.itemId)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    );
+    if (physicalItemIds.length === 0) return;
+    let cancelled = false;
+    const datesToCheck = enumerateDates(stockCheckFrom, stockCheckTo);
+
+    Promise.all(
+      physicalItemIds.map((itemId) =>
+        Promise.all(
+          datesToCheck.map((date) =>
+            inventoryApiService
+              .getInventory({ itemId, date, limit: 1 })
+              .then((res) => ({ date, row: (res.data ?? [])[0] as InventoryRow | undefined }))
+              .catch(() => ({ date, row: undefined as InventoryRow | undefined })),
+          ),
+        ).then((results) => {
+          const valid = results.filter((r): r is { date: string; row: InventoryRow } => Boolean(r.row));
+          const picked = valid.length === 0 ? undefined : valid.reduce((min, cur) => (cur.row.quantityAvailable < min.row.quantityAvailable ? cur : min));
+          return [itemId, picked] as const;
         }),
       ),
     ).then((pairs) => {
@@ -397,8 +515,8 @@ function ManagerOrderDetailContent() {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ tải lại khi danh sách hạng mục/khoảng ngày kiểm tra đổi
-  }, [order?.orderId, order?.items, stockCheckFrom, stockCheckTo]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ tải lại khi đơn/nhu cầu vật tư đã nổ/khoảng ngày kiểm tra đổi
+  }, [order?.orderId, explodedDemand, resolvedPhysicalItems, stockCheckFrom, stockCheckTo]);
 
   // Tên NCC cho các hạng mục nguồn "Thuê ngoài" — tra theo giao dịch thuê (supplier-transactions) của
   // đơn này rồi khớp itemId trong từng giao dịch, vì OrderItem không có sẵn field supplierId/supplierName.
@@ -672,6 +790,12 @@ function ManagerOrderDetailContent() {
       : 0;
   const isStockCheckRangeClamped = stockCheckDayCount > MAX_STOCK_CHECK_DAYS;
 
+  // Khung giờ khóa/nhả kho THẬT của đơn này (theo đúng công thức Backend đang dùng ở
+  // getLockedQuantityByDate: min mốc bắt đầu -6h / max mốc kết thúc +6h) — chỉ để Manager hiểu VÌ SAO
+  // thiết bị của đơn này đang giữ chỗ trong khoảng ngày đó, không dùng để tự tính lại số liệu (số liệu
+  // "Tồn kho khả dụng" ở trên vẫn luôn lấy từ GET /inventory, Backend là nguồn đúng duy nhất).
+  const orderLockWindow = computeOrderLockWindow(order, schedulePlans);
+
   return (
     <div className="p-6">
       {exportToast && (
@@ -840,6 +964,13 @@ function ManagerOrderDetailContent() {
                   <p className="flex items-center gap-1.5 text-sm font-bold text-slate-900">
                     <Calendar className="h-4 w-4 text-slate-400" />
                     {formatDate(order.eventDate)}
+                  </p>
+                </div>
+                <div className="space-y-1.5">
+                  <span className="block font-semibold uppercase text-slate-400">Ngày kết thúc</span>
+                  <p className="flex items-center gap-1.5 text-sm font-bold text-slate-900">
+                    <Calendar className="h-4 w-4 text-slate-400" />
+                    {order.endDate ? formatDate(order.endDate) : '—'}
                   </p>
                 </div>
                 <div className="space-y-1.5">
@@ -1024,7 +1155,14 @@ function ManagerOrderDetailContent() {
                     {order.orderStatus === 'IN_PROGRESS' ? 'Đang chạy trực tiếp' : order.orderStatus === 'COMPLETED' ? 'Đã kết thúc' : 'Chưa bắt đầu'}
                   </Badge>
                 </div>
-                <p className="mt-2 text-xs text-slate-500">Ngày tổ chức chính thức: <strong className="text-slate-800">{formatDate(order.eventDate)}</strong></p>
+                <p className="mt-2 text-xs text-slate-500">
+                  Ngày tổ chức chính thức: <strong className="text-slate-800">{formatDate(order.eventDate)}</strong>
+                  {order.endDate && (
+                    <>
+                      {' '}— Ngày kết thúc: <strong className="text-slate-800">{formatDate(order.endDate)}</strong>
+                    </>
+                  )}
+                </p>
                 <div className="mt-3 space-y-1.5">
                   {LIVE_CHECKLIST_ITEMS.map((item) => (
                     <label key={item.key} className="flex items-center gap-2.5 text-xs text-slate-700">
@@ -1112,176 +1250,269 @@ function ManagerOrderDetailContent() {
           )}
 
           {activeTab === 'items' && (
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: '-40px' }}
-              transition={{ duration: 0.25 }}
-              className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
-                <div>
-                  <h4 className="text-sm font-bold text-slate-950">Quản lý phân bổ thiết bị & chuẩn bị kho</h4>
-                  <p className="mt-1 text-xs text-slate-500">
-                    {!stockCheckFrom || !stockCheckTo ? (
-                      'Chọn đủ "Từ ngày" và "Đến ngày" để kiểm tra tồn kho.'
-                    ) : isStockCheckRangeInvalid ? (
-                      <span className="text-amber-600">
-                        "Từ ngày" đang sau "Đến ngày" — hệ thống chỉ kiểm tra đúng ngày <strong>{formatDate(stockCheckFrom)}</strong>.
-                      </span>
-                    ) : stockCheckFrom === stockCheckTo ? (
-                      <>
-                        Đang kiểm tra tồn kho ngày <strong className="text-slate-700">{formatDate(stockCheckFrom)}</strong>.
-                      </>
-                    ) : (
-                      <>
-                        Đang kiểm tra tồn kho từ ngày <strong className="text-slate-700">{formatDate(stockCheckFrom)}</strong> đến ngày{' '}
-                        <strong className="text-slate-700">{formatDate(stockCheckTo)}</strong> — lấy ngày có số lượng ít hơn cho từng hạng mục.
-                      </>
-                    )}
-                    {isStockCheckRangeClamped && (
-                      <span className="ml-1 text-amber-600">(khoảng quá dài — chỉ kiểm tra {MAX_STOCK_CHECK_DAYS} ngày đầu từ ngày bắt đầu)</span>
-                    )}
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="w-full sm:w-36">
-                    <Input type="date" value={stockCheckFrom} onChange={(e) => setStockCheckFrom(e.target.value)} placeholder="Từ ngày" />
-                  </div>
-                  <span className="text-xs text-slate-400">đến</span>
-                  <div className="w-full sm:w-36">
-                    <Input type="date" value={stockCheckTo} onChange={(e) => setStockCheckTo(e.target.value)} placeholder="Đến ngày" />
-                  </div>
-                  {!isDefaultStockCheckRange && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setStockCheckFrom(dayBeforeEventStr);
-                        setStockCheckTo(eventDateStr);
-                      }}
-                      className="text-xs font-semibold text-blue-600 hover:underline"
-                    >
-                      Đặt lại mặc định
-                    </button>
-                  )}
-                  <Button size="sm" variant="secondary" onClick={handleOpenPicklist}>
-                    <Package className="h-4 w-4" />
-                    Xem phiếu chuẩn bị
-                  </Button>
-                </div>
-              </div>
+            <div>
+              <OrderTabs
+                tabs={[
+                  { key: 'items', label: 'Thiết bị' },
+                  { key: 'stock', label: 'Chuẩn bị kho' },
+                ]}
+                activeTab={equipmentSubView}
+                onTabChange={(key) => setEquipmentSubView(key as 'items' | 'stock')}
+              />
 
-              <div className="mt-4 overflow-x-auto rounded-lg border border-slate-100">
-                <table className="w-full min-w-full divide-y divide-slate-100 text-sm">
-                  <thead className="bg-slate-50">
-                    <tr className="text-left text-xs font-medium uppercase tracking-wide text-slate-500">
-                      <th className="px-3 py-2.5">Hạng mục thiết bị/Dịch vụ</th>
-                      <th className="px-3 py-2.5">Nguồn</th>
-                      <th className="px-3 py-2.5 text-center">SL đặt</th>
-                      <th className="px-3 py-2.5 text-center">Tồn kho khả dụng</th>
-                      <th className="px-3 py-2.5 text-right">Giá tiền</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {order.items.map((item) => {
-                      const inv = picklistInventory[item.itemId];
-                      // Khi tồn kho khả dụng đã bị trừ âm (bug Backend "Vẫn xuất" trừ thẳng toàn bộ SL
-                      // đặt khỏi quantity_total thay vì chỉ trừ theo delta còn thiếu — xem
-                      // docs/more-require.md mục (ar)), phần âm CHÍNH LÀ số thiếu thật: nếu
-                      // postAvailable = preAvailable - SL đặt thì SL đặt - preAvailable = -postAvailable.
-                      // Công thức "SL đặt - tồn kho hiện tại" sẽ tính gấp đôi số thiếu trong trường hợp này.
-                      const shortfall = !inv
-                        ? 0
-                        : inv.quantityAvailable < 0
-                          ? Math.abs(inv.quantityAvailable)
-                          : Math.max(item.quantity - inv.quantityAvailable, 0);
-                      const isShort = item.source === 'INTERNAL' && shortfall > 0;
-                      return (
-                        <tr key={item.orderItemId}>
-                          <td className="px-3 py-3">
-                            <p className="font-semibold text-slate-900">{item.itemName}</p>
-                            <p className="text-xs text-slate-400">{item.unit}</p>
-                          </td>
-                          <td className="px-3 py-3">
-                            <div className="flex flex-col gap-1.5">
-                              <div>
-                                <Badge variant={item.source === 'INTERNAL' ? 'neutral' : 'info'}>{ORDER_ITEM_SOURCE_LABEL[item.source]}</Badge>
-                                {item.source === 'SUPPLIER' && (
-                                  <p className="mt-1 text-xs text-slate-500">{itemSupplierMap[item.itemId]?.supplierName ?? 'Đang xác định NCC'}</p>
-                                )}
-                              </div>
-                              {isShort &&
-                                (itemSupplierMap[item.itemId] ? (
-                                  <span
-                                    className="flex w-fit items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-600 ring-1 ring-inset ring-emerald-200"
-                                    title={`Đã có đơn thuê từ NCC "${itemSupplierMap[item.itemId].supplierName}" cho phần thiếu`}
-                                  >
-                                    Thuê {itemSupplierMap[item.itemId].quantity} · từ {itemSupplierMap[item.itemId].supplierName}
-                                  </span>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setSupplierRentalPrefill({
-                                        orderId: order.orderId,
-                                        itemId: item.itemId,
-                                        itemName: item.itemName ?? '',
-                                        qty: shortfall,
-                                      })
-                                    }
-                                    className="flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-600 ring-1 ring-inset ring-red-200 hover:bg-red-100"
-                                    title="Số lượng đặt vượt tồn kho khả dụng — tạo giao dịch thuê từ Nhà cung cấp cho phần thiếu"
-                                  >
-                                    Thiếu {shortfall} · Thuê từ NCC
-                                  </button>
-                                ))}
-                            </div>
-                          </td>
-                          <td className="px-3 py-3 text-center font-bold text-slate-900">{item.quantity}</td>
-                          <td className="px-3 py-3 text-center">
-                            {inv ? (
-                              <>
-                                <span className={`font-bold ${inv.quantityAvailable < item.quantity ? 'text-red-600' : 'text-emerald-600'}`}>
-                                  {inv.quantityAvailable}
-                                </span>
-                                <p className="mt-0.5 text-[10px] text-slate-400">ngày {formatDate(inventoryCheckDates[item.itemId] ?? eventDateStr)}</p>
-                              </>
-                            ) : (
-                              <span className="text-slate-300">—</span>
-                            )}
-                          </td>
-                          <td className="px-3 py-3 text-right font-bold text-slate-900">{formatCurrency(item.subtotal ?? item.unitPrice * item.quantity)}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                  <tfoot>
-                    <tr className="border-t border-slate-200 bg-slate-50 text-sm font-bold text-slate-900">
-                      <td colSpan={4} className="px-3 py-3 text-right uppercase tracking-wide text-slate-500">
-                        Tổng cộng tài chính đơn hàng
-                      </td>
-                      <td className="px-3 py-3 text-right text-blue-600">{formatCurrency(order.totalAmount)}</td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-              <p className="mt-2 text-[10px] text-slate-400">
-                {isStockCheckRangeInvalid || stockCheckFrom === stockCheckTo
-                  ? `Số liệu "Tồn kho khả dụng" lấy theo đúng ngày đã chọn ở trên.`
-                  : `Số liệu "Tồn kho khả dụng" là số nhỏ nhất trong khoảng ngày đã chọn ở trên cho từng hạng mục — dòng nhỏ dưới số liệu cho biết đó là ngày nào.`}
-              </p>
-
-              <div className="mt-4 flex justify-end">
-                <Button
-                  size="sm"
-                  disabled
-                  title="Endpoint PUT /orders/:id/items/confirm-prepared chưa hoạt động đúng như tài liệu — xem docs/more-require.md mục (w)"
+              {equipmentSubView === 'items' && (
+                <motion.div
+                  initial={{ opacity: 0, y: 12 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: '-40px' }}
+                  transition={{ duration: 0.25 }}
+                  className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs"
                 >
-                  <CheckCircle2 className="h-4 w-4" />
-                  Xác nhận đã chuẩn bị xong
-                </Button>
-              </div>
-            </motion.div>
+                  <div className="border-b border-slate-100 pb-3">
+                    <h4 className="text-sm font-bold text-slate-950">Thiết bị</h4>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Danh sách hạng mục đã đặt — cảnh báo tồn kho cho ngày tổ chức (<strong>{formatDate(eventDateStr)}</strong>) và ngày liền trước
+                      (<strong>{formatDate(dayBeforeEventStr)}</strong>), lấy ngày có số lượng ít hơn.
+                    </p>
+                  </div>
+
+                  <div className="mt-4 overflow-x-auto rounded-lg border border-slate-100">
+                    <table className="w-full min-w-full divide-y divide-slate-100 text-sm">
+                      <thead className="bg-slate-50">
+                        <tr className="text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                          <th className="px-3 py-2.5">Hạng mục thiết bị/Dịch vụ</th>
+                          <th className="px-3 py-2.5">Nguồn</th>
+                          <th className="px-3 py-2.5 text-center">SL đặt</th>
+                          <th className="px-3 py-2.5 text-center">Cảnh báo tồn kho</th>
+                          <th className="px-3 py-2.5 text-right">Giá tiền</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {order.items.map((item) => {
+                          const inv = itemsViewInventory[item.itemId];
+                          const shortfall = !inv
+                            ? 0
+                            : inv.quantityAvailable < 0
+                              ? Math.abs(inv.quantityAvailable)
+                              : Math.max(item.quantity - inv.quantityAvailable, 0);
+                          const isShort = item.source === 'INTERNAL' && shortfall > 0;
+                          return (
+                            <tr key={item.orderItemId}>
+                              <td className="px-3 py-3">
+                                <p className="font-semibold text-slate-900">{item.itemName}</p>
+                                <p className="text-xs text-slate-400">{item.unit}</p>
+                              </td>
+                              <td className="px-3 py-3">
+                                <Badge variant={item.source === 'INTERNAL' ? 'neutral' : 'info'}>{ORDER_ITEM_SOURCE_LABEL[item.source]}</Badge>
+                              </td>
+                              <td className="px-3 py-3 text-center font-bold text-slate-900">{item.quantity}</td>
+                              <td className="px-3 py-3 text-center">
+                                {inv ? (
+                                  <>
+                                    <span className={`font-bold ${inv.quantityAvailable < item.quantity ? 'text-red-600' : 'text-emerald-600'}`}>
+                                      {inv.quantityAvailable}
+                                    </span>
+                                    <p className="mt-0.5 text-[10px] text-slate-400">ngày {formatDate(itemsViewInventoryDate[item.itemId] ?? eventDateStr)}</p>
+                                    {isShort && <p className="mt-0.5 text-[10px] font-bold text-red-600">Thiếu {shortfall}</p>}
+                                  </>
+                                ) : (
+                                  <span className="text-slate-300">—</span>
+                                )}
+                              </td>
+                              <td className="px-3 py-3 text-right font-bold text-slate-900">{formatCurrency(item.subtotal ?? item.unitPrice * item.quantity)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                      <tfoot>
+                        <tr className="border-t border-slate-200 bg-slate-50 text-sm font-bold text-slate-900">
+                          <td colSpan={4} className="px-3 py-3 text-right uppercase tracking-wide text-slate-500">
+                            Tổng cộng tài chính đơn hàng
+                          </td>
+                          <td className="px-3 py-3 text-right text-blue-600">{formatCurrency(order.totalAmount)}</td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </motion.div>
+              )}
+
+              {equipmentSubView === 'stock' && (
+                <motion.div
+                  initial={{ opacity: 0, y: 12 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: '-40px' }}
+                  transition={{ duration: 0.25 }}
+                  className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-950">Chuẩn bị kho</h4>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {!stockCheckFrom || !stockCheckTo ? (
+                          'Chọn đủ "Từ ngày" và "Đến ngày" để kiểm tra tồn kho.'
+                        ) : isStockCheckRangeInvalid ? (
+                          <span className="text-amber-600">
+                            "Từ ngày" đang sau "Đến ngày" — hệ thống chỉ kiểm tra đúng ngày <strong>{formatDate(stockCheckFrom)}</strong>.
+                          </span>
+                        ) : stockCheckFrom === stockCheckTo ? (
+                          <>
+                            Đang kiểm tra tồn kho ngày <strong className="text-slate-700">{formatDate(stockCheckFrom)}</strong>.
+                          </>
+                        ) : (
+                          <>
+                            Đang kiểm tra tồn kho từ ngày <strong className="text-slate-700">{formatDate(stockCheckFrom)}</strong> đến ngày{' '}
+                            <strong className="text-slate-700">{formatDate(stockCheckTo)}</strong> — lấy ngày có số lượng ít hơn cho từng vật tư.
+                          </>
+                        )}
+                        {isStockCheckRangeClamped && (
+                          <span className="ml-1 text-amber-600">(khoảng quá dài — chỉ kiểm tra {MAX_STOCK_CHECK_DAYS} ngày đầu từ ngày bắt đầu)</span>
+                        )}
+                      </p>
+                      <p className="mt-1 flex items-center gap-1 text-xs text-slate-500">
+                        <Lock className="h-3.5 w-3.5 text-blue-500" />
+                        Đơn này đang khóa kho từ <strong className="text-slate-700">{formatDateTime(orderLockWindow.lockFrom)}</strong> đến{' '}
+                        {orderLockWindow.lockUntil ? (
+                          <strong className="text-slate-700">{formatDateTime(orderLockWindow.lockUntil)}</strong>
+                        ) : (
+                          <span className="italic text-slate-400">chưa xác định (chưa có mốc kết thúc)</span>
+                        )}
+                        <span className="text-slate-400">(±6h so với lịch trình/ngày sự kiện)</span>
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="w-full sm:w-36">
+                        <Input type="date" value={stockCheckFrom} onChange={(e) => setStockCheckFrom(e.target.value)} placeholder="Từ ngày" />
+                      </div>
+                      <span className="text-xs text-slate-400">đến</span>
+                      <div className="w-full sm:w-36">
+                        <Input type="date" value={stockCheckTo} onChange={(e) => setStockCheckTo(e.target.value)} placeholder="Đến ngày" />
+                      </div>
+                      {!isDefaultStockCheckRange && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setStockCheckFrom(dayBeforeEventStr);
+                            setStockCheckTo(eventDateStr);
+                          }}
+                          className="text-xs font-semibold text-blue-600 hover:underline"
+                        >
+                          Đặt lại mặc định
+                        </button>
+                      )}
+                      <Button size="sm" variant="secondary" onClick={handleOpenPicklist}>
+                        <Package className="h-4 w-4" />
+                        Xem phiếu chuẩn bị
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 overflow-x-auto rounded-lg border border-slate-100">
+                    <table className="w-full min-w-full divide-y divide-slate-100 text-sm">
+                      <thead className="bg-slate-50">
+                        <tr className="text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                          <th className="px-3 py-2.5">Vật tư/Thiết bị cần chuẩn bị</th>
+                          <th className="px-3 py-2.5">Đơn vị</th>
+                          <th className="px-3 py-2.5 text-center">SL cần</th>
+                          <th className="px-3 py-2.5 text-center">Tồn kho khả dụng</th>
+                          <th className="px-3 py-2.5">Thao tác</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {explodedDemand.map((row) => {
+                          const resolved = resolvedPhysicalItems[row.physicalItemName];
+                          const physicalItemId = row.knownItemId ?? resolved?.itemId;
+                          const unit = row.unit ?? resolved?.unit;
+                          const inv = physicalItemId ? picklistInventory[physicalItemId] : undefined;
+                          const shortfall = !inv
+                            ? 0
+                            : inv.quantityAvailable < 0
+                              ? Math.abs(inv.quantityAvailable)
+                              : Math.max(row.quantityNeeded - inv.quantityAvailable, 0);
+                          const isShort = shortfall > 0;
+                          const isNotFound = resolved === null && !row.knownItemId;
+                          return (
+                            <tr key={row.physicalItemName}>
+                              <td className="px-3 py-3">
+                                <p className="font-semibold text-slate-900">{row.physicalItemName}</p>
+                                {row.componentOfPackages.length > 0 && (
+                                  <p className="text-xs text-slate-400">Thuộc gói: {row.componentOfPackages.join(', ')}</p>
+                                )}
+                              </td>
+                              <td className="px-3 py-3 text-slate-600">{unit ?? (isNotFound ? '—' : '')}</td>
+                              <td className="px-3 py-3 text-center font-bold text-slate-900">{row.quantityNeeded}</td>
+                              <td className="px-3 py-3 text-center">
+                                {isNotFound ? (
+                                  <span className="text-xs italic text-slate-400" title="Không tra được vật tư này trong danh mục thật">
+                                    Không xác định
+                                  </span>
+                                ) : inv ? (
+                                  <>
+                                    <span className={`font-bold ${inv.quantityAvailable < row.quantityNeeded ? 'text-red-600' : 'text-emerald-600'}`}>
+                                      {inv.quantityAvailable}
+                                    </span>
+                                    <p className="mt-0.5 text-[10px] text-slate-400">
+                                      ngày {formatDate((physicalItemId && inventoryCheckDates[physicalItemId]) || eventDateStr)}
+                                    </p>
+                                  </>
+                                ) : (
+                                  <span className="text-slate-300">—</span>
+                                )}
+                              </td>
+                              <td className="px-3 py-3">
+                                {isShort &&
+                                  physicalItemId &&
+                                  (itemSupplierMap[physicalItemId] ? (
+                                    <span
+                                      className="flex w-fit items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-600 ring-1 ring-inset ring-emerald-200"
+                                      title={`Đã có đơn thuê từ NCC "${itemSupplierMap[physicalItemId].supplierName}" cho phần thiếu`}
+                                    >
+                                      Thuê {itemSupplierMap[physicalItemId].quantity} · từ {itemSupplierMap[physicalItemId].supplierName}
+                                    </span>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        setSupplierRentalPrefill({
+                                          orderId: order.orderId,
+                                          itemId: physicalItemId,
+                                          itemName: row.physicalItemName,
+                                          qty: shortfall,
+                                        })
+                                      }
+                                      className="flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-600 ring-1 ring-inset ring-red-200 hover:bg-red-100"
+                                      title="Số lượng cần vượt tồn kho khả dụng — tạo giao dịch thuê từ Nhà cung cấp cho phần thiếu"
+                                    >
+                                      Thiếu {shortfall} · Thuê từ NCC
+                                    </button>
+                                  ))}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="mt-2 text-[10px] text-slate-400">
+                    {isStockCheckRangeInvalid || stockCheckFrom === stockCheckTo
+                      ? `Số liệu "Tồn kho khả dụng" lấy theo đúng ngày đã chọn ở trên.`
+                      : `Số liệu "Tồn kho khả dụng" là số nhỏ nhất trong khoảng ngày đã chọn ở trên cho từng vật tư — dòng nhỏ dưới số liệu cho biết đó là ngày nào.`}
+                    {' '}Các hạng mục dạng &quot;gói&quot; đã được nổ thành từng vật tư/thiết bị vật lý con (xem docs/thietbikhohang_api.md mục 8).
+                  </p>
+
+                  <div className="mt-4 flex justify-end">
+                    <Button
+                      size="sm"
+                      disabled
+                      title="Endpoint PUT /orders/:id/items/confirm-prepared chưa hoạt động đúng như tài liệu — xem docs/more-require.md mục (w)"
+                    >
+                      <CheckCircle2 className="h-4 w-4" />
+                      Xác nhận đã chuẩn bị xong
+                    </Button>
+                  </div>
+                </motion.div>
+              )}
+            </div>
           )}
 
           {activeTab === 'plans' && (
@@ -1622,8 +1853,8 @@ function ManagerOrderDetailContent() {
               <p className="mt-1 text-sm font-bold text-slate-900">{customer?.customerName ?? order.customerName}</p>
             </div>
             <div className="text-right">
-              <p className="font-bold uppercase tracking-wide text-slate-400">Tổng số hạng mục</p>
-              <p className="mt-1 text-sm font-bold text-slate-900">{order.items.length} hạng mục</p>
+              <p className="font-bold uppercase tracking-wide text-slate-400">Tổng số vật tư</p>
+              <p className="mt-1 text-sm font-bold text-slate-900">{explodedDemand.length} vật tư</p>
             </div>
             <div className="text-right">
               <p className="font-bold uppercase tracking-wide text-slate-400">Ngày kiểm tra tồn kho</p>
@@ -1639,34 +1870,33 @@ function ManagerOrderDetailContent() {
             <table className="w-full text-left text-xs">
               <thead className="border-b border-slate-100 bg-white font-semibold text-slate-400">
                 <tr>
-                  <th className="px-3 py-2.5">Hạng mục</th>
+                  <th className="px-3 py-2.5">Vật tư/Thiết bị</th>
                   <th className="px-3 py-2.5 text-center">SL cần</th>
-                  <th className="px-3 py-2.5 text-center">Nguồn</th>
+                  <th className="px-3 py-2.5 text-center">Thuộc gói</th>
                   <th className="px-3 py-2.5 text-center">Tồn kho khả dụng</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {order.items.map((item) => {
-                  const inv = picklistInventory[item.itemId];
+                {explodedDemand.map((row) => {
+                  const physicalItemId = row.knownItemId ?? resolvedPhysicalItems[row.physicalItemName]?.itemId;
+                  const unit = row.unit ?? resolvedPhysicalItems[row.physicalItemName]?.unit;
+                  const inv = physicalItemId ? picklistInventory[physicalItemId] : undefined;
                   return (
-                    <tr key={item.orderItemId}>
-                      <td className="px-3 py-3 font-semibold text-slate-800">{item.itemName}</td>
+                    <tr key={row.physicalItemName}>
+                      <td className="px-3 py-3 font-semibold text-slate-800">{row.physicalItemName}</td>
                       <td className="px-3 py-3 text-center font-bold text-slate-900">
-                        {item.quantity} {item.unit}
+                        {row.quantityNeeded} {unit ?? ''}
                       </td>
-                      <td className="px-3 py-3 text-center">
-                        {ORDER_ITEM_SOURCE_LABEL[item.source]}
-                        {item.source === 'SUPPLIER' && (
-                          <p className="mt-0.5 text-[11px] font-normal text-slate-400">{itemSupplierMap[item.itemId]?.supplierName ?? 'Đang xác định NCC'}</p>
-                        )}
-                      </td>
+                      <td className="px-3 py-3 text-center text-slate-500">{row.componentOfPackages.join(', ') || '—'}</td>
                       <td className="px-3 py-3 text-center">
                         {inv ? (
                           <>
-                            <span className={`font-bold ${inv.quantityAvailable < item.quantity ? 'text-red-600' : 'text-emerald-600'}`}>
+                            <span className={`font-bold ${inv.quantityAvailable < row.quantityNeeded ? 'text-red-600' : 'text-emerald-600'}`}>
                               {inv.quantityAvailable}
                             </span>
-                            <p className="mt-0.5 text-[10px] font-normal text-slate-400">ngày {formatDate(inventoryCheckDates[item.itemId] ?? eventDateStr)}</p>
+                            <p className="mt-0.5 text-[10px] font-normal text-slate-400">
+                              ngày {formatDate((physicalItemId && inventoryCheckDates[physicalItemId]) || eventDateStr)}
+                            </p>
                           </>
                         ) : (
                           <span className="text-slate-300">—</span>
@@ -1679,7 +1909,9 @@ function ManagerOrderDetailContent() {
             </table>
           </div>
           <p className="text-[10px] italic text-slate-400">
-            Đã bỏ phần "vật tư cấu thành" (BOM) dựng sẵn — DB thật không có bảng lưu quan hệ này, xem docs/thietbikhohang_api.md mục 5.
+            Danh sách đã nổ các hạng mục dạng &quot;gói&quot; thành từng vật tư/thiết bị vật lý con theo bảng
+            `item_components` (mock tạm theo tên — Backend chưa có endpoint đọc bảng thật, xem
+            docs/thietbikhohang_api.md mục 8).
           </p>
         </div>
       </Modal>

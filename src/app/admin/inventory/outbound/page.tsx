@@ -117,7 +117,10 @@ export default function AdminWarehouseOutboundPage() {
       refresh();
       setConfirmingOrderId(null);
     } catch (err: any) {
-      alert('Xuất kho thất bại: ' + (err.response?.data?.message ?? 'Lỗi không xác định'));
+      // Backend chỉ đồng bộ order_items theo quotation_items, không còn kiểm tra tồn kho — lỗi ở đây
+      // chỉ còn 404/409/403 (docs/xuatthietbi_tubaogia_api.md mục 8).
+      const message = err.response?.data?.error?.message ?? err.response?.data?.message ?? 'Lỗi không xác định';
+      alert('Xuất kho thất bại: ' + message);
     } finally {
       setIsExporting(false);
     }
@@ -201,7 +204,10 @@ export default function AdminWarehouseOutboundPage() {
                   </span>
                   <div>
                     <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">Ngày diễn ra sự kiện</p>
-                    <p className="font-mono text-sm font-bold text-slate-700">{formatDate(order.eventDate)}</p>
+                    <p className="font-mono text-sm font-bold text-slate-700">
+                      {formatDate(order.eventDate)}
+                      {order.endDate ? ` — ${formatDate(order.endDate)}` : ''}
+                    </p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
@@ -295,7 +301,16 @@ export default function AdminWarehouseOutboundPage() {
       ),
     },
     { key: 'bookingName', label: 'Đơn đặt cưới (Khách hàng)', render: (row) => <span className="font-medium text-slate-700">{row.customerName}</span> },
-    { key: 'expectedDate', label: 'Ngày sự kiện', render: (row) => <span className="font-mono text-slate-500">{formatDate(row.eventDate)}</span> },
+    {
+      key: 'expectedDate',
+      label: 'Ngày sự kiện',
+      render: (row) => (
+        <span className="font-mono text-slate-500">
+          {formatDate(row.eventDate)}
+          {row.endDate ? ` — ${formatDate(row.endDate)}` : ''}
+        </span>
+      ),
+    },
     {
       key: 'actualDate',
       label: 'Ngày xuất kho thực tế',

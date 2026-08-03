@@ -177,7 +177,16 @@ export default function ManagerPicklistsPage() {
         </div>
       ),
     },
-    { key: 'eventDate', label: 'Ngày thi công', render: (o) => formatDate(o.eventDate) },
+    {
+      key: 'eventDate',
+      label: 'Ngày thi công',
+      render: (o) => (
+        <>
+          {formatDate(o.eventDate)}
+          {o.endDate ? ` — ${formatDate(o.endDate)}` : ''}
+        </>
+      ),
+    },
     {
       key: 'coordinatorName',
       label: 'Điều phối viên',

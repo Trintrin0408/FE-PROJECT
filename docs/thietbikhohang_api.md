@@ -242,3 +242,159 @@ nhận; số phận model `Inventory`; quyền ghi của bản Admin) **đã đ�
 1. **(mục 5)** Xác nhận model `Inventory`/`InventoryMovement` trong `prisma/schema.prisma` đã có hay
    chưa, và chạy migration tương ứng nếu chưa — khi xong chỉ cần bật lại cột "Tồn kho" theo mô tả ở
    mục 5, không ảnh hưởng gì tới các phần khác đã chốt ở mục 7.1.
+
+## 8. Cập nhật 2026-08-03 — `item_components` là BOM thật đang dùng nhưng chưa có route Backend
+
+Tab đã được tách UI thành 2 mục con: **"Thiết bị"** (đọc thẳng `orderItems` như mục 1, cảnh báo thiếu
+hàng cố định đúng 2 ngày [ngày liền trước, ngày tổ chức], thuần xem) và **"Chuẩn bị kho"** (giữ nguyên
+toàn bộ cơ chế đã mô tả ở mục 1/2/5 — khoảng ngày tùy chỉnh, "Xem phiếu chuẩn bị", "Thuê từ NCC" — nhưng
+nổ thêm các hạng mục dạng "gói" xuống từng vật tư/thiết bị vật lý con). Việc nổ "gói" này cần đính chính
+lại 1 phần nhận định ở mục 5.
+
+### 8.1. Đính chính mục 5 — bảng BOM CÓ THẬT, khác nhận định cũ
+
+Mục 5 (2026-07-20) kết luận "không có bảng nào trong DB thật lưu quan hệ 1 hạng mục cấu thành từ nhiều
+vật tư con" — nhận định này **đã lỗi thời**. Đối chiếu lại trực tiếp qua MySQL MCP (2026-08-03):
+
+- `USER()` = `avnadmin@...`, `@@port` = `28026` — khớp chính xác `DATABASE_URL` trong
+  `bnwems-backend-api/.env` (trỏ tới Aiven cloud) → đây đúng là DB thật Backend đang chạy, không phải
+  DB rời rạc nào khác.
+- `DESCRIBE item_components` xác nhận bảng có thật: `id`, `parent_id`, `child_id`, `quantity` (tất cả
+  `varchar(36)`/`int`, cùng kiểu id với `items`/`order_items` hiện có).
+- Đã seed dữ liệu thật cho 3 "gói": "Gói Âm Thanh Hội Trường (100-300 khách)" (4× Loa JBL EON715 500W,
+  1× Amply Crown XLS2502, 2× Micro Shure SM58, 2× Dây cáp Canon bộ 20m, 1× Bàn mixer Yamaha MG16XU),
+  "Gói Ánh Sáng Sân Khấu Tiêu Chuẩn" (4× Đèn Moving Head Wash 19x15W, 4× Truss vuông 290 cây 2m, 2× Đèn
+  Beam 230 7R, 8× Đèn Par LED 54x3W), "Gói Âm Thanh Ngoài Trời (500-1000 khách)" (2× Loa Sub JBL
+  SRX828S 18inch, 4× Dây cáp Canon bộ 20m, 2× Loa Line Array RCF TTL55A, 1× Vang số DBX DriveRack PA2,
+  4× Micro Shure SM58, 1× Bàn mixer Soundcraft Signature 12).
+- `_prisma_migrations` trên chính DB này có 2 migration riêng cho bảng này —
+  `20260721080000_add_item_components_baseline` (thêm dạng JSON) rồi
+  `20260723185702_remove_item_components_json_add_relation_table` (đổi hẳn sang bảng quan hệ riêng như
+  hiện tại) — chứng minh đây là tính năng có chủ đích, đã qua 1 lần refactor thật, không phải bảng rác.
+
+### 8.2. Hiện trạng Backend — chưa có route/controller nào đọc bảng này
+
+Rà soát repo backend đang checkout tại `D:\bnwems-backend-api` (`catalog.route/controller/service.ts`,
+`inventory.route/controller/service.ts`, `operations.route/controller/service.ts` — kể cả
+`getOrderItemsForPickList` chỉ trả thẳng `orderItems`, không nổ BOM), **cả 4 nhánh git** (`develop`,
+`main`, `feature/align-api-contract-v1`, `feature/align-new-api-contracts-and-test` — kể cả 1 commit
+remote chưa pull `6c2e4ed`): không có model/route/controller nào cho `item_components`.
+`prisma/schema.prisma` ở mọi nhánh chỉ có `Item`/`ItemType`/`ItemTypeSpec` — 1 khái niệm BOM **khác**,
+ở cấp **loại thiết bị** (không phải cấp item), dùng id kiểu BigInt autoincrement. Đối chiếu
+`_prisma_migrations` thật (17 migration đã chạy trên DB) với thư mục `prisma/migrations` của repo đang
+checkout (chỉ có 3 migration cũ, đã bị xoá ở commit gần nhất "fig: fix some bug with new db") cho thấy
+repo backend đang checkout đã lỗi thời hẳn so với schema thật đang chạy trên DB — code thật sự tạo ra
+`item_components` không nằm trong lịch sử git nào truy cập được từ đây.
+
+**Đã cân nhắc và loại** phương án tái dùng `ItemTypeSpec`/`GET/POST /catalog/types/:id/specs` (route
+này có thật, đang hoạt động) làm giải pháp thay thế: bảng `item_type_specs` tương ứng của nó **không
+tồn tại** trên DB thật (đã kiểm tra `SHOW TABLES`) — gọi route này sẽ luôn ra mảng rỗng, không phản ánh
+đúng dữ liệu BOM thật đang có. Kết luận: cần route mới đọc thẳng `item_components`, không tái dùng route
+`/specs` cũ.
+
+### 8.3. Endpoint cần bổ sung (đề xuất, chưa chốt — Backend xác nhận lại tên/shape)
+
+- `GET /api/v1/catalog/items/:id/components` — trả danh sách vật tư con của 1 item cha (nếu item đó là
+  1 "gói"): `{ componentId, childItemId, childItemName, unit, quantity }[]`; item không phải gói → trả
+  mảng rỗng.
+- **Đề xuất tốt hơn cho lâu dài** (giảm round-trip so với việc FE tự gọi item→components→inventory
+  riêng lẻ cho từng dòng): mở rộng luôn `GET /api/v1/inventory/picklist/:orderId` (đã có sẵn khai báo ở
+  FE — `inventoryApiService.getPicklist`, dùng ở `admin/inventory/outbound/page.tsx` — nhưng cũng
+  **chưa thấy route BE tương ứng** khi rà soát) để BE tự nổ BOM + join tồn kho sẵn, trả thẳng danh sách
+  vật tư vật lý cuối cùng kèm `quantityAvailable`. Đây là đề xuất tối ưu, không bắt buộc làm ngay.
+- Ghi chú: có thể cần thêm CRUD quản lý cấu hình BOM (`POST/PUT .../components`) cho màn hình quản trị
+  danh mục sau này, nhưng ngoài phạm vi cần ngay của tab "Chuẩn bị kho" — chỉ nêu để Backend biết trước.
+
+### 8.4. Giải pháp tạm ở FE (áp dụng ngay, gỡ bỏ khi có endpoint thật)
+
+Mock BOM tĩnh theo **tên** hạng mục cha (`src/mocks/db/itemComponents.ts`, khớp đúng dữ liệu thật đã
+seed ở mục 8.1 — dùng tên vì itemId thật đổi theo môi trường/lần seed lại, còn tên thì ổn định), tra
+`itemId`/`unit` thật của từng vật tư con qua `catalogApiService.getItems({ search })` (endpoint thật,
+đang hoạt động), rồi gọi `inventoryApiService.getInventory` theo đúng cơ chế cũ ở mục 5. Khi có endpoint
+thật ở mục 8.3, chỉ cần thay hàm `explodePhysicalDemand` đọc từ API thay vì từ
+`ITEM_COMPONENTS_BY_PARENT_NAME`, phần còn lại (`page.tsx`) giữ nguyên.
+
+**Cập nhật 2026-08-03 (tiếp) — có thể gỡ ngay, xem mục 9**: endpoint ở mục 8.3 **đã implement thật**
+(khác repo backend đã rà ở mục 8.2 — xem mục 9). Giải pháp tạm này vẫn cần giữ **một phần** (xem lưu ý
+"gói cũng có dòng inventory riêng" ở mục 9.3) cho tới khi FE nối API thật.
+
+## 9. Cập nhật 2026-08-03 (tiếp, sau khi sửa lại đường dẫn repo Backend) — endpoint mục 8.3 ĐÃ CÓ THẬT
+
+**Bối cảnh sửa sai lệch**: mục 8.2 rà nhầm repo backend tại `D:\bnwems-backend-api` (repo cũ, đã lỗi
+thời, không phải bản đang chạy) và kết luận "chưa có route/controller nào cho `item_components`".
+Repo backend **thật** đang dùng cho dự án là **`D:\sep490-backend-api`** (nhánh `main`, đã ghi lại vào
+`CLAUDE.md` mục "Lưu ý: đường dẫn repo Backend thật" để tránh lặp lại nhầm lẫn này). Đối chiếu lại đúng
+repo này (2026-08-03) cho kết quả **ngược hẳn** kết luận cũ.
+
+### 9.1. Endpoint `GET /api/v1/catalog/items/:itemId/components` (mục 8.3) — ĐÃ CÓ, đúng shape đề xuất
+
+Đã implement đầy đủ, khớp gần như y hệt đề xuất ở mục 8.3:
+
+- **Route**: `GET /api/v1/catalog/items/:itemId/components`, mount tại `/api/v1/catalog/items` —
+  `src/modules/shared/catalog.routes.ts:34-39`, gate `requireRole('MANAGER', 'ADMIN')`, `requireAuth`
+  áp dụng chung cho cả router (dòng 17).
+- **Controller**: `getItemComponents` — `src/modules/shared/catalog.controller.ts:35-39`, trả 404
+  (`AppError.notFound`) nếu `itemId` không tồn tại.
+- **Service**: `catalogService.getItemComponents` — `src/modules/shared/catalog.service.ts:168-180`,
+  trả đúng shape đề xuất: `{ componentId, childItemId, childItemName, unit, quantity }[]` (map từ
+  `componentId: c.id`, `childItemId: c.childId`, `childItemName: c.child.itemName`,
+  `unit: c.child.unit`, `quantity: c.quantity`).
+- **Repository**: `findComponentsByItemId` — `src/modules/shared/catalog.repository.ts:97-102`, query
+  thẳng `prisma.itemComponent.findMany({ where: { parentId: itemId }, include: { child: true } })` —
+  đúng bảng `item_components` thật đã xác nhận ở mục 8.1 (Prisma model `ItemComponent`,
+  `prisma/schema.prisma:896-908`, `@@map("item_components")`, `parentId`/`childId`/`quantity`).
+- **Test**: `src/modules/shared/__tests__/catalog.test.ts:267-310` — case trả về components đã map
+  đúng, case mảng rỗng khi item không phải gói, case 404 khi item không tồn tại.
+
+→ **Không cần route mới nào nữa** cho phần này — FE có thể nối thật ngay khi tới lượt (xem mục 9.4).
+
+### 9.2. Bonus phát hiện thêm — bảng `inventory`/`inventory_movements` NAY ĐÃ TỒN TẠI (giải quyết luôn mục 5/7.2)
+
+Mục 5 (2026-07-20) để ngỏ "chưa xác nhận model `Inventory` đã migrate hay chưa" (mục 7.2, việc kỹ thuật
+thuần phía Backend). Đối chiếu lại (2026-08-03, đúng repo `sep490-backend-api` + MySQL MCP):
+
+- `prisma/schema.prisma:821-831` có `model Inventory` map `@@map("inventory")`
+  (`itemId` unique, `quantityTotal`, `quantityDamaged`); `model InventoryMovement`
+  (`prisma/schema.prisma:833-850`) map `@@map("inventory_movements")`.
+- Xác nhận trên DB thật qua `information_schema.tables`: **cả 2 bảng `inventory` và
+  `inventory_movements` đều đã tồn tại** (đã migrate xong, không còn ở trạng thái "chưa chạy migration"
+  như mục 5 ghi nhận trước đó).
+- Endpoint `GET /api/v1/inventory/picklist/:orderId` (nhắc tới ở mục 8.3 như "đề xuất tốt hơn cho lâu
+  dài") **cũng đã có thật** — `src/modules/inventory/inventory.routes.ts:49-51`,
+  `inventory.controller.ts:41-44`, `inventory.service.ts:196-220` (hàm `getPicklist`). Trả về
+  `PicklistItemDTO[]`: `{ orderItemId, itemId, itemName, unit, source, quantityOrdered,
+  quantityAvailable, quantityExported }` — đọc thẳng `order_items` (không nổ BOM), join
+  `item.inventory` để tính `quantityAvailable` khi có, và `getExportedQuantity` cho `quantityExported`.
+
+→ Cột "Tồn kho" ở mục 5/8.4 (đang bị ẩn vì "chưa xác nhận bảng `inventory` tồn tại") **đủ điều kiện bật
+lại** — không còn lý do kỹ thuật nào để tiếp tục ẩn.
+
+### 9.3. Lưu ý quan trọng khi FE nối thật — "gói" cũng có dòng `inventory` riêng, đừng dùng nhầm
+
+Kiểm tra thêm qua MySQL MCP phát hiện 1 điểm cần lưu ý khi nối `GET /inventory/picklist/:orderId`: cả
+3 item "gói" ở mục 8.1 (`Gói Âm Thanh Hội Trường...`, `Gói Ánh Sáng Sân Khấu...`, `Gói Âm Thanh Ngoài
+Trời...`) **cũng có dòng `inventory` riêng của chính nó** (`quantity_total` lần lượt 32/33/23) — độc
+lập, không tự động phản ánh tồn kho thật của các vật tư con bên trong gói.
+
+Hệ quả: nếu 1 dòng `orderItems` là 1 "gói" (item cha), `quantityAvailable` mà `GET
+/inventory/picklist/:orderId` trả về cho dòng đó là tồn kho của **chính cái gói** (một con số ghi tay
+khi seed, không liên động với tồn kho vật tư con) — **không dùng số này để quyết định "đủ hàng chuẩn bị
+kho" cho mục con "Chuẩn bị kho"**. Mục "Chuẩn bị kho" (mục 8) cần nổ BOM đúng theo mục 8.4: gọi
+`GET /catalog/items/:itemId/components` (mục 9.1) để lấy danh sách vật tư con, rồi tra tồn kho **theo
+từng `childItemId`** (qua `GET /api/v1/inventory?itemId=:childItemId`, hoặc gọi lại
+`GET /inventory/picklist/:orderId` không giúp gì thêm ở bước này vì nó không trả theo cấp vật tư con) —
+đúng chuỗi gọi API đã mô tả ở mục 8.4, chỉ thay bước "mock BOM tĩnh" bằng gọi API thật.
+
+### 9.4. Việc FE cần làm khi nối API thật (cập nhật lại mục 8.4)
+
+1. Thay `ITEM_COMPONENTS_BY_PARENT_NAME`/`src/mocks/db/itemComponents.ts` bằng gọi thật
+   `GET /api/v1/catalog/items/:itemId/components` qua `catalogApiService` (thêm 1 method mới,
+   `getItemComponents(itemId)`, theo CLAUDE.md mục 4 — không gọi `axios`/`fetch` trực tiếp).
+2. Giữ nguyên bước tra tồn kho **theo từng vật tư con** qua `inventoryApiService.getInventory` (mục
+   8.4 cũ) — **không** thay bằng `GET /inventory/picklist/:orderId` cho bước này, lý do ở mục 9.3.
+3. Với mục con "Thiết bị" (đọc thẳng `orderItems`, không nổ BOM) và bảng chính ở mục 1: có thể cân nhắc
+   đổi sang gọi `GET /api/v1/inventory/picklist/:orderId` (mục 9.2) thay vì tự ráp
+   `orderItems[].subtotal`/`quantityOrdered` thủ công từ `GET /orders/:id`, vì endpoint này đã trả sẵn
+   `quantityExported`/`quantityAvailable` gộp — cân nhắc khi tới lượt nối thật, không bắt buộc ngay.
+4. Bật lại cột "Tồn kho" trong modal Picklist (đang ẩn theo mục 5/8.4) — bảng `inventory` đã sẵn sàng
+   (mục 9.2), không còn điều kiện chặn.

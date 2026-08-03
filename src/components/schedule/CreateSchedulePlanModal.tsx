@@ -1,15 +1,18 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { AxiosError } from 'axios';
-import { Plus, Trash2 } from 'lucide-react';
+import { AlertTriangle, Loader2, Plus, Trash2 } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
-import { Select } from '@/components/ui/Select';
+import { Select, SelectOptionGroup } from '@/components/ui/Select';
 import { Input } from '@/components/ui/Input';
 import { workTaskApiService } from '@/services/workTask.service';
 import { userApiService } from '@/services/user.service';
 import { schedulePlanApiService } from '@/services/schedulePlan.service';
+import { useStaffConflictPlans, type StaffConflictDateWindow } from '@/hooks/useStaffConflictPlans';
+import { buildStaffConflictMap, type StaffConflict } from '@/utils/staffAvailability';
+import { formatTime } from '@/utils/formatDate';
 import type { WorkTask } from '@/types/workTask';
 import type { AdminUser } from '@/types/user';
 
@@ -124,6 +127,19 @@ export default function CreateSchedulePlanModal({ isOpen, onClose, orderId, defa
   const selectedTaskName = workTasks.find((t) => t.taskId === taskId)?.taskName;
   const isDateRestricted = isDateRestrictedTaskName(selectedTaskName);
 
+  // Check trùng lịch nhân sự: lấy toàn bộ lịch trình (mọi đơn) giao với ngày của khung giờ đang chọn,
+  // rồi lọc chính xác theo giờ ở client (useStaffConflictPlans/buildStaffConflictMap) — chỉ để CẢNH
+  // BÁO MỀM, không chặn chọn người đang bận (xác nhận với người dùng: không có ràng buộc backend nào
+  // cấm 1 người nhận nhiều việc trùng giờ, Manager tự quyết định).
+  const conflictDateWindow: StaffConflictDateWindow | null = startTime
+    ? { from: startTime.slice(0, 10), to: (endTime || startTime).slice(0, 10) }
+    : null;
+  const { plans: conflictPlans, isLoading: checkingConflicts } = useStaffConflictPlans(conflictDateWindow);
+  const conflictMap: Map<string, StaffConflict[]> = useMemo(
+    () => (startTime ? buildStaffConflictMap(conflictPlans, startTime, endTime || undefined) : new Map()),
+    [conflictPlans, startTime, endTime],
+  );
+
   const nowInputValue = toLocalInputValue(new Date());
   const eventDateInputValue = eventDate ? toLocalInputValue(new Date(eventDate)) : undefined;
 
@@ -134,10 +150,29 @@ export default function CreateSchedulePlanModal({ isOpen, onClose, orderId, defa
   const assigneesError =
     attemptedSubmit && assignees.filter((a) => a.userId).length === 0 ? 'Vui lòng chọn ít nhất 1 nhân sự phụ trách.' : undefined;
 
-  const optionsForRow = (rowUserId: string) =>
-    staff
-      .filter((u) => u.userId === rowUserId || !selectedUserIds.has(u.userId))
-      .map((u) => ({ value: u.userId, label: `${u.fullName} (${u.username})` }));
+  const optionsForRow = (rowUserId: string): SelectOptionGroup[] => {
+    const selectable = staff.filter((u) => u.userId === rowUserId || !selectedUserIds.has(u.userId));
+    const free = selectable.filter((u) => !conflictMap.get(u.userId)?.length);
+    const busy = selectable.filter((u) => (conflictMap.get(u.userId)?.length ?? 0) > 0);
+    const groups: SelectOptionGroup[] = [
+      { label: 'Nhân sự rảnh', options: free.map((u) => ({ value: u.userId, label: `${u.fullName} (${u.username})` })) },
+    ];
+    if (busy.length > 0) {
+      groups.push({
+        label: 'Nhân sự đang bận (trùng lịch)',
+        options: busy.map((u) => {
+          const conflict = conflictMap.get(u.userId)![0];
+          const timeRange = conflict.endTime ? `${formatTime(conflict.startTime)}–${formatTime(conflict.endTime)}` : formatTime(conflict.startTime);
+          const extra = (conflictMap.get(u.userId)?.length ?? 0) > 1 ? ` +${conflictMap.get(u.userId)!.length - 1} việc khác` : '';
+          return {
+            value: u.userId,
+            label: `${u.fullName} (${u.username}) — Bận ${timeRange} (${conflict.orderCode ?? conflict.planCode})${extra}`,
+          };
+        }),
+      });
+    }
+    return groups;
+  };
 
   const addAssigneeRow = () => setAssignees((prev) => [...prev, { key: nextDraftKey(), userId: '', role: 'TECHNICAL' }]);
   const removeAssigneeRow = (key: string) =>
@@ -264,8 +299,13 @@ export default function CreateSchedulePlanModal({ isOpen, onClose, orderId, defa
 
         <div>
           <div className="mb-2 flex items-center justify-between">
-            <span className="text-sm font-medium text-gray-700">
+            <span className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
               Nhân sự phụ trách <span className="text-red-500">*</span>
+              {checkingConflicts && (
+                <span className="flex items-center gap-1 text-xs font-normal text-slate-400">
+                  <Loader2 className="h-3 w-3 animate-spin" /> Đang kiểm tra lịch trùng...
+                </span>
+              )}
             </span>
             <Button type="button" variant="secondary" size="sm" onClick={addAssigneeRow} disabled={selectedUserIds.size >= staff.length}>
               <Plus className="h-4 w-4" />
@@ -273,46 +313,60 @@ export default function CreateSchedulePlanModal({ isOpen, onClose, orderId, defa
             </Button>
           </div>
           <div className="space-y-2">
-            {assignees.map((row) => (
-              <div key={row.key} className="flex items-center gap-2">
-                <div className="flex-1">
-                  <Select
-                    placeholder="-- Chọn nhân sự --"
-                    value={row.userId}
-                    onChange={(e) => updateAssigneeRow(row.key, e.target.value)}
-                    options={optionsForRow(row.userId)}
-                  />
+            {assignees.map((row) => {
+              const rowConflicts = row.userId ? conflictMap.get(row.userId) : undefined;
+              return (
+                <div key={row.key} className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1">
+                      <Select
+                        placeholder="-- Chọn nhân sự --"
+                        value={row.userId}
+                        onChange={(e) => updateAssigneeRow(row.key, e.target.value)}
+                        options={optionsForRow(row.userId)}
+                      />
+                    </div>
+                    <div className="flex shrink-0 overflow-hidden rounded-lg border border-slate-200 text-xs font-semibold">
+                      <button
+                        type="button"
+                        onClick={() => setAssigneeRowRole(row.key, 'LEAD')}
+                        className={`px-2.5 py-2 ${row.role === 'LEAD' ? 'bg-blue-600 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}
+                      >
+                        Trưởng nhóm
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAssigneeRowRole(row.key, 'TECHNICAL')}
+                        disabled={row.role === 'LEAD'}
+                        title={row.role === 'LEAD' ? 'Chọn nhân sự khác làm Trưởng nhóm để đổi vai trò này.' : undefined}
+                        className={`border-l border-slate-200 px-2.5 py-2 ${row.role === 'TECHNICAL' ? 'bg-blue-600 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'} disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white`}
+                      >
+                        Kỹ thuật viên
+                      </button>
+                    </div>
+                    {assignees.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeAssigneeRow(row.key)}
+                        className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                        title="Bỏ nhân sự này"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                  {rowConflicts && rowConflicts.length > 0 && (
+                    <p className="flex items-start gap-1 pl-1 text-xs text-amber-600">
+                      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                      Trùng lịch:{' '}
+                      {rowConflicts
+                        .map((c) => `${c.orderCode ?? c.planCode} (${c.taskName ?? 'việc khác'}, ${formatTime(c.startTime)}${c.endTime ? `–${formatTime(c.endTime)}` : ''})`)
+                        .join('; ')}
+                    </p>
+                  )}
                 </div>
-                <div className="flex shrink-0 overflow-hidden rounded-lg border border-slate-200 text-xs font-semibold">
-                  <button
-                    type="button"
-                    onClick={() => setAssigneeRowRole(row.key, 'LEAD')}
-                    className={`px-2.5 py-2 ${row.role === 'LEAD' ? 'bg-blue-600 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}
-                  >
-                    Trưởng nhóm
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAssigneeRowRole(row.key, 'TECHNICAL')}
-                    disabled={row.role === 'LEAD'}
-                    title={row.role === 'LEAD' ? 'Chọn nhân sự khác làm Trưởng nhóm để đổi vai trò này.' : undefined}
-                    className={`border-l border-slate-200 px-2.5 py-2 ${row.role === 'TECHNICAL' ? 'bg-blue-600 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'} disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white`}
-                  >
-                    Kỹ thuật viên
-                  </button>
-                </div>
-                {assignees.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removeAssigneeRow(row.key)}
-                    className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
-                    title="Bỏ nhân sự này"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
           {assigneesError && <p className="mt-1 text-xs text-red-600">{assigneesError}</p>}
         </div>
