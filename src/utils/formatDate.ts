@@ -28,3 +28,12 @@ export function formatDateTime(value: string | number): string {
     timeZone: VN_TIME_ZONE,
   }).format(date);
 }
+
+/** Chuỗi ngày dạng YYYY-MM-DD theo giờ Việt Nam — dùng làm value cho <input type="date"> khi nguồn là
+ * epoch ms/ISO string có kèm giờ (vd mốc khóa kho ±6h), tránh lệch ngày do quy đổi timezone mặc định
+ * của trình duyệt/server. */
+export function toDateInputValue(value: string | number): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat('en-CA', { timeZone: VN_TIME_ZONE }).format(date);
+}

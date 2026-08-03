@@ -2372,3 +2372,11 @@ trả sẵn).
   Tab "Chuẩn bị kho" ở `manager/orders/[id]/page.tsx` (đang dùng heuristic riêng phía client
   `[eventDate - 1 ngày, eventDate]`, xem mục (aw)) **vẫn là ước tính độc lập**, chưa đồng bộ với công thức
   min/max ± 6h này — để dành cho đợt sau nếu cần khớp chính xác giữa preview FE và lock thật của Backend.
+  - **Cập nhật 2026-08-03 — đã đồng bộ**: theo yêu cầu người dùng ("check tồn kho tương ứng ngày khóa
+    kho"), khoảng ngày mặc định của tab "Chuẩn bị kho" đổi từ heuristic `[eventDate - 1 ngày, eventDate]`
+    sang lấy đúng `orderLockWindow` (`utils/inventoryLock.ts` — cùng công thức min/max ±6h mirror ở trên,
+    dùng `order.eventDate`/`order.endDate` + `schedulePlans` SETUP/COLLECT). Nút "Đặt lại mặc định" và cờ
+    "đang ở khoảng mặc định" cũng đổi theo cùng công thức này. Manager vẫn có thể tự chỉnh khoảng ngày —
+    hành vi không ghi đè khoảng đã tự chỉnh khi reload (trừ khi đổi đơn/eventDate/endDate) giữ nguyên như
+    cũ. Chỉ sửa phía FE (`manager/orders/[id]/page.tsx`, `utils/formatDate.ts` — thêm `toDateInputValue`),
+    không đụng Backend.
