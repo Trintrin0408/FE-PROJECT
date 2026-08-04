@@ -22,6 +22,13 @@ export interface SchedulePlan {
   startTime: string;
   endTime?: string;
   location?: string;
+  // Bổ sung 2026-08-03 (đối chiếu source thật `schedule.repository.ts`/`schedule.service.ts`/
+  // `schedule.validators.ts` tại D:\sep490-backend-api): schedule_plans.latitude/longitude là 2 cột
+  // thật (cùng migration với orders.latitude/longitude), POST/PUT /schedule-plans đã nhận sẵn 2 field
+  // này (z.coerce.number().optional()) và GET đã trả kèm qua mapPlan — không phải mock, FE trước đây
+  // chỉ chưa gửi/hiển thị.
+  latitude?: number | null;
+  longitude?: number | null;
   status: ScheduleStatus;
   evidenceId?: string;
   notes?: string;
@@ -73,6 +80,12 @@ export interface GetSchedulePlansQuery {
   // dateTo trả về toàn bộ đơn có khoảng [event_date, MAX(end_time)] giao với cửa sổ ngày.
   dateFrom?: string; // YYYY-MM-DD
   dateTo?: string; // YYYY-MM-DD
+  // Bổ sung 2026-08-03 (đối chiếu `schedule.validators.ts` tại D:\sep490-backend-api): 'timeline' (mặc
+  // định) lọc theo [orders.event_date, MAX(end_time)] của cả đơn; 'plan' lọc trực tiếp theo start_time
+  // của TỪNG dòng schedule_plan — dùng 'plan' khi cần đúng các plan thật sự diễn ra trong 1 khoảng ngày
+  // cụ thể (vd "việc cần làm hôm nay" ở dashboard), tránh dính việc của đơn khác chỉ vì event_date rơi
+  // vào cửa sổ đang lọc.
+  dateMode?: 'timeline' | 'plan';
 }
 
 // POST /api/v1/schedule-plans — `assignedTo` khai bắt buộc ở validator nhưng bị bỏ qua ở tầng service
@@ -85,6 +98,8 @@ export interface CreateSchedulePlanPayload {
   startTime: string; // ISO datetime
   endTime?: string;
   location?: string;
+  latitude?: number;
+  longitude?: number;
   notes?: string;
 }
 
@@ -102,6 +117,8 @@ export interface UpdateSchedulePlanPayload {
   startTime?: string;
   endTime?: string;
   location?: string;
+  latitude?: number;
+  longitude?: number;
   notes?: string;
 }
 

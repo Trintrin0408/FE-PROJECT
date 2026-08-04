@@ -6,13 +6,14 @@ import { Avatar } from '@/components/ui/Avatar';
 import { Badge, getStatusBadgeVariant } from '@/components/ui/Badge';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { ORDER_STATUS_LABEL } from '@/constants/order-status';
-import type { RecentOrderRow } from '@/mocks/adminDashboard';
+import type { RecentOrderRow } from '@/types/dashboard';
 
 interface RecentOrdersCardProps {
   orders: RecentOrderRow[];
+  isLoading?: boolean;
 }
 
-export default function RecentOrdersCard({ orders }: Readonly<RecentOrdersCardProps>) {
+export default function RecentOrdersCard({ orders, isLoading }: Readonly<RecentOrdersCardProps>) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
 
@@ -107,7 +108,7 @@ export default function RecentOrdersCard({ orders }: Readonly<RecentOrdersCardPr
             {filtered.length === 0 && (
               <tr>
                 <td colSpan={7} className="py-8 text-center text-sm text-slate-400">
-                  Không có đơn đặt phù hợp.
+                  {isLoading ? 'Đang tải...' : 'Không có đơn đặt phù hợp.'}
                 </td>
               </tr>
             )}

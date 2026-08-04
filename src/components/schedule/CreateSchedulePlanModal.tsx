@@ -7,12 +7,14 @@ import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Select, SelectOptionGroup } from '@/components/ui/Select';
 import { Input } from '@/components/ui/Input';
+import { AddressAutocompleteInput } from '@/components/ui/AddressAutocompleteInput';
 import { workTaskApiService } from '@/services/workTask.service';
 import { userApiService } from '@/services/user.service';
 import { schedulePlanApiService } from '@/services/schedulePlan.service';
 import { useStaffConflictPlans, type StaffConflictDateWindow } from '@/hooks/useStaffConflictPlans';
 import { buildStaffConflictMap, type StaffConflict } from '@/utils/staffAvailability';
 import { formatTime } from '@/utils/formatDate';
+import { getEndTimeError, getStartTimeError, isDateRestrictedTaskName, toLocalInputValue } from '@/utils/schedulePlanValidation';
 import type { WorkTask } from '@/types/workTask';
 import type { AdminUser } from '@/types/user';
 
@@ -55,41 +57,6 @@ interface CreateSchedulePlanModalProps {
   onCreated: (taskName: string) => void;
 }
 
-// datetime-local input cần định dạng "yyyy-MM-ddTHH:mm" theo giờ local (không phải ISO UTC).
-function toLocalInputValue(date: Date): string {
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-}
-
-// Yêu cầu nghiệp vụ: khảo sát hiện trường & lắp đặt thiết bị phải diễn ra trước ngày tổ chức sự kiện.
-function isDateRestrictedTaskName(taskName: string | undefined): boolean {
-  if (!taskName) return false;
-  return /khảo sát|lắp đặt/i.test(taskName);
-}
-
-function getStartTimeError(startTime: string, eventDate: string | undefined, isRestricted: boolean): string | undefined {
-  if (!startTime) return undefined;
-  const start = new Date(startTime);
-  if (start.getTime() < Date.now()) return 'Không thể chọn thời gian trong quá khứ.';
-  if (isRestricted && eventDate && start.getTime() >= new Date(eventDate).getTime()) {
-    return 'Thời gian bắt đầu phải trước ngày diễn ra sự kiện.';
-  }
-  return undefined;
-}
-
-function getEndTimeError(startTime: string, endTime: string, eventDate: string | undefined, isRestricted: boolean): string | undefined {
-  if (!endTime) return undefined;
-  const end = new Date(endTime);
-  if (startTime && end.getTime() <= new Date(startTime).getTime()) {
-    return 'Thời gian kết thúc phải sau thời gian bắt đầu.';
-  }
-  if (end.getTime() < Date.now()) return 'Không thể chọn thời gian trong quá khứ.';
-  if (isRestricted && eventDate && end.getTime() >= new Date(eventDate).getTime()) {
-    return 'Thời gian kết thúc phải trước ngày diễn ra sự kiện.';
-  }
-  return undefined;
-}
-
 export default function CreateSchedulePlanModal({ isOpen, onClose, orderId, defaultLocation, eventDate, onCreated }: Readonly<CreateSchedulePlanModalProps>) {
   const [workTasks, setWorkTasks] = useState<WorkTask[]>([]);
   const [staff, setStaff] = useState<AdminUser[]>([]);
@@ -98,6 +65,8 @@ export default function CreateSchedulePlanModal({ isOpen, onClose, orderId, defa
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
   const [location, setLocation] = useState('');
+  const [latitude, setLatitude] = useState<number | undefined>(undefined);
+  const [longitude, setLongitude] = useState<number | undefined>(undefined);
   const [notes, setNotes] = useState('');
   const [assignees, setAssignees] = useState<AssigneeDraft[]>([{ key: nextDraftKey(), userId: '', role: 'LEAD' }]);
 
@@ -111,6 +80,8 @@ export default function CreateSchedulePlanModal({ isOpen, onClose, orderId, defa
     setStartTime('');
     setEndTime('');
     setLocation(defaultLocation ?? '');
+    setLatitude(undefined);
+    setLongitude(undefined);
     setNotes('');
     setAssignees([{ key: nextDraftKey(), userId: '', role: 'LEAD' }]);
     setError(null);
@@ -217,6 +188,8 @@ export default function CreateSchedulePlanModal({ isOpen, onClose, orderId, defa
         startTime: new Date(startTime).toISOString(),
         ...(endTime ? { endTime: new Date(endTime).toISOString() } : {}),
         location: location.trim() || undefined,
+        ...(latitude !== undefined ? { latitude } : {}),
+        ...(longitude !== undefined ? { longitude } : {}),
         notes: notes.trim() || undefined,
       });
       const planId = planRes.data.planId as string;
@@ -295,7 +268,21 @@ export default function CreateSchedulePlanModal({ isOpen, onClose, orderId, defa
           />
         </div>
 
-        <Input label="Địa điểm (mặc định theo địa điểm sự kiện)" value={location} onChange={(e) => setLocation(e.target.value)} />
+        <AddressAutocompleteInput
+          label="Địa điểm (mặc định theo địa điểm sự kiện)"
+          placeholder="VD: 123 Đường ABC, Quận 1, TP.HCM"
+          value={location}
+          onChange={(value) => {
+            setLocation(value);
+            setLatitude(undefined);
+            setLongitude(undefined);
+          }}
+          onSelectPlace={({ formattedAddress, lat, lng }) => {
+            setLocation(formattedAddress);
+            setLatitude(lat);
+            setLongitude(lng);
+          }}
+        />
 
         <div>
           <div className="mb-2 flex items-center justify-between">

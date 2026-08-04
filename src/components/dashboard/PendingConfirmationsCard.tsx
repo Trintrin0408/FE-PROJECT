@@ -1,6 +1,6 @@
 import Link from 'next/link';
-import { AlertCircle, CheckCircle2, ChevronRight, ClipboardCheck, DollarSign, FileWarning, MapPin, ReceiptText, type LucideIcon } from 'lucide-react';
-import type { ConfirmationType, PendingConfirmation } from '@/mocks/managerDashboard';
+import { AlertCircle, CheckCircle2, ChevronRight, ClipboardEdit, DollarSign, MapPin, type LucideIcon } from 'lucide-react';
+import type { ConfirmationType, PendingConfirmation } from '@/types/dashboard';
 
 interface PendingConfirmationsCardProps {
   items: PendingConfirmation[];
@@ -8,11 +8,9 @@ interface PendingConfirmationsCardProps {
 
 const TYPE_ICON: Record<ConfirmationType, LucideIcon> = {
   survey: MapPin,
-  handover: ClipboardCheck,
-  damage_loss: FileWarning,
-  settlement: ReceiptText,
-  field_payment: DollarSign,
+  change_request: ClipboardEdit,
   inventory_return: AlertCircle,
+  deposit: DollarSign,
 };
 
 // Khối "hàng đợi chờ xác nhận" — đặc thù UX của Manager: phần lớn biên bản/chứng từ hiện trường do

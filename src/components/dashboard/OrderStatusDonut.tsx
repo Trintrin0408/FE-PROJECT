@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
 import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts';
-import type { OrderStatusSlice } from '@/mocks/adminDashboard';
+import type { OrderStatusSlice } from '@/types/dashboard';
 
 interface OrderStatusDonutProps {
   data: OrderStatusSlice[];

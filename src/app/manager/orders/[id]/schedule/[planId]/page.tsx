@@ -112,16 +112,27 @@ function ScheduleplanDetailContent() {
         if (a.latitude == null || a.longitude == null) {
           return <span className="text-slate-400">Chưa có dữ liệu</span>;
         }
-        const distanceKm =
-          order.latitude != null && order.longitude != null
-            ? haversineDistanceKm({ lat: a.latitude, lng: a.longitude }, { lat: order.latitude, lng: order.longitude })
-            : null;
+        // Ưu tiên tọa độ riêng của schedule_plan (địa điểm cụ thể của công việc này, có thể khác địa
+        // điểm tổ chức chính — vd khảo sát ở kho, thi công ở địa điểm khác) — nếu plan chưa có tọa độ
+        // riêng thì mới rơi về orders.latitude/longitude như trước.
+        const planHasOwnCoords = plan.latitude != null && plan.longitude != null;
+        let referenceCoords: { lat: number; lng: number } | null = null;
+        if (planHasOwnCoords) {
+          referenceCoords = { lat: plan.latitude as number, lng: plan.longitude as number };
+        } else if (order.latitude != null && order.longitude != null) {
+          referenceCoords = { lat: order.latitude, lng: order.longitude };
+        }
+        const distanceKm = referenceCoords ? haversineDistanceKm({ lat: a.latitude, lng: a.longitude }, referenceCoords) : null;
         return (
           <div className="space-y-0.5">
             <p className="font-mono text-xs text-slate-600">
               {a.latitude.toFixed(5)}, {a.longitude.toFixed(5)}
             </p>
-            {distanceKm != null && <p className="text-xs text-slate-400">~{distanceKm.toFixed(2)} km từ địa điểm tổ chức</p>}
+            {distanceKm != null && (
+              <p className="text-xs text-slate-400">
+                ~{distanceKm.toFixed(2)} km từ {planHasOwnCoords ? 'địa điểm kế hoạch' : 'địa điểm tổ chức'}
+              </p>
+            )}
             <a
               href={`https://www.google.com/maps?q=${a.latitude},${a.longitude}`}
               target="_blank"
@@ -214,6 +225,17 @@ function ScheduleplanDetailContent() {
               <MapPin className="h-4 w-4 text-slate-400" />
               {plan.location ?? order.location}
             </p>
+            {plan.latitude != null && plan.longitude != null && (
+              <a
+                href={`https://www.google.com/maps?q=${plan.latitude},${plan.longitude}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:underline"
+              >
+                Xem trên bản đồ
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
           </div>
         </div>
 

@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { AlertTriangle, Check, Loader2, PlusCircle, X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { AddressAutocompleteInput } from '@/components/ui/AddressAutocompleteInput';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatDate, formatTime } from '@/utils/formatDate';
 import type { OrderPlanGroup } from '@/utils/schedulePlanGroups';
@@ -15,6 +16,12 @@ import { userApiService } from '@/services/user.service';
 import { orderApiService } from '@/services/order.service';
 import { useStaffConflictPlans, type StaffConflictDateWindow } from '@/hooks/useStaffConflictPlans';
 import { DEFAULT_TASK_DURATION_MS, buildStaffConflictMap, type StaffConflict } from '@/utils/staffAvailability';
+import {
+  getEndTimeError as getItemEndTimeError,
+  getStartTimeError as getItemStartTimeError,
+  isDateRestrictedTaskName,
+  toLocalInputValue,
+} from '@/utils/schedulePlanValidation';
 import type { WorkTask } from '@/types/workTask';
 import type { AdminUser } from '@/types/user';
 
@@ -27,15 +34,28 @@ export interface PlanOrderOption {
   location: string;
 }
 
+interface DraftAssignee {
+  key: string;
+  userId: string;
+  role: 'LEAD' | 'TECHNICAL';
+}
+
 interface DraftItem {
   localId: string;
   taskId: string;
   start: string; // datetime-local
   end: string; // datetime-local
   location: string;
+  latitude?: number;
+  longitude?: number;
   notes: string;
-  leadUserId: string;
-  technicalUserIds: string[];
+  assignees: DraftAssignee[];
+}
+
+let planItemAssigneeKeySeq = 0;
+function nextPlanItemAssigneeKey(): string {
+  planItemAssigneeKeySeq += 1;
+  return `pf-item-assignee-${planItemAssigneeKeySeq}`;
 }
 
 interface PlanFormDrawerProps {
@@ -56,6 +76,10 @@ function toDatetimeLocal(iso?: string): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+// Validate giống hệt CreateSchedulePlanModal.tsx (tab "Lịch trình & Kỹ thuật" của đơn) — áp dụng cho
+// từng dòng hoạt động ở Section 2: bắt buộc chọn loại việc, thời gian bắt đầu không ở quá khứ, khảo
+// sát/lắp đặt phải diễn ra trước ngày sự kiện, và bắt buộc ít nhất 1 nhân sự phụ trách.
+
 function newDraftItem(defaultLocation: string): DraftItem {
   return {
     localId: `NEW-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -64,8 +88,7 @@ function newDraftItem(defaultLocation: string): DraftItem {
     end: '',
     location: defaultLocation,
     notes: '',
-    leadUserId: '',
-    technicalUserIds: [],
+    assignees: [{ key: nextPlanItemAssigneeKey(), userId: '', role: 'LEAD' }],
   };
 }
 
@@ -100,9 +123,10 @@ export default function PlanFormDrawer({ isOpen, editingGroup, selectableOrders,
 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [attemptedSubmit, setAttemptedSubmit] = useState(false);
 
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
-  const [rowEditDraft, setRowEditDraft] = useState<{ start: string; end: string; location: string; notes: string } | null>(null);
+  const [rowEditDraft, setRowEditDraft] = useState<{ start: string; end: string; location: string; latitude?: number; longitude?: number; notes: string } | null>(null);
   const [rowEditError, setRowEditError] = useState<string | null>(null);
   const [rowBusyId, setRowBusyId] = useState<string | null>(null);
   const [assigneePickerRowId, setAssigneePickerRowId] = useState<string | null>(null);
@@ -217,10 +241,62 @@ export default function PlanFormDrawer({ isOpen, editingGroup, selectableOrders,
   const updateItem = (localId: string, patch: Partial<DraftItem>) =>
     setItems((prev) => prev.map((i) => (i.localId === localId ? { ...i, ...patch } : i)));
 
-  const canSubmit = !!orderId && items.length > 0 && items.every((i) => i.taskId && i.start);
+  const addAssigneeRow = (itemLocalId: string) =>
+    setItems((prev) =>
+      prev.map((i) =>
+        i.localId === itemLocalId
+          ? { ...i, assignees: [...i.assignees, { key: nextPlanItemAssigneeKey(), userId: '', role: 'TECHNICAL' as const }] }
+          : i,
+      ),
+    );
+  const removeAssigneeRow = (itemLocalId: string, key: string) =>
+    setItems((prev) =>
+      prev.map((i) => {
+        if (i.localId !== itemLocalId) return i;
+        const next = i.assignees.filter((a) => a.key !== key);
+        // Nếu dòng bị xóa đang là LEAD, tự đôn dòng đầu tiên còn lại lên LEAD — luôn phải có 1 LEAD.
+        if (next.length > 0 && !next.some((a) => a.role === 'LEAD')) {
+          next[0] = { ...next[0], role: 'LEAD' };
+        }
+        return { ...i, assignees: next };
+      }),
+    );
+  const updateAssigneeUserId = (itemLocalId: string, key: string, userId: string) =>
+    setItems((prev) =>
+      prev.map((i) => (i.localId === itemLocalId ? { ...i, assignees: i.assignees.map((a) => (a.key === key ? { ...a, userId } : a)) } : i)),
+    );
+  // Backend chỉ cho tối đa 1 LEAD/kế hoạch — chọn LEAD ở 1 dòng tự đổi các dòng khác về TECHNICAL
+  // (giống CreateSchedulePlanModal.tsx).
+  const setAssigneeRole = (itemLocalId: string, key: string, role: 'LEAD' | 'TECHNICAL') =>
+    setItems((prev) =>
+      prev.map((i) => {
+        if (i.localId !== itemLocalId) return i;
+        return {
+          ...i,
+          assignees: i.assignees.map((a) => {
+            if (a.key === key) return { ...a, role };
+            return role === 'LEAD' ? { ...a, role: 'TECHNICAL' as const } : a;
+          }),
+        };
+      }),
+    );
+
+  const eventDateStr = orderInfo?.eventDate;
+  const itemHasBlockingError = (item: DraftItem): boolean => {
+    const taskName = workTasks.find((t) => t.taskId === item.taskId)?.taskName;
+    const isRestricted = isDateRestrictedTaskName(taskName);
+    return (
+      !item.taskId ||
+      !item.start ||
+      !!getItemStartTimeError(item.start, eventDateStr, isRestricted) ||
+      !!getItemEndTimeError(item.start, item.end, eventDateStr, isRestricted) ||
+      item.assignees.filter((a) => a.userId).length === 0
+    );
+  };
 
   const handleSubmit = async () => {
-    if (!canSubmit) return;
+    setAttemptedSubmit(true);
+    if (!orderId || items.length === 0 || items.some(itemHasBlockingError)) return;
     setSubmitting(true);
     setSubmitError(null);
     let done = 0;
@@ -232,14 +308,13 @@ export default function PlanFormDrawer({ isOpen, editingGroup, selectableOrders,
           startTime: new Date(item.start).toISOString(),
           endTime: item.end ? new Date(item.end).toISOString() : undefined,
           location: item.location || undefined,
+          latitude: item.latitude,
+          longitude: item.longitude,
           notes: item.notes || undefined,
         });
         const planId = created.data.planId as string;
-        if (item.leadUserId) {
-          await schedulePlanApiService.addAssignee(planId, { userId: item.leadUserId, role: 'LEAD' });
-        }
-        for (const techId of item.technicalUserIds) {
-          await schedulePlanApiService.addAssignee(planId, { userId: techId, role: 'TECHNICAL' });
+        for (const a of item.assignees.filter((a) => a.userId)) {
+          await schedulePlanApiService.addAssignee(planId, { userId: a.userId, role: a.role });
         }
         done += 1;
       }
@@ -263,6 +338,8 @@ export default function PlanFormDrawer({ isOpen, editingGroup, selectableOrders,
       start: toDatetimeLocal(row.startTime),
       end: toDatetimeLocal(row.endTime),
       location: row.location ?? '',
+      latitude: row.latitude ?? undefined,
+      longitude: row.longitude ?? undefined,
       notes: row.notes ?? '',
     });
   };
@@ -283,6 +360,8 @@ export default function PlanFormDrawer({ isOpen, editingGroup, selectableOrders,
         startTime: new Date(rowEditDraft.start).toISOString(),
         endTime: rowEditDraft.end ? new Date(rowEditDraft.end).toISOString() : undefined,
         location: rowEditDraft.location || undefined,
+        latitude: rowEditDraft.latitude,
+        longitude: rowEditDraft.longitude,
         notes: rowEditDraft.notes || undefined,
       });
       setEditingRowId(null);
@@ -437,11 +516,14 @@ export default function PlanFormDrawer({ isOpen, editingGroup, selectableOrders,
                           </div>
                           <div className="col-span-2">
                             <label className="mb-1 block text-[10px] font-bold uppercase text-slate-400">Địa điểm</label>
-                            <input
-                              type="text"
+                            <AddressAutocompleteInput
                               value={rowEditDraft.location}
-                              onChange={(e) => setRowEditDraft((d) => (d ? { ...d, location: e.target.value } : d))}
-                              className="w-full rounded-lg border border-slate-200 bg-white p-1.5 text-xs"
+                              onChange={(value) =>
+                                setRowEditDraft((d) => (d ? { ...d, location: value, latitude: undefined, longitude: undefined } : d))
+                              }
+                              onSelectPlace={({ formattedAddress, lat, lng }) =>
+                                setRowEditDraft((d) => (d ? { ...d, location: formattedAddress, latitude: lat, longitude: lng } : d))
+                              }
                             />
                           </div>
                           <div className="col-span-2">
@@ -566,17 +648,17 @@ export default function PlanFormDrawer({ isOpen, editingGroup, selectableOrders,
                                       type="button"
                                       disabled={rowHasLead}
                                       onClick={() => setAssigneePickRole('LEAD')}
-                                      title={rowHasLead ? 'Kế hoạch này đã có người vai trò LEAD' : undefined}
+                                      title={rowHasLead ? 'Kế hoạch này đã có người vai trò Trưởng nhóm' : undefined}
                                       className={`px-2 py-1.5 ${assigneePickRole === 'LEAD' ? 'bg-blue-600 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'} disabled:cursor-not-allowed disabled:opacity-40`}
                                     >
-                                      LEAD
+                                      Trưởng nhóm
                                     </button>
                                     <button
                                       type="button"
                                       onClick={() => setAssigneePickRole('TECHNICAL')}
                                       className={`border-l border-slate-200 px-2 py-1.5 ${assigneePickRole === 'TECHNICAL' ? 'bg-blue-600 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}
                                     >
-                                      KT
+                                      Kỹ thuật viên
                                     </button>
                                   </div>
                                   <button
@@ -625,7 +707,19 @@ export default function PlanFormDrawer({ isOpen, editingGroup, selectableOrders,
               <div className="space-y-3.5">
                 {items.map((item) => {
                   const itemConflictMap = conflictsForLocalRange(item.start, item.end);
-                  const leadConflicts = item.leadUserId ? itemConflictMap.get(item.leadUserId) : undefined;
+                  const selectedInItem = new Set(item.assignees.map((a) => a.userId).filter(Boolean));
+                  const itemTaskName = workTasks.find((t) => t.taskId === item.taskId)?.taskName;
+                  const itemIsRestricted = isDateRestrictedTaskName(itemTaskName);
+                  const nowInputValue = toLocalInputValue(new Date());
+                  const eventDateInputValue = eventDateStr ? toLocalInputValue(new Date(eventDateStr)) : undefined;
+                  const taskIdError = attemptedSubmit && !item.taskId ? 'Vui lòng chọn loại việc.' : undefined;
+                  const startRequiredError = attemptedSubmit && !item.start ? 'Vui lòng nhập thời gian bắt đầu.' : undefined;
+                  const startTimeError = startRequiredError ?? getItemStartTimeError(item.start, eventDateStr, itemIsRestricted);
+                  const endTimeError = getItemEndTimeError(item.start, item.end, eventDateStr, itemIsRestricted);
+                  const assigneesError =
+                    attemptedSubmit && item.assignees.filter((a) => a.userId).length === 0
+                      ? 'Vui lòng chọn ít nhất 1 nhân sự phụ trách.'
+                      : undefined;
                   return (
                   <div key={item.localId} className="relative space-y-3 rounded-xl border border-slate-150 bg-slate-50/50 p-4">
                     <button
@@ -642,7 +736,7 @@ export default function PlanFormDrawer({ isOpen, editingGroup, selectableOrders,
                         <select
                           value={item.taskId}
                           onChange={(e) => updateItem(item.localId, { taskId: e.target.value })}
-                          className="w-full rounded-lg border border-slate-200 bg-white p-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          className={`w-full rounded-lg border bg-white p-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500 ${taskIdError ? 'border-red-300' : 'border-slate-200'}`}
                         >
                           <option value="">Chọn loại việc...</option>
                           {workTasks
@@ -653,32 +747,43 @@ export default function PlanFormDrawer({ isOpen, editingGroup, selectableOrders,
                             </option>
                           ))}
                         </select>
+                        {taskIdError && <p className="mt-1 text-[10px] text-red-600">{taskIdError}</p>}
                       </div>
                       <div>
                         <label className="mb-1 block text-[10px] font-bold uppercase text-slate-400">Bắt đầu</label>
                         <input
                           type="datetime-local"
                           value={item.start}
+                          min={nowInputValue}
+                          max={itemIsRestricted ? eventDateInputValue : undefined}
                           onChange={(e) => updateItem(item.localId, { start: e.target.value })}
-                          className="w-full rounded-lg border border-slate-200 bg-white p-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          className={`w-full rounded-lg border bg-white p-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500 ${startTimeError ? 'border-red-300' : 'border-slate-200'}`}
                         />
+                        {itemIsRestricted && !startTimeError && (
+                          <p className="mt-1 text-[10px] text-slate-400">Loại việc này phải diễn ra trước ngày tổ chức sự kiện.</p>
+                        )}
+                        {startTimeError && <p className="mt-1 text-[10px] text-red-600">{startTimeError}</p>}
                       </div>
                       <div>
                         <label className="mb-1 block text-[10px] font-bold uppercase text-slate-400">Kết thúc</label>
                         <input
                           type="datetime-local"
                           value={item.end}
+                          min={item.start || nowInputValue}
+                          max={itemIsRestricted ? eventDateInputValue : undefined}
                           onChange={(e) => updateItem(item.localId, { end: e.target.value })}
-                          className="w-full rounded-lg border border-slate-200 bg-white p-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          className={`w-full rounded-lg border bg-white p-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500 ${endTimeError ? 'border-red-300' : 'border-slate-200'}`}
                         />
+                        {endTimeError && <p className="mt-1 text-[10px] text-red-600">{endTimeError}</p>}
                       </div>
                       <div className="col-span-2">
                         <label className="mb-1 block text-[10px] font-bold uppercase text-slate-400">Địa điểm cụ thể</label>
-                        <input
-                          type="text"
+                        <AddressAutocompleteInput
                           value={item.location}
-                          onChange={(e) => updateItem(item.localId, { location: e.target.value })}
-                          className="w-full rounded-lg border border-slate-200 bg-white p-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          onChange={(value) => updateItem(item.localId, { location: value, latitude: undefined, longitude: undefined })}
+                          onSelectPlace={({ formattedAddress, lat, lng }) =>
+                            updateItem(item.localId, { location: formattedAddress, latitude: lat, longitude: lng })
+                          }
                         />
                       </div>
                       <div className="col-span-2">
@@ -690,84 +795,98 @@ export default function PlanFormDrawer({ isOpen, editingGroup, selectableOrders,
                           className="w-full rounded-lg border border-slate-200 bg-white p-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
                         />
                       </div>
-                      <div>
-                        <label className="mb-1 flex items-center gap-1 text-[10px] font-bold uppercase text-slate-400">
-                          Phụ trách chính (LEAD)
-                          {checkingConflicts && <Loader2 className="h-2.5 w-2.5 animate-spin normal-case" />}
-                        </label>
-                        <select
-                          value={item.leadUserId}
-                          onChange={(e) => {
-                            const leadUserId = e.target.value;
-                            updateItem(item.localId, {
-                              leadUserId,
-                              technicalUserIds: item.technicalUserIds.filter((id) => id !== leadUserId),
-                            });
-                          }}
-                          className="w-full rounded-lg border border-slate-200 bg-white p-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        >
-                          <option value="">Chưa chọn</option>
-                          <optgroup label="Nhân sự rảnh">
-                            {staff.filter((u) => !itemConflictMap.get(u.userId)?.length).map((u) => (
-                              <option key={u.userId} value={u.userId}>
-                                {u.fullName}
-                              </option>
-                            ))}
-                          </optgroup>
-                          {staff.some((u) => (itemConflictMap.get(u.userId)?.length ?? 0) > 0) && (
-                            <optgroup label="Nhân sự đang bận (trùng lịch)">
-                              {staff.filter((u) => (itemConflictMap.get(u.userId)?.length ?? 0) > 0).map((u) => (
-                                <option key={u.userId} value={u.userId}>
-                                  {u.fullName} — Bận {formatTime(itemConflictMap.get(u.userId)![0].startTime)}
-                                </option>
-                              ))}
-                            </optgroup>
-                          )}
-                        </select>
-                        {leadConflicts && leadConflicts.length > 0 && (
-                          <p className="mt-1 flex items-start gap-1 text-[10px] text-amber-600">
-                            <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
-                            Trùng lịch: {leadConflicts.map((c) => `${c.orderCode ?? c.planCode} (${formatTime(c.startTime)}${c.endTime ? `–${formatTime(c.endTime)}` : ''})`).join('; ')}
-                          </p>
-                        )}
-                      </div>
-                      <div>
-                        <label className="mb-1 block text-[10px] font-bold uppercase text-slate-400">Kỹ thuật viên đồng hành</label>
-                        <div className="flex flex-wrap gap-1.5">
-                          {staff.filter((u) => u.userId !== item.leadUserId).map((u) => {
-                            const checked = item.technicalUserIds.includes(u.userId);
-                            const conflicts = itemConflictMap.get(u.userId);
-                            const isBusy = (conflicts?.length ?? 0) > 0;
-                            const title = isBusy
-                              ? `Trùng lịch: ${conflicts!.map((c) => `${c.orderCode ?? c.planCode} (${formatTime(c.startTime)}${c.endTime ? `–${formatTime(c.endTime)}` : ''})`).join('; ')}`
-                              : undefined;
-                            return (
-                              <button
-                                type="button"
-                                key={u.userId}
-                                title={title}
-                                onClick={() =>
-                                  updateItem(item.localId, {
-                                    technicalUserIds: checked
-                                      ? item.technicalUserIds.filter((id) => id !== u.userId)
-                                      : [...item.technicalUserIds, u.userId],
-                                  })
-                                }
-                                className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${
-                                  checked
-                                    ? 'border-blue-600 bg-blue-50 text-blue-700'
-                                    : isBusy
-                                      ? 'border-amber-300 bg-amber-50 text-amber-700'
-                                      : 'border-slate-200 text-slate-600'
-                                }`}
-                              >
-                                {isBusy && <AlertTriangle className="h-2.5 w-2.5" />}
-                                {u.fullName}
-                              </button>
-                            );
-                          })}
-                          {staff.length === 0 && <span className="text-[10px] italic text-slate-400">Không có nhân sự nào.</span>}
+                      <div className="col-span-2">
+                        <div className="mb-1 flex items-center justify-between">
+                          <label className="flex items-center gap-1 text-[10px] font-bold uppercase text-slate-400">
+                            Nhân sự phụ trách
+                            {checkingConflicts && <Loader2 className="h-2.5 w-2.5 animate-spin normal-case" />}
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => addAssigneeRow(item.localId)}
+                            disabled={selectedInItem.size >= staff.length}
+                            className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 hover:underline disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            <PlusCircle className="h-3 w-3" />
+                            Thêm nhân sự
+                          </button>
                         </div>
+                        {staff.length === 0 ? (
+                          <span className="text-[10px] italic text-slate-400">Không có nhân sự nào.</span>
+                        ) : (
+                          <div className="space-y-1.5">
+                            {item.assignees.map((row) => {
+                              const rowConflicts = row.userId ? itemConflictMap.get(row.userId) : undefined;
+                              const selectable = staff.filter((u) => u.userId === row.userId || !selectedInItem.has(u.userId));
+                              const free = selectable.filter((u) => !itemConflictMap.get(u.userId)?.length);
+                              const busy = selectable.filter((u) => (itemConflictMap.get(u.userId)?.length ?? 0) > 0);
+                              return (
+                                <div key={row.key} className="space-y-1">
+                                  <div className="flex items-center gap-1.5">
+                                    <select
+                                      value={row.userId}
+                                      onChange={(e) => updateAssigneeUserId(item.localId, row.key, e.target.value)}
+                                      className="flex-1 rounded-lg border border-slate-200 bg-white p-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    >
+                                      <option value="">Chọn nhân sự...</option>
+                                      <optgroup label="Nhân sự rảnh">
+                                        {free.map((u) => (
+                                          <option key={u.userId} value={u.userId}>
+                                            {u.fullName}
+                                          </option>
+                                        ))}
+                                      </optgroup>
+                                      {busy.length > 0 && (
+                                        <optgroup label="Nhân sự đang bận (trùng lịch)">
+                                          {busy.map((u) => (
+                                            <option key={u.userId} value={u.userId}>
+                                              {u.fullName} — Bận {formatTime(itemConflictMap.get(u.userId)![0].startTime)}
+                                            </option>
+                                          ))}
+                                        </optgroup>
+                                      )}
+                                    </select>
+                                    <div className="flex shrink-0 overflow-hidden rounded-lg border border-slate-200 text-[10px] font-bold">
+                                      <button
+                                        type="button"
+                                        onClick={() => setAssigneeRole(item.localId, row.key, 'LEAD')}
+                                        className={`px-2 py-1.5 ${row.role === 'LEAD' ? 'bg-blue-600 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'}`}
+                                      >
+                                        Trưởng nhóm
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => setAssigneeRole(item.localId, row.key, 'TECHNICAL')}
+                                        disabled={row.role === 'LEAD'}
+                                        title={row.role === 'LEAD' ? 'Chọn nhân sự khác làm Trưởng nhóm để đổi vai trò này.' : undefined}
+                                        className={`border-l border-slate-200 px-2 py-1.5 ${row.role === 'TECHNICAL' ? 'bg-blue-600 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'} disabled:cursor-not-allowed disabled:opacity-50`}
+                                      >
+                                        Kỹ thuật viên
+                                      </button>
+                                    </div>
+                                    {item.assignees.length > 1 && (
+                                      <button
+                                        type="button"
+                                        onClick={() => removeAssigneeRow(item.localId, row.key)}
+                                        className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                                        title="Bỏ nhân sự này"
+                                      >
+                                        <X className="h-3.5 w-3.5" />
+                                      </button>
+                                    )}
+                                  </div>
+                                  {rowConflicts && rowConflicts.length > 0 && (
+                                    <p className="flex items-start gap-1 pl-1 text-[10px] text-amber-600">
+                                      <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
+                                      Trùng lịch: {rowConflicts.map((c) => `${c.orderCode ?? c.planCode} (${formatTime(c.startTime)}${c.endTime ? `–${formatTime(c.endTime)}` : ''})`).join('; ')}
+                                    </p>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                        {assigneesError && <p className="mt-1 text-[10px] text-red-600">{assigneesError}</p>}
                       </div>
                     </div>
                   </div>
@@ -793,7 +912,7 @@ export default function PlanFormDrawer({ isOpen, editingGroup, selectableOrders,
               Đóng
             </Button>
             {items.length > 0 && (
-              <Button onClick={handleSubmit} disabled={!canSubmit || submitting}>
+              <Button onClick={handleSubmit} disabled={submitting}>
                 {submitting && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                 {editingGroup ? 'Lưu hoạt động mới' : 'Lưu kế hoạch'}
               </Button>

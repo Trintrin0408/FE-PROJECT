@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { Calendar, ChevronRight } from 'lucide-react';
 import { Badge, getStatusBadgeVariant } from '@/components/ui/Badge';
 import { ORDER_STATUS_LABEL } from '@/constants/order-status';
-import type { UpcomingEvent } from '@/mocks/adminDashboard';
+import type { UpcomingEvent } from '@/types/dashboard';
 
 interface UpcomingEventsCardProps {
   events: UpcomingEvent[];

@@ -1,5 +1,6 @@
 import type { RevenueReportPoint } from '@/types/report';
 import type { OrderStatus } from '@/types/order';
+import type { OrderStatusSlice, RecentOrderRow, UpcomingEvent } from '@/types/dashboard';
 import { getAdminOrders, REFERENCE_TODAY } from '@/mocks/db/orders';
 import { getAdminQuotations } from '@/mocks/db/quotations';
 import { getOrderPaymentViews, type OrderPaymentView } from '@/mocks/db/payments';
@@ -84,12 +85,6 @@ export function getRevenueTrend(): RevenueReportPoint[] {
   }));
 }
 
-export interface OrderStatusSlice {
-  label: string;
-  count: number;
-  color: string;
-}
-
 const STATUS_SLICE_META: { status: OrderStatus; label: string; color: string }[] = [
   { status: 'NEW', label: 'Mới', color: '#94a3b8' },
   { status: 'CONFIRMED', label: 'Xác nhận', color: '#3b82f6' },
@@ -105,15 +100,6 @@ export function getOrderStatusBreakdown(): OrderStatusSlice[] {
     color,
     count: orders.filter((o) => o.status === status).length,
   }));
-}
-
-export interface UpcomingEvent {
-  day: number;
-  month: string;
-  title: string;
-  time: string;
-  venue: string;
-  status: OrderStatus;
 }
 
 /** Đơn đặt sắp diễn ra (CONFIRMED/IN_PROGRESS, từ REFERENCE_TODAY trở đi), gần nhất trước — thay cho
@@ -136,15 +122,6 @@ export function getUpcomingEvents(limit = 5): UpcomingEvent[] {
         status: o.status,
       };
     });
-}
-
-export interface RecentOrderRow {
-  orderId: string;
-  customerName: string;
-  eventDate: string;
-  value: number;
-  status: OrderStatus;
-  assignee: string;
 }
 
 export function getRecentOrders(limit = 4): RecentOrderRow[] {

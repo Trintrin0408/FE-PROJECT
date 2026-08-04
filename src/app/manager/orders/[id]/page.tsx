@@ -16,8 +16,7 @@ import CreateSchedulePlanModal from '@/components/schedule/CreateSchedulePlanMod
 import OrderTabs from '@/components/orders/OrderTabs';
 import CreateQuotationWizardModal from '@/components/quotations/CreateQuotationWizardModal';
 import PurchaseOrderFormModal, { type CreateFormPrefill } from '@/components/suppliers/PurchaseOrderFormModal';
-import PlanFormDrawer from '@/components/planning/PlanFormDrawer';
-import { groupPlansByOrder } from '@/utils/schedulePlanGroups';
+import EditSchedulePlanModal from '@/components/schedule/EditSchedulePlanModal';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { formatDate, formatDateTime, formatTime, toDateInputValue } from '@/utils/formatDate';
 import { getUrgencyBadgeVariant } from '@/utils/eventDate';
@@ -284,7 +283,7 @@ function ManagerOrderDetailContent() {
   const [isCreatePlanOpen, setIsCreatePlanOpen] = useState(false);
   const [supplierRentalPrefill, setSupplierRentalPrefill] = useState<CreateFormPrefill | null>(null);
   const [supplierRentalToast, setSupplierRentalToast] = useState(false);
-  const [isEditPlanOpen, setIsEditPlanOpen] = useState(false);
+  const [editingPlan, setEditingPlan] = useState<SchedulePlan | null>(null);
 
   const [quotationDetail, setQuotationDetail] = useState<QuotationDetailApi | null>(null);
   const [linkableQuotations, setLinkableQuotations] = useState<QuotationListItem[]>([]);
@@ -1616,9 +1615,7 @@ function ManagerOrderDetailContent() {
                             type="button"
                             disabled={!canEdit}
                             title={canEdit ? undefined : 'Chỉ sửa được khi kế hoạch chưa thi công/hoàn thành'}
-                            onClick={() => {
-                              setIsEditPlanOpen(true);
-                            }}
+                            onClick={() => setEditingPlan(plan)}
                             className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:border-blue-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                           >
                             <Pencil className="h-3.5 w-3.5" />
@@ -1890,15 +1887,13 @@ function ManagerOrderDetailContent() {
         }}
       />
 
-      {isEditPlanOpen && (
-        <PlanFormDrawer
-          isOpen={isEditPlanOpen}
-          editingGroup={schedulePlans.length > 0 ? groupPlansByOrder(schedulePlans)[0] : null}
-          selectableOrders={[]} // Không cần chọn đơn ở đây vì đã ở trong trang đơn hàng
-          onClose={() => {
-            setIsEditPlanOpen(false);
-          }}
-          onSaved={load}
+      {editingPlan && (
+        <EditSchedulePlanModal
+          isOpen={!!editingPlan}
+          plan={editingPlan}
+          eventDate={order.eventDate}
+          onClose={() => setEditingPlan(null)}
+          onUpdated={load}
         />
       )}
     </div>

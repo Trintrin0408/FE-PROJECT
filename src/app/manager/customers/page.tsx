@@ -259,14 +259,23 @@ export default function ManagerCustomersPage() {
           </div>
         )}
 
-        <div className="mt-4 overflow-x-auto">
-          {isLoading ? (
+        <div className="relative mt-4 overflow-x-auto">
+          {isLoading && customers.length === 0 ? (
             <div className="flex items-center justify-center gap-2 py-16 text-sm text-slate-400">
               <Loader2 className="h-4 w-4 animate-spin" />
               Đang tải danh sách khách hàng...
             </div>
           ) : (
-            <Table columns={columns} rows={customers} rowKey={(row) => row.customerId} />
+            <>
+              <div className={isLoading ? 'pointer-events-none opacity-50 transition-opacity' : 'transition-opacity'}>
+                <Table columns={columns} rows={customers} rowKey={(row) => row.customerId} />
+              </div>
+              {isLoading && (
+                <div className="absolute inset-x-0 top-0 flex justify-center pt-6">
+                  <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
+                </div>
+              )}
+            </>
           )}
         </div>
 
