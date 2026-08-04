@@ -106,6 +106,7 @@ const ADMIN_NAV_SECTIONS: NavSection[] = [
   {
     title: 'CÔNG VIỆC',
     items: [
+      { label: 'Lịch điều phối', href: '/admin/coordination/planning', icon: Calendar },
       { label: 'Công việc', href: '/admin/work-tasks', icon: ClipboardList },
       { label: 'Chấm công', href: '/admin/schedule/attendances', icon: CalendarCheck },
     ],

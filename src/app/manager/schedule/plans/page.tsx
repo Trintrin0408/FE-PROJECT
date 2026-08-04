@@ -11,6 +11,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import PlanDetailDrawer from '@/components/planning/PlanDetailDrawer';
 import PlanFormDrawer, { PlanOrderOption } from '@/components/planning/PlanFormDrawer';
 import Reveal from '@/components/ui/Reveal';
+import OrderTimelineChart, { TIMELINE_DAY_COUNT, toDateStr, addDaysStr } from '@/components/timeline/OrderTimelineChart';
 import { formatDate, formatTime } from '@/utils/formatDate';
 import { daysUntil, getEventUrgency } from '@/utils/eventDate';
 import { schedulePlanApiService } from '@/services/schedulePlan.service';
@@ -35,27 +36,8 @@ import {
 // order_id (xử lý ở src/utils/schedulePlanGroups.ts). Đã bỏ hẳn luồng "đơn đặt ảo từ báo giá"
 // (?quotationId=, chưa có route nào trỏ vào đây kèm quotationId) — quyết định lập lịch khảo sát khi
 // báo giá chưa có đơn thật vẫn CHƯA implement được, chờ Backend đổi schema (mục 8.1/12 tài liệu trên).
+// Helper functions (addDaysStr, toDateStr, v.v) đã được dời sang OrderTimelineChart
 const WEEKDAY_LABELS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
-const TIMELINE_DAY_COUNT = 10;
-
-function toDateStr(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
-
-function addDaysStr(dateStr: string, days: number): string {
-  const d = new Date(dateStr);
-  d.setDate(d.getDate() + days);
-  return toDateStr(d);
-}
-
-function weekdayLabelOf(dateStr: string): string {
-  const day = new Date(dateStr).getDay();
-  return WEEKDAY_LABELS[(day + 6) % 7];
-}
-
-function dateDiffInDays(a: string, b: string): number {
-  return Math.round((new Date(b).getTime() - new Date(a).getTime()) / 86_400_000);
-}
 
 export default function ManagerPlanningPage() {
   const [plans, setPlans] = useState<SchedulePlan[]>([]);
@@ -545,107 +527,17 @@ export default function ManagerPlanningPage() {
       )}
 
       {activeTab === 'timeline' && (
-        <Reveal className="mt-6 rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
-            <div>
-              <h3 className="text-sm font-extrabold tracking-tight text-slate-800">
-                Lịch timeline tháng {new Date(timelineAnchor).getMonth() + 1}/{new Date(timelineAnchor).getFullYear()}
-              </h3>
-              <p className="mt-0.5 text-xs text-slate-400">Bản đồ tiến độ thi công và khớp thời gian thực tế của tất cả các đơn hàng trùng khớp nhau</p>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => setTimelineAnchor((prev) => addDaysStr(prev, -7))}
-                className="rounded-lg border border-slate-200 p-1.5 text-slate-600 hover:bg-slate-50"
-                title="Kỳ trước"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setTimelineAnchor(todayStr)}
-                className="rounded-lg border border-slate-200 px-3 py-1 text-xs font-bold text-slate-700 hover:bg-slate-50"
-              >
-                Hôm nay
-              </button>
-              <button
-                type="button"
-                onClick={() => setTimelineAnchor((prev) => addDaysStr(prev, 7))}
-                className="rounded-lg border border-slate-200 p-1.5 text-slate-600 hover:bg-slate-50"
-                title="Kỳ sau"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-
-          <div className="mt-4 overflow-x-auto">
-            <div className="min-w-[860px]">
-              <div className="grid grid-cols-[220px_1fr]">
-                <div className="border-b border-slate-100 py-2.5 text-[11px] font-bold uppercase tracking-wide text-slate-400">Đơn hàng</div>
-                <div className="grid border-b border-slate-100" style={{ gridTemplateColumns: `repeat(${TIMELINE_DAY_COUNT}, minmax(0, 1fr))` }}>
-                  {timelineDays.map((d) => (
-                    <div key={d} className={`py-2 text-center ${d === todayStr ? 'text-blue-600' : 'text-slate-400'}`}>
-                      <p className="text-sm font-bold">{new Date(d).getDate()}</p>
-                      <p className="text-[10px] font-semibold">{weekdayLabelOf(d)}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {timelineRows.length === 0 ? (
-                <div className="flex flex-col items-center justify-center gap-2 py-14 text-center">
-                  <Clock className="h-6 w-6 text-slate-300" />
-                  <p className="text-xs font-medium text-slate-400">Không có kế hoạch nào trong khoảng thời gian này.</p>
-                </div>
-              ) : (
-                timelineRows.map(({ group, range }) => {
-                  const info = getGroupStatusInfo(group.rows);
-                  const rangeStartStr = toDateStr(new Date(range[0]));
-                  const rangeEndStr = toDateStr(new Date(range[1]));
-                  const startCol = Math.max(1, dateDiffInDays(timelineDays[0], rangeStartStr) + 1);
-                  const endCol = Math.min(TIMELINE_DAY_COUNT, dateDiffInDays(timelineDays[0], rangeEndStr) + 1);
-                  return (
-                    <div key={group.orderId} className="grid grid-cols-[220px_1fr] border-b border-slate-100/80">
-                      <div className="flex items-center gap-2 py-3">
-                        <span className={`h-2 w-2 shrink-0 rounded-full ${info.dotColorClass}`} />
-                        <div className="min-w-0">
-                          <p className="truncate text-xs font-bold text-slate-800">{group.orderCode}</p>
-                          <p className="text-[10px] text-slate-400">
-                            {formatDate(rangeStartStr)} - {formatDate(rangeEndStr)}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="relative grid py-3" style={{ gridTemplateColumns: `repeat(${TIMELINE_DAY_COUNT}, minmax(0, 1fr))` }}>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setFocusPlanId(null);
-                            setSelectedGroupDetail(group);
-                          }}
-                          title={`${group.eventName} — nhấp để xem chi tiết`}
-                          className={`truncate rounded-full px-2.5 py-1.5 text-center text-[11px] font-bold transition-opacity hover:opacity-80 ${info.badgeClass}`}
-                          style={{ gridColumn: `${startCol} / ${endCol + 1}` }}
-                        >
-                          {group.orderCode}
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-
-          <div className="mt-4 flex items-start gap-2.5 rounded-xl bg-slate-50 p-3.5">
-            <Clock className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-            <p className="text-[11px] italic leading-relaxed text-slate-500">
-              Mẹo: Nhấp vào thanh ngang màu sắc của đơn hàng (ví dụ <strong className="font-bold not-italic text-slate-700">{timelineRows[0]?.group.orderCode ?? 'ORD-001'}</strong>) trên bảng
-              timeline để hiển thị Drawer chi tiết các công việc, nhân sự phân công và trang thiết bị thực tế.
-            </p>
-          </div>
-        </Reveal>
+        <OrderTimelineChart
+          timelineAnchor={timelineAnchor}
+          setTimelineAnchor={setTimelineAnchor}
+          timelineDays={timelineDays}
+          todayStr={todayStr}
+          timelineRows={timelineRows}
+          onSelectGroupDetail={(group) => {
+            setFocusPlanId(null);
+            setSelectedGroupDetail(group);
+          }}
+        />
       )}
 
       {activeTab === 'list' && (

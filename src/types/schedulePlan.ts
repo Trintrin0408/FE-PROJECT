@@ -65,6 +65,7 @@ export interface SchedulePlan {
   // TOÀN BỘ field dưới đây — đúng yêu cầu đề xuất ở docs/kehoachvaphancong_api.md mục 6/
   // docs/lichtimeline_api.md mục 2.2, không cần Backend làm thêm gì nữa.
   eventDate?: string; // join thêm khi GET — orders.event_date
+  orderEndDate?: string | null; // join thêm khi GET — orders.end_date
   orderLocation?: string; // join thêm khi GET — orders.location
 }
 
