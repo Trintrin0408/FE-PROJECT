@@ -2380,3 +2380,146 @@ trả sẵn).
     hành vi không ghi đè khoảng đã tự chỉnh khi reload (trừ khi đổi đơn/eventDate/endDate) giữ nguyên như
     cũ. Chỉ sửa phía FE (`manager/orders/[id]/page.tsx`, `utils/formatDate.ts` — thêm `toDateInputValue`),
     không đụng Backend.
+
+## (ay) 2026-08-06 — Thêm "Xem/Tải lên bằng chứng" ở Đặt cọc + Quyết toán (Manager) — phần xem nối API thật, phần upload làm MOCK do thiếu endpoint gắn evidenceId [ĐÃ XỬ LÝ cùng ngày — xem cập nhật cuối mục]
+
+- **Yêu cầu người dùng**: trang "Đặt cọc" (`manager/payments/deposits/[id]`) và "Quyết toán"
+  (`manager/payments/settlements/[id]`) cần có cả xem và tải lên bằng chứng, giống field `evidenceId` đã
+  có sẵn trên bảng `deposits`/`settlements` thật (`prisma/schema.prisma`, `D:\sep490-backend-api`).
+- **Đã làm (FE, component dùng chung `src/components/payments/EvidenceBlock.tsx`, gắn vào
+  `DepositDetailView.tsx` theo từng hồ sơ cọc và `SettlementDetailView.tsx` theo bản ghi quyết toán)**:
+  - **Xem bằng chứng**: nối thật `GET /api/v1/evidence/:id` (cùng pattern đã dùng ở
+    `SurveyDetailDrawer.tsx`/`inventory/returns/[id]/page.tsx`/`inventory/picklists/page.tsx`) — hoạt động
+    đầy đủ vì `Deposit.evidenceId`/`Settlement.evidenceId` là field thật, chỉ chưa từng có UI đọc ra.
+  - **Tải lên bằng chứng**: làm THUẦN MOCK theo yêu cầu người dùng — chọn file chỉ preview cục bộ qua
+    `URL.createObjectURL`, KHÔNG gọi `evidenceApiService.uploadEvidence()` (dù endpoint này chạy thật, xem
+    `evidence.service.ts`) và có disclaimer in nghiêng màu cảnh báo ngay dưới nút. Lý do không gọi API
+    thật: xem mục dưới.
+- **Vướng Backend (đã ghi từ trước, nhắc lại ở đây cho rõ ngữ cảnh)**: theo `types/payment.ts` (dòng
+  11–15, re-test qua curl 2026-07-21) và `types/settlement.ts`, `PUT /deposits/:id` chỉ thật sự ghi được
+  field `status` — `evidenceId` gửi kèm bị bỏ qua hoàn toàn; luồng settlement
+  (`RecordSettlementPayload`/`ConfirmSettlementPayload`) cũng chưa từng có field `evidenceId`. Tức là dù
+  `POST /evidence/upload` chạy thật và trả về `evidenceId` hợp lệ, **không có cách nào lưu lại liên kết
+  evidenceId ↔ deposit/settlement** — đây chính là lý do UI "gắn chứng từ" từng bị bỏ hẳn khỏi
+  `DepositDetailView.tsx` trước đó (xem mục (z), dòng ~1061).
+- **Việc Backend cần làm** (để gỡ mock, nối thật luồng upload):
+  1. `PUT /api/v1/deposits/:id` — nhận thêm field `evidenceId` (đã có trên schema, chỉ cần bỏ qua bước lọc
+     field hiện đang loại field này ở service/validator).
+  2. Luồng settlement — thêm field `evidenceId` vào `RecordSettlementPayload` (`POST
+     /orders/:orderId/settlement`) hoặc `ConfirmSettlementPayload` (`PUT /settlements/:id/confirm`), tùy
+     Backend chọn gắn bằng chứng ở bước lập biên bản hay bước xác nhận.
+  3. Xác nhận lại role được phép gọi 2 endpoint trên với field `evidenceId` mới — theo đúng ranh giới đã
+     chốt ở CLAUDE.md mục 1 (chỉ Manager, không phải Admin).
+- **Phạm vi KHÔNG đổi trong đợt này**: không sửa gì ở `D:\sep490-backend-api` (chỉ đọc đối chiếu). Khi
+  Backend làm xong 2 endpoint trên, cập nhật `EvidenceBlock.tsx` để gọi thật
+  `evidenceApiService.uploadEvidence()` rồi `PUT`/`POST` gắn `evidenceId` trả về, gỡ khối mock +
+  disclaimer.
+
+- **Cập nhật 2026-08-06 (cùng ngày, sau khi đối chiếu lại Backend) — ĐÃ XỬ LÝ, gỡ mock**: Backend đã
+  làm xong ở commit `d0db32a` ("feat: migrate evidence attachment from single to multiple (1:N) for
+  deposits and settlements") — nhưng đổi shape khác doc gốc: thay vì thêm field `evidenceId` đơn vào
+  `PUT /deposits/:id`/`PUT /settlements/:id/confirm` như yêu cầu ban đầu, Backend đổi hẳn quan hệ
+  `Deposit`/`Settlement` → `Evidence` từ 1 field sang **1:N** (`evidenceIds: string[]`, xem
+  `payment.validators.ts`/`payment.repository.ts`). Cả 2 endpoint chỉ nhận `evidenceIds` **cùng lúc
+  đổi `status`** (không có API gắn bằng chứng riêng lẻ khi không đổi trạng thái — do cả 2 endpoint chỉ
+  cho gọi khi bản ghi còn ở trạng thái mở/UNPAID). Đã cập nhật FE khớp theo:
+  `src/components/payments/EvidenceBlock.tsx` (tách `EvidenceBlock` xem mảng evidenceIds + component
+  mới `EvidenceUploadField`/hàm `uploadPaymentEvidence` chọn & upload file ngay trong bước xác nhận),
+  `DepositDetailView.tsx` (chọn ảnh trong modal "Xác nhận đã nhận cọc"),
+  `SettlementDetailView.tsx` (chọn ảnh ngay trước nút "Xác nhận thu nốt & Quyết toán"),
+  `types/payment.ts` + `types/settlement.ts` (`evidenceIds: string[]` thay `evidenceId?: string`). Gỡ
+  hẳn khối mock/disclaimer cũ.
+
+## (az) 2026-08-06 — 🔴 Bug thật ở Backend: xác nhận quyết toán (`PUT /settlements/:id/confirm`) KHÔNG cascade `orders.payment_status = 'PAID'` — ORD-014 minh chứng thật [ĐÃ FIX cùng ngày — xem cập nhật cuối mục, còn thiếu backfill dữ liệu cũ]
+
+- **Hiện tượng thật**: đơn ORD-014 đã "Xác nhận thu nốt & Quyết toán" xong trên UI (`settlement.status =
+  'PAID'`, hiển thị "Đã xác nhận quyết toán" ở trang Thanh toán), nhưng ở trang "Danh sách đơn đặt", cột
+  THANH TOÁN vẫn hiện "Đã cọc" (`orders.payment_status = 'DEPOSITED'`) thay vì "Đã thanh toán" (`PAID`).
+- **Đã đọc thẳng source thật để xác nhận nguyên nhân** (`D:\sep490-backend-api`, chỉ đọc, không sửa):
+  - `src/modules/sales/payment.repository.ts` dòng 92–97, hàm `confirmSettlement(settlementId,
+    confirmedBy)`: chỉ update `settlement.status/confirmedBy/confirmedAt` — **không có bất kỳ update nào
+    lên bảng `orders`**.
+  - So sánh với luồng Đặt cọc cùng file, dòng 66–86, hàm `updateStatus` (deposit): khi `status = 'PAID'`
+    có làm đúng trong 1 `prisma.$transaction`: vừa update deposit vừa `prisma.order.update({...,
+    data: { paymentStatus: 'DEPOSITED' } })` — **luồng Settlement thiếu hẳn bước tương đương để set
+    `'PAID'`**.
+  - `src/modules/sales/order.validators.ts` dòng 54–62, `updateOrderStatusBodySchema` (dùng cho `PUT
+    /orders/:id/status`) chỉ nhận `{ orderStatus, cancelReason }` — **không có field `paymentStatus`** —
+    nên FE cũng không có cách nào tự gửi lên sửa field này qua endpoint hiện có, kể cả muốn làm workaround
+    tạm ở FE.
+  - FE (`SettlementDetailView.tsx` hàm `handleConfirmSettlement`) có gọi thêm `PUT /orders/:id/status
+    {orderStatus:'COMPLETED'}` ngay sau khi confirm settlement, nhưng lệnh này chỉ đổi `orderStatus`,
+    không đụng `paymentStatus` — không bù được gap này.
+  - Đây chính là điều `docs/tiendosukien_api.md` mục 6 bước 4 từng đánh dấu là **giả định chưa verify**
+    ("không chờ giả định backend tự cập nhật `orders.payment_status = 'PAID'`... khác hẳn deposit đã ghi
+    rõ") — nay đã có bằng chứng thật (ORD-014) xác nhận giả định đó **sai**.
+- **Hệ quả nghiêm trọng hơn phát hiện thêm khi đối chiếu**: `src/modules/sales/order.service.ts` dòng
+  599 — hàm đóng đơn (`closeOrder`) bắt buộc `existing.orderStatus === 'COMPLETED' &&
+  existing.paymentStatus === 'PAID'` mới cho đóng. Với gap này, **không đơn nào quyết toán qua UI có thể
+  đóng được** (`paymentStatus` không bao giờ tự lên `PAID`), dù `orderStatus` đã đúng `COMPLETED`.
+- **Việc Backend cần làm** (đúng pattern đã áp dụng cho deposit, dòng 66–86 cùng file):
+  1. Sửa `paymentRepository.confirmSettlement` (`payment.repository.ts:92-97`) — bọc trong
+     `prisma.$transaction`, thêm `prisma.order.update({ where: { orderId: settlement.orderId }, data: {
+     paymentStatus: 'PAID' } })` cùng lúc với update settlement. Cần lấy `orderId` từ `settlement` object
+     (đã có sẵn field này, xem `findSettlementById`).
+  2. Cân nhắc áp dụng tương tự cho `markSettlementPaid` (`payment.repository.ts:99-104`, dòng
+     `PUT /settlements/:settlementId/mark-paid` — Leader xác nhận tại hiện trường) nếu luồng đó cũng cần
+     phản ánh `paymentStatus = 'PAID'` ngay khi Leader ghi nhận (chưa chốt — cần hỏi lại nghiệp vụ có muốn
+     `paymentStatus` lên `PAID` ngay ở bước Leader ghi nhận hay chỉ khi Manager `confirmSettlement` chính
+     thức).
+  3. Sau khi sửa, cần backfill lại dữ liệu cũ đã bị kẹt sai do gap này (ít nhất ORD-014 và mọi đơn khác đã
+     quyết toán PAID nhưng `orders.payment_status` vẫn `DEPOSITED`/`UNPAID`) — không tự chạy migration/UPDATE
+     trực tiếp DB từ phiên FE này, cần Backend rà soát và xử lý.
+- **Phạm vi KHÔNG đổi trong đợt này**: chỉ ghi đặc tả bug ở mục này — không sửa code ở
+  `D:\sep490-backend-api` (chỉ đọc đối chiếu, theo CLAUDE.md), không sửa gì ở FE (gọi `PUT
+  /orders/:id/status {orderStatus:'COMPLETED'}` ở `SettlementDetailView.tsx` giữ nguyên, vì bản thân bước
+  đó đúng — vấn đề nằm ở thiếu cascade phía Backend, không phải FE gọi sai/thiếu endpoint nào).
+
+- **Cập nhật 2026-08-06 (cùng ngày, sau khi đối chiếu lại Backend) — ĐÃ FIX việc 1**: commit `d0db32a`
+  (cùng commit xử lý mục (ay)) đã sửa đúng như yêu cầu — `confirmSettlement` (`payment.repository.ts:
+  101-120`) và luôn cả `markSettlementPaid` (dòng 122-141, việc 2 ở trên) nay đều bọc
+  `prisma.$transaction` kèm `prisma.order.update({ paymentStatus: 'PAID' })`. Xác nhận qua
+  `git log -S"paymentStatus: 'PAID'"` — dòng cascade này chỉ xuất hiện từ đúng commit `d0db32a`. **Việc
+  3 (backfill dữ liệu cũ, ít nhất ORD-014) CHƯA thấy làm** — diff commit không đụng tới
+  `docs/migrations/*.sql` theo hướng backfill `payment_status`; cần hỏi lại Backend đã backfill thủ
+  công ngoài migration hay chưa, hoặc nhắc Backend xử lý nếu còn sót.
+
+## (ba) 2026-08-06 — 🔴 Bug thật ở Backend: `GET /orders/:orderId/deposits` và `GET /orders/:orderId/settlement` KHÔNG include quan hệ `evidences` — ảnh bằng chứng đã gắn thành công vẫn không hiển thị lại
+
+- **Hiện tượng**: sau khi làm xong FE nối API thật cho upload bằng chứng ở mục (ay) (chọn ảnh trong
+  modal "Xác nhận đã nhận cọc" / trước nút "Xác nhận thu nốt & Quyết toán", gọi `POST /evidence/upload`
+  rồi gửi `evidenceIds` kèm `PUT /deposits/:id` hoặc `PUT /settlements/:id/confirm`) — người dùng test
+  thật báo "chưa nhận được ảnh upload lên": xác nhận cọc/quyết toán vẫn chạy được (status chuyển PAID
+  bình thường), nhưng sau khi tải lại trang, khối "Bằng chứng thanh toán" vẫn hiện trống, dù ảnh đã
+  chọn lúc xác nhận.
+- **Đã đọc thẳng source thật để xác nhận nguyên nhân** (`D:\sep490-backend-api`, chỉ đọc, không sửa):
+  - `PUT /deposits/:id` (`payment.repository.ts:70-95`, hàm `updateStatus`) và
+    `PUT /settlements/:id/confirm` (`payment.repository.ts:101-120`, hàm `confirmSettlement`) đều GHI
+    ĐÚNG — có `evidences: { deleteMany: {}, create: evidenceIds.map(...) }` trong transaction, bảng
+    join `deposit_evidences`/`settlement_evidences` (prisma/schema.prisma dòng 918-927) được ghi thật
+    sự. Bước ghi (upload + gắn) **không có vấn đề gì**.
+  - Vấn đề nằm ở bước ĐỌC LẠI: `src/modules/sales/order.repository.ts:251-257` hàm `findDeposits`
+    (dùng cho `GET /orders/:orderId/deposits` — đúng endpoint `DepositDetailView.tsx` gọi ở `load()`)
+    — `prisma.deposit.findMany({ where: { orderId }, orderBy, skip, take })` **KHÔNG có
+    `include: { evidences: true }`**. Tương tự `order.repository.ts:294-296` hàm `findLatestSettlement`
+    (dùng cho `GET /orders/:orderId/settlement`) cũng **thiếu `include: { evidences: true }`**.
+  - Hệ quả: `mapDeposit`/`mapSettlement` ở `order.service.ts` (dòng ~380/~415, cùng logic
+    `evidenceIds: (row as any).evidences ? ... : []`) luôn rơi vào nhánh `: []` vì `row.evidences` là
+    `undefined` — API trả `evidenceIds: []` bất kể database đã có bản ghi join thật. Đây là bug thuần
+    Backend (thiếu `include` ở đúng 2 chỗ), không phải lỗi FE — khác với payload GHI (`PUT`) đã đối
+    chiếu đúng ở mục (ay)/(az), lỗi này nằm ở payload ĐỌC.
+  - Đối chiếu: `payment.repository.ts` (module `sales`, dùng cho `GET /deposits` gộp toàn hệ thống qua
+    `findManyDeposits`/`findDepositById`) **CÓ** include đúng (`depositListInclude` dòng 22-24, và dòng
+    45). Chỉ riêng 2 hàm ở `order.repository.ts` (đọc theo `orderId`, chính là API `DepositDetailView.tsx`/
+    `SettlementDetailView.tsx` đang dùng) là thiếu.
+- **Việc Backend cần làm**:
+  1. `order.repository.ts:251-257` (`findDeposits`) — thêm `include: { evidences: true }` vào
+     `prisma.deposit.findMany(...)`, đúng pattern `depositListInclude` đã có ở `payment.repository.ts`.
+  2. `order.repository.ts:294-296` (`findLatestSettlement`) — thêm `include: { evidences: true }` vào
+     `prisma.settlement.findFirst(...)`.
+  3. Rà soát các hàm đọc `Deposit`/`Settlement` khác theo `orderId` trong cùng file (nếu có) để không sót
+     chỗ nào tương tự.
+- **Phạm vi KHÔNG đổi trong đợt này**: chỉ ghi đặc tả bug ở mục này — không sửa code ở
+  `D:\sep490-backend-api` (chỉ đọc đối chiếu, theo CLAUDE.md). FE giữ nguyên như đã làm ở (ay) (upload +
+  gửi `evidenceIds` đúng payload) — không cần đổi gì thêm phía FE, chỉ cần Backend thêm `include` là ảnh
+  sẽ hiện đúng ngay mà không phải sửa lại FE.

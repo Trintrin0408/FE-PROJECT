@@ -1,6 +1,7 @@
 import AnalyticsCard from '@/components/dashboard/AnalyticsCard';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
+import { EvidenceBlock } from '@/components/payments/EvidenceBlock';
 import { formatDate, formatTime } from '@/utils/formatDate';
 import type { SurveyReport } from '@/types/survey';
 
@@ -53,13 +54,10 @@ export default function SurveyResultCard({ report, surveyorName, isLoading }: Re
             </div>
           )}
 
-          {report.evidence && (
-            <div>
-              <p className="mb-1 text-xs font-bold uppercase text-slate-400">Ảnh hiện trường</p>
-              {/* eslint-disable-next-line @next/next/no-img-element -- ảnh minh chứng từ URL ngoài, không dùng next/image để tránh cấu hình remotePatterns */}
-              <img src={report.evidence.fileUrl} alt="Ảnh khảo sát" className="h-32 w-full rounded-lg object-cover" />
-            </div>
-          )}
+          <div>
+            <p className="mb-1 text-xs font-bold uppercase text-slate-400">Ảnh hiện trường</p>
+            <EvidenceBlock evidenceIds={report.evidenceIds} title="" emptyLabel="Chưa có ảnh minh chứng khảo sát." />
+          </div>
         </div>
       )}
     </AnalyticsCard>

@@ -85,7 +85,17 @@ export default function ManagerReturnSlipDetailPage() {
           .then((plansRes) => {
             if (cancelled) return;
             const plans: SchedulePlan[] = plansRes.data ?? [];
-            const plan = plans.find((p) => (p.taskName ?? '').includes('Thu hồi')) ?? null;
+            // Ưu tiên taskCode === 'COLLECT' (field thật, đúng "Thu hồi thiết bị" — không lẫn "Khảo sát
+            // hiện trường"/"Lắp đặt thiết bị"), fallback theo tên khi dữ liệu cũ chưa có taskCode. Loại
+            // trừ dòng đã hủy, và nếu đơn có nhiều dòng thu hồi (đổi lịch) thì ưu tiên dòng đã có ảnh
+            // minh chứng, nếu không thì lấy dòng gần nhất.
+            const collectCandidates = plans
+              .filter((p) => p.status !== 'CANCELLED')
+              .filter((p) => p.taskCode === 'COLLECT' || (p.taskName ?? '').includes('Thu hồi'));
+            const plan =
+              collectCandidates.find((p) => p.evidenceId) ??
+              [...collectCandidates].sort((a, b) => b.startTime.localeCompare(a.startTime))[0] ??
+              null;
             setCollectPlan(plan);
             if (plan?.evidenceId) {
               return evidenceApiService

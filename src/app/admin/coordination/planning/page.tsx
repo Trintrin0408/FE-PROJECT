@@ -6,17 +6,16 @@ import { AlertTriangle, Calendar as CalendarIcon, Loader2 } from 'lucide-react';
 import PlanDetailDrawer from '@/components/planning/PlanDetailDrawer';
 import OrderTimelineChart, { TIMELINE_DAY_COUNT, toDateStr, addDaysStr } from '@/components/timeline/OrderTimelineChart';
 import { daysUntil, getEventUrgency } from '@/utils/eventDate';
+import { computeOrderLockWindow } from '@/utils/inventoryLock';
 import { schedulePlanApiService } from '@/services/schedulePlan.service';
 import { orderApiService } from '@/services/order.service';
 import type { SchedulePlan } from '@/types/schedulePlan';
 import type { Order } from '@/types/order';
-import { OrderPlanGroup, getGroupMinMaxRange, groupPlansByOrder } from '@/utils/schedulePlanGroups';
+import { OrderPlanGroup, groupPlansByOrder } from '@/utils/schedulePlanGroups';
 
 export default function AdminPlanningPage() {
   const [plans, setPlans] = useState<SchedulePlan[]>([]);
-  // We only need to fetch orders to satisfy any potential mapping, 
-  // but if it's not strictly used for plan grouping, it can be kept just in case.
-  const [, setOrders] = useState<Order[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -43,7 +42,8 @@ export default function AdminPlanningPage() {
 
   const groups = useMemo(() => groupPlansByOrder(plans), [plans]);
   const groupByOrderId = useMemo(() => new Map(groups.map((g) => [g.orderId, g])), [groups]);
-  
+  const orderByOrderId = useMemo(() => new Map(orders.map((o) => [o.orderId, o])), [orders]);
+
   const todayStr = useMemo(() => toDateStr(new Date()), []);
 
   const approachingGroups = useMemo(
@@ -55,14 +55,25 @@ export default function AdminPlanningPage() {
 
   const [timelineAnchor, setTimelineAnchor] = useState(todayStr);
   const timelineDays = useMemo(() => Array.from({ length: TIMELINE_DAY_COUNT }, (_, i) => addDaysStr(timelineAnchor, i)), [timelineAnchor]);
+  // Timeline hiện theo đúng khung "khóa kho" thực tế (computeOrderLockWindow — chỉ tính lịch trình
+  // SETUP/COLLECT ±6h đệm, khớp logic Backend getLockedQuantityByDate), KHÔNG dùng MIN/MAX toàn bộ dòng
+  // lịch trình nữa — mirror lại đúng fix đã áp dụng ở manager/schedule/plans/page.tsx.
+  const lockWindowRange = useCallback(
+    (group: OrderPlanGroup): [string, string] => {
+      const order = orderByOrderId.get(group.orderId);
+      const window = computeOrderLockWindow({ eventDate: order?.eventDate ?? group.eventDate, endDate: order?.endDate }, group.rows);
+      return [new Date(window.lockFrom).toISOString(), new Date(window.lockUntil ?? window.lockFrom).toISOString()];
+    },
+    [orderByOrderId],
+  );
   const timelineRows = useMemo(() => {
     const rangeStart = timelineDays[0];
     const rangeEnd = timelineDays.at(-1) as string;
     return groups
-      .map((g) => ({ group: g, range: getGroupMinMaxRange(g) }))
+      .map((g) => ({ group: g, range: lockWindowRange(g) }))
       .filter(({ range }) => toDateStr(new Date(range[0])) <= rangeEnd && toDateStr(new Date(range[1])) >= rangeStart)
       .sort((a, b) => a.range[0].localeCompare(b.range[0]));
-  }, [groups, timelineDays]);
+  }, [groups, timelineDays, lockWindowRange]);
 
   const [selectedGroupDetail, setSelectedGroupDetail] = useState<OrderPlanGroup | null>(null);
   const [focusPlanId, setFocusPlanId] = useState<string | null>(null);

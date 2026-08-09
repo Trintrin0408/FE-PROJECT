@@ -8,9 +8,9 @@
 // - Không có `GET /api/v1/deposits` gộp toàn hệ thống (404) — mọi API xoay quanh 1 đơn cụ thể.
 // - `POST /orders/:id/deposits` giờ ĐÃ nhận `dueDate` (khác ghi nhận cũ của doc "không có cách set
 //   dueDate") — đã test tạo thật, `dueDate` lưu đúng giá trị gửi lên.
-// - `PUT /deposits/:id` CHỈ thật sự ghi được field `status` — `amount`/`evidenceId`/`notes` gửi kèm
-//   đều bị bỏ qua hoàn toàn (đã test riêng từng field). Khóa cứng 1 chiều: gọi PUT lần 2 lên deposit
-//   đã PAID/CANCELLED trả 400 BAD_REQUEST. Backend tự set `approvedBy`/`approvedAt`/`paymentDate` khi
+// - `PUT /deposits/:id` CHỈ thật sự ghi được field `status` — `amount`/`notes` gửi kèm đều bị bỏ qua
+//   hoàn toàn (đã test riêng từng field). Khóa cứng 1 chiều: gọi PUT lần 2 lên deposit đã
+//   PAID/CANCELLED trả 400 BAD_REQUEST. Backend tự set `approvedBy`/`approvedAt`/`paymentDate` khi
 //   chuyển PAID, và tự đồng bộ `orders.paymentStatus` UNPAID→DEPOSITED — FE không cần gọi thêm API
 //   nào để đồng bộ.
 // - Role: `POST`/`PUT` đều trả 403 FORBIDDEN với token ADMIN — xác nhận backend đã chặn đúng theo
@@ -18,6 +18,10 @@
 //   hiển thị xem/audit (không có nút ghi nhận/xác nhận).
 // - Backend refactor 2026-07-26 (commit 4157a7f): rút gọn DepositStatus từ PENDING/SUCCESS/OVERDUE/
 //   CANCELLED xuống UNPAID/PAID/CANCELLED — `PUT /deposits/:id` giờ chỉ nhận `status: 'PAID'|'CANCELLED'`.
+// - Backend 2026-08-06 (commit d0db32a, docs/more-require.md mục ay): đổi bằng chứng từ field
+//   `evidenceId` đơn sang quan hệ 1:N `evidenceIds: string[]` — `PUT /deposits/:id` giờ nhận thêm
+//   `evidenceIds` (ghi kèm cùng lúc đổi `status`, KHÔNG có cách gắn bằng chứng riêng lẻ mà không đổi
+//   trạng thái, vì endpoint chỉ cho gọi khi deposit còn UNPAID).
 
 export type DepositStatus = 'UNPAID' | 'PAID' | 'CANCELLED';
 
@@ -32,7 +36,7 @@ export interface Deposit {
   paymentMethod?: string;
   qrCodeUrl?: string;
   status: DepositStatus;
-  evidenceId?: string;
+  evidenceIds: string[];
   requestedBy: string;
   approvedBy?: string;
   approvedAt?: string;
@@ -51,10 +55,11 @@ export interface CreateOrderDepositPayload {
 
 // PUT /api/v1/deposits/:id — khi status=PAID, backend tự set approvedBy/approvedAt/paymentDate
 // và cập nhật Order.paymentStatus = DEPOSITED. `notes` khai ở đây nhưng bị bỏ qua hoàn toàn ở mọi
-// status (xác nhận qua curl 2026-07-21) — chỉ `status` thật sự được ghi, giữ field `notes` trong type
-// để không phá interface hiện có nếu backend fix lại sau, nhưng FE không nên hiển thị UI ngụ ý field
-// này có tác dụng (vd không cho nhập ghi chú ở bước xác nhận/hủy).
+// status (xác nhận qua curl 2026-07-21) — chỉ `status`/`evidenceIds` thật sự được ghi, giữ field
+// `notes` trong type để không phá interface hiện có nếu backend fix lại sau, nhưng FE không nên hiển
+// thị UI ngụ ý field này có tác dụng (vd không cho nhập ghi chú ở bước xác nhận/hủy).
 export interface UpdateDepositStatusPayload {
   status: DepositStatus;
   notes?: string;
+  evidenceIds?: string[];
 }

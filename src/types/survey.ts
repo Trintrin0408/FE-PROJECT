@@ -5,7 +5,13 @@
 // trước đây chỉ có bản theo 1 đơn) và GET /survey-reports/:id đã join sẵn orderCode/customerName/
 // eventName/reportedByName/confirmedByName — khác nhận định cũ ("KHÔNG join reporter/confirmer") viết
 // trước khi Backend bổ sung.
-// Nguồn: D:\bnwems-backend-api prisma/schema.prisma (model SurveyReport), operations.route.ts.
+// Cập nhật 2026-08-09: Backend migration `20260805221925_add_multiple_evidences_support` đổi
+// survey_reports.evidence_id (cột đơn) sang bảng join nhiều-nhiều `survey_report_evidences` — giống
+// hệt Deposit/Settlement (xem comment EvidenceBlock.tsx). GET /survey-reports/:id giờ trả
+// `evidenceIds: string[]` (survey.service.ts mapDetail), không còn field `evidenceId`/`evidence` object
+// nữa — đã xác nhận qua đối chiếu trực tiếp D:\sep490-backend-api (survey.repository.ts/service.ts) và
+// MySQL MCP (bảng survey_report_evidences).
+// Nguồn: D:\sep490-backend-api prisma/schema.prisma (model SurveyReport), operations.route.ts.
 
 export type SurveyStatus = 'DRAFT' | 'NEEDS_REVIEW' | 'SUBMITTED' | 'CONFIRMED';
 
@@ -17,8 +23,7 @@ export interface SurveyReport {
   customerName: string;
   eventName?: string;
   planId?: string;
-  evidenceId?: string;
-  evidence?: { evidenceId: string; fileUrl: string };
+  evidenceIds: string[];
   surveyDate: string;
   location: string;
   area?: number;
@@ -79,7 +84,7 @@ export interface SurveyReportListMeta {
 export interface CreateSurveyReportPayload {
   orderId: string;
   planId?: string;
-  evidenceId?: string;
+  evidenceIds?: string[];
   surveyDate: string; // ISO datetime
   location: string;
   area?: number;

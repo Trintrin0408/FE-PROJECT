@@ -105,14 +105,17 @@ export default function ManagerPicklistsPage() {
     };
   }, []);
 
-  // Chỉ lấy dòng SchedulePlan sớm nhất còn hoạt động (đúng dòng dùng cho cột "Điều phối viên",
-  // getEarliestRowLead) — đây là công việc "lắp đặt/bàn giao", KHÔNG tính dòng "Thu hồi thiết bị"
-  // (diễn ra sau, thuộc luồng thu hồi & hoàn kho riêng — trang "Xuất kho và bàn giao" chỉ nói về
-  // bàn giao, không phải thu hồi).
+  // Lấy đúng dòng SchedulePlan "lắp đặt/bàn giao" (taskCode === 'SETUP') — KHÔNG tính "Khảo sát hiện
+  // trường" (SURVEY, chưa đụng thiết bị, luôn diễn ra sớm nhất nên trước đây bị getEarliestRowLead-style
+  // lấy nhầm) lẫn "Thu hồi thiết bị" (COLLECT, diễn ra sau, thuộc luồng thu hồi & hoàn kho riêng — trang
+  // "Xuất kho và bàn giao" chỉ nói về bàn giao). Dữ liệu cũ có thể chưa có taskCode — fallback loại trừ
+  // theo tên "khảo sát"/"thu hồi" để tránh lấy nhầm.
   const handoverRow = useMemo(() => {
     if (!viewingEvidenceOrder) return null;
-    const rows = plansByOrderId.get(viewingEvidenceOrder.orderId) ?? [];
-    return rows.find((r) => r.status !== 'CANCELLED') ?? null;
+    const rows = (plansByOrderId.get(viewingEvidenceOrder.orderId) ?? []).filter((r) => r.status !== 'CANCELLED');
+    const setupRow = rows.find((r) => r.taskCode === 'SETUP');
+    if (setupRow) return setupRow;
+    return rows.find((r) => !/khảo sát|thu hồi/i.test(r.taskName ?? '')) ?? null;
   }, [viewingEvidenceOrder, plansByOrderId]);
 
   useEffect(() => {

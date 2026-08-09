@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, Package, FileText } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
+import { EvidenceBlock } from '@/components/payments/EvidenceBlock';
 import { formatDate } from '@/utils/formatDate';
 import type { SchedulePlan } from '@/types/schedulePlan';
 import type { SurveyReport } from '@/types/survey';
@@ -142,17 +143,12 @@ export default function SurveyReportDrawer({ row, onClose }: Readonly<SurveyRepo
                   </div>
 
                   {/* Hình ảnh hiện trường — evidence từ backend thật */}
-                  {row.report.evidence && (
-                    <div>
-                      <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-800">
-                        <span>🖼️</span> Hình ảnh hiện trường
-                      </h3>
-                      <div className="overflow-hidden rounded-xl border border-slate-200">
-                        {/* eslint-disable-next-line @next/next/no-img-element -- ảnh từ URL ngoài, không dùng next/image để tránh cấu hình remotePatterns */}
-                        <img src={row.report.evidence.fileUrl} alt="Hình ảnh hiện trường" className="h-40 w-full object-cover" />
-                      </div>
-                    </div>
-                  )}
+                  <div>
+                    <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-800">
+                      <span>🖼️</span> Hình ảnh hiện trường
+                    </h3>
+                    <EvidenceBlock evidenceIds={row.report.evidenceIds} title="" emptyLabel="Chưa có ảnh minh chứng khảo sát." />
+                  </div>
 
                   {/* Đề xuất bổ sung thiết bị — dữ liệu thật (chuỗi tự do) */}
                   {row.report.proposedItems && (

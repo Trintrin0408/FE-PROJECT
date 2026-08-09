@@ -6,6 +6,9 @@
 // Backend refactor 2026-07-26 (commit 4157a7f): rút gọn SettlementStatus từ DRAFT/AGREED/REQUESTED/
 // PAID/CONFIRMED xuống UNPAID/PAID/CANCELLED — `PUT /settlements/:id/confirm` giờ chỉ nhận literal
 // `status: 'PAID'` (khác giá trị cũ 'CONFIRMED').
+// Backend 2026-08-06 (commit d0db32a, docs/more-require.md mục ay/az): đổi bằng chứng từ field
+// `evidenceId` đơn sang quan hệ 1:N `evidenceIds: string[]`, và `PUT /settlements/:id/confirm` nay
+// cascade luôn `orders.paymentStatus = 'PAID'` trong cùng transaction (trước đó thiếu, xem mục az).
 export type SettlementStatus = 'UNPAID' | 'PAID' | 'CANCELLED';
 
 // GET /api/v1/orders/:orderId/settlement — trả bản ghi mới nhất (settlementId desc) hoặc null nếu
@@ -20,7 +23,7 @@ export interface Settlement {
   paymentMethod?: string;
   qrCodeUrl?: string;
   paidAt?: string;
-  evidenceId?: string;
+  evidenceIds: string[];
   status: SettlementStatus;
   requestedBy?: string;
   requestedAt?: string;
@@ -45,8 +48,11 @@ export interface RecordSettlementResult {
   settlementId: string;
 }
 
-// PUT /api/v1/settlements/:id/confirm — status đủ enum, không chỉ 'confirmed'
+// PUT /api/v1/settlements/:id/confirm — status chỉ nhận literal 'PAID' ở backend, `notes` không được
+// ghi (giữ lại trong type theo cùng lý do đã ghi ở UpdateDepositStatusPayload). `evidenceIds` ghi kèm
+// cùng lúc xác nhận — không có cách gắn riêng lẻ mà không đổi trạng thái.
 export interface ConfirmSettlementPayload {
   status: SettlementStatus;
   notes?: string;
+  evidenceIds?: string[];
 }

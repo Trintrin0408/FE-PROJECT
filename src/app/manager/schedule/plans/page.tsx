@@ -14,6 +14,7 @@ import Reveal from '@/components/ui/Reveal';
 import OrderTimelineChart, { TIMELINE_DAY_COUNT, toDateStr, addDaysStr } from '@/components/timeline/OrderTimelineChart';
 import { formatDate, formatTime } from '@/utils/formatDate';
 import { daysUntil, getEventUrgency } from '@/utils/eventDate';
+import { computeOrderLockWindow } from '@/utils/inventoryLock';
 import { schedulePlanApiService } from '@/services/schedulePlan.service';
 import { orderApiService } from '@/services/order.service';
 import type { SchedulePlan } from '@/types/schedulePlan';
@@ -69,6 +70,7 @@ export default function ManagerPlanningPage() {
 
   const groups = useMemo(() => groupPlansByOrder(plans), [plans]);
   const groupByOrderId = useMemo(() => new Map(groups.map((g) => [g.orderId, g])), [groups]);
+  const orderByOrderId = useMemo(() => new Map(orders.map((o) => [o.orderId, o])), [orders]);
   // Theo yêu cầu người dùng (2026-07-24): KHÔNG loại đơn đã có kế hoạch khỏi danh sách chọn nữa — 1 đơn
   // có thể tạo thêm nhiều kế hoạch/hoạt động khác nhau qua "Tạo kế hoạch mới", không bắt buộc phải dùng
   // "Chỉnh sửa kế hoạch" cho đơn đã có sẵn 1 kế hoạch. Chỉ còn loại theo trạng thái đơn (đã xong/đã hủy).
@@ -108,14 +110,27 @@ export default function ManagerPlanningPage() {
 
   const [timelineAnchor, setTimelineAnchor] = useState(todayStr);
   const timelineDays = useMemo(() => Array.from({ length: TIMELINE_DAY_COUNT }, (_, i) => addDaysStr(timelineAnchor, i)), [timelineAnchor]);
+  // Timeline hiện theo đúng khung "khóa kho" thực tế (computeOrderLockWindow — chỉ tính lịch trình
+  // SETUP/COLLECT ±6h đệm, khớp logic Backend getLockedQuantityByDate), KHÔNG dùng MIN/MAX toàn bộ dòng
+  // lịch trình (getGroupMinMaxRange) nữa — trước đây thanh timeline bị kéo dài lố tới tận ngày "Khảo sát
+  // hiện trường" (không giữ thiết bị) thay vì đúng khoảng đơn đang khóa kho (yêu cầu người dùng 2026-08-06).
+  const lockWindowRange = useCallback(
+    (group: OrderPlanGroup): [string, string] => {
+      const order = orderByOrderId.get(group.orderId);
+      const window = computeOrderLockWindow({ eventDate: order?.eventDate ?? group.eventDate, endDate: order?.endDate }, group.rows);
+      return [new Date(window.lockFrom).toISOString(), new Date(window.lockUntil ?? window.lockFrom).toISOString()];
+    },
+    [orderByOrderId],
+  );
+
   const timelineRows = useMemo(() => {
     const rangeStart = timelineDays[0];
     const rangeEnd = timelineDays.at(-1) as string;
     return groups
-      .map((g) => ({ group: g, range: getGroupMinMaxRange(g) }))
+      .map((g) => ({ group: g, range: lockWindowRange(g) }))
       .filter(({ range }) => toDateStr(new Date(range[0])) <= rangeEnd && toDateStr(new Date(range[1])) >= rangeStart)
       .sort((a, b) => a.range[0].localeCompare(b.range[0]));
-  }, [groups, timelineDays]);
+  }, [groups, timelineDays, lockWindowRange]);
 
   const [selectedGroupDetail, setSelectedGroupDetail] = useState<OrderPlanGroup | null>(null);
   // Mã kế hoạch (plan_code) của thẻ công việc cụ thể vừa nhấn — để Drawer chi tiết ưu tiên hiển thị

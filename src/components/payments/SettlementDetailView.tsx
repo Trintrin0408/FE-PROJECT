@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import Reveal from '@/components/ui/Reveal';
+import { EvidenceBlock, EvidenceUploadField, uploadPaymentEvidence } from '@/components/payments/EvidenceBlock';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { orderApiService } from '@/services/order.service';
 import { paymentApiService } from '@/services/payment.service';
@@ -58,6 +59,8 @@ export default function SettlementDetailView({ canManage, backHref }: Readonly<S
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [isConfirming, setIsConfirming] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
+  const [confirmEvidenceFile, setConfirmEvidenceFile] = useState<File | null>(null);
 
   const load = () => {
     setIsLoading(true);
@@ -160,10 +163,15 @@ export default function SettlementDetailView({ canManage, backHref }: Readonly<S
   const handleConfirmSettlement = async () => {
     if (!settlement) return;
     setIsConfirming(true);
+    setConfirmError(null);
     try {
-      await settlementApiService.confirmSettlement(settlement.settlementId, { status: 'PAID' });
+      const evidenceIds = confirmEvidenceFile ? [await uploadPaymentEvidence(confirmEvidenceFile)] : undefined;
+      await settlementApiService.confirmSettlement(settlement.settlementId, { status: 'PAID', evidenceIds });
       await orderApiService.updateOrderStatus(order.orderId, { orderStatus: 'COMPLETED' });
+      setConfirmEvidenceFile(null);
       load();
+    } catch {
+      setConfirmError('Không thể xác nhận quyết toán. Vui lòng thử lại.');
     } finally {
       setIsConfirming(false);
     }
@@ -257,6 +265,8 @@ export default function SettlementDetailView({ canManage, backHref }: Readonly<S
             </div>
           )}
 
+          {settlement && <EvidenceBlock evidenceIds={settlement.evidenceIds} emptyLabel="Chưa có ảnh minh chứng quyết toán." />}
+
           {!settlement && !canManage && (
             <p className="mt-4 rounded-lg border border-dashed border-slate-200 p-4 text-center text-sm text-slate-400">
               Đơn này chưa có biên bản quyết toán nào.
@@ -300,6 +310,12 @@ export default function SettlementDetailView({ canManage, backHref }: Readonly<S
               </div>
 
               {saveError && <p className="text-sm text-red-600">{saveError}</p>}
+
+              {settlement && (
+                <EvidenceUploadField file={confirmEvidenceFile} onChange={setConfirmEvidenceFile} disabled={isConfirming} />
+              )}
+
+              {confirmError && <p className="text-sm text-red-600">{confirmError}</p>}
 
               <div className="flex flex-wrap gap-2">
                 <Button onClick={handleSaveSettlement} isLoading={isSaving}>

@@ -1,23 +1,26 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { AlertTriangle, Calendar, CheckCircle2, Clock, MapPin, Package, User, X } from 'lucide-react';
 import { Badge, type BadgeVariant } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { EvidenceBlock } from '@/components/payments/EvidenceBlock';
 import { formatDate } from '@/utils/formatDate';
-import { evidenceApiService } from '@/services/evidence.service';
 import type { SurveyReport, SurveyStatus } from '@/types/survey';
-import type { Evidence } from '@/types/evidence';
 
 // Nối API thật theo docs/khaosathientruong_api.md mục 3 (2026-07-20, mọi quyết định đã chốt) —
 // report giờ là shape thật (types/survey.ts) từ GET /survey-reports/:id, không phải mock
 // AdminSurveyReport nữa.
 // 2026-07-21 (theo yêu cầu người dùng): đã ẩn hẳn "Chiều cao trần"/"Công suất nguồn điện" (mock, không
 // có cột thật), "Các yêu cầu bổ sung" (additionalRequests), và ảnh minh họa mẫu ở khối "Minh chứng
-// hình ảnh" khỏi UI — giờ chỉ hiện đúng 1 ảnh thật qua evidence_id nếu có, không chèn ảnh giả nữa.
+// hình ảnh" khỏi UI — giờ chỉ hiện ảnh thật, không chèn ảnh giả nữa.
 // Cập nhật (theo yêu cầu người dùng): đã bỏ hẳn khối "Danh sách thiết bị báo giá" (đọc báo giá liên
 // kết qua orders.quotationId) — chỉ còn "Đồ đạc/thiết bị đề xuất thuê" ghi tay của Leader Staff.
+// Cập nhật 2026-08-09: Backend đổi survey_reports.evidence_id (cột đơn) sang quan hệ 1:N
+// evidenceIds: string[] (bảng join survey_report_evidences, cùng đợt migration với Deposit/Settlement
+// — xem types/survey.ts) — chuyển sang dùng chung <EvidenceBlock> (đã dùng ở Deposit/Settlement) thay
+// vì tự fetch 1 ảnh đơn qua evidenceId cũ (field đó không còn tồn tại trong response nữa nên trước đây
+// luôn hiện "chưa có ảnh" dù dữ liệu thật đã có).
 
 const SURVEY_STATUS_META: Record<SurveyStatus, { label: string; variant: BadgeVariant }> = {
   DRAFT: { label: 'Bản nháp', variant: 'neutral' },
@@ -33,20 +36,6 @@ interface SurveyDetailDrawerProps {
 }
 
 export default function SurveyDetailDrawer({ report, onClose, onConfirm }: Readonly<SurveyDetailDrawerProps>) {
-  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
-  const [evidence, setEvidence] = useState<Evidence | null>(null);
-
-  useEffect(() => {
-    if (!report.evidenceId) {
-      setEvidence(null);
-      return;
-    }
-    evidenceApiService
-      .getEvidenceById(report.evidenceId)
-      .then((res) => setEvidence(res.data ?? null))
-      .catch(() => setEvidence(null));
-  }, [report.evidenceId]);
-
   return (
     <>
       <div className="fixed inset-0 z-40 bg-black/40" onClick={onClose} />
@@ -157,20 +146,11 @@ export default function SurveyDetailDrawer({ report, onClose, onConfirm }: Reado
 
           <div className="space-y-3">
             <h4 className="border-l-2 border-blue-500 pl-2 text-xs font-bold uppercase tracking-wider text-slate-900">Minh chứng hình ảnh</h4>
-            <div className="grid grid-cols-3 gap-2">
-              {evidence?.fileUrl && (
-                // eslint-disable-next-line @next/next/no-img-element -- ảnh thật từ Firebase Storage, không cần tối ưu qua next/image
-                <img
-                  src={evidence.fileUrl}
-                  alt="Ảnh hiện trường khảo sát (thật)"
-                  onClick={() => setLightboxImage(evidence.fileUrl)}
-                  className="h-24 w-full cursor-zoom-in rounded-lg border border-slate-100 object-cover transition-opacity hover:opacity-80"
-                />
-              )}
-            </div>
-            {!evidence?.fileUrl && (
-              <p className="text-[10px] italic text-slate-400">Chưa có ảnh minh chứng thật (evidence_id chưa gắn hoặc chưa tải được).</p>
-            )}
+            <EvidenceBlock
+              evidenceIds={report.evidenceIds}
+              title=""
+              emptyLabel="Chưa có ảnh minh chứng thật (chưa gắn ảnh hoặc chưa tải được)."
+            />
           </div>
 
           <div className="flex flex-wrap justify-between gap-2 border-t border-slate-100 pt-4 text-xs text-slate-500">
@@ -199,16 +179,6 @@ export default function SurveyDetailDrawer({ report, onClose, onConfirm }: Reado
           )}
         </div>
       </motion.div>
-
-      {lightboxImage && (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-8"
-          onClick={() => setLightboxImage(null)}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element -- ảnh mock/thật từ URL ngoài */}
-          <img src={lightboxImage} alt="Ảnh hiện trường khảo sát (phóng to)" className="max-h-full max-w-full rounded-lg object-contain" />
-        </div>
-      )}
     </>
   );
 }

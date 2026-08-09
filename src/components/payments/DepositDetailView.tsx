@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Modal } from '@/components/ui/Modal';
 import Reveal from '@/components/ui/Reveal';
+import { EvidenceBlock, EvidenceUploadField, uploadPaymentEvidence } from '@/components/payments/EvidenceBlock';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { formatDate } from '@/utils/formatDate';
 import { orderApiService } from '@/services/order.service';
@@ -27,10 +28,12 @@ import type { Deposit } from '@/types/payment';
 // mock cũ), gọi GET /orders/:id (banner) + GET /orders/:id/deposits (danh sách hồ sơ cọc — API trả
 // MẢNG, 1 đơn có thể có NHIỀU hồ sơ, mục 4.6 của doc — hiển thị dạng lịch sử thay vì giả định chỉ 1).
 //
-// 3 field không có cách set/sửa qua PUT (đã re-test qua curl 2026-07-21, xem types/payment.ts):
-// amount, evidenceId, notes đều bị bỏ qua ở PUT /deposits/:id — đã BỎ HẲN UI "sửa số tiền cọc"/"gắn
-// chứng từ" khỏi trang chi tiết, chỉ còn tạo yêu cầu mới (nơi amount/notes/dueDate/paymentMethod đều
-// lưu được thật) và đổi trạng thái (chỉ status thật sự ghi).
+// 2 field không có cách set/sửa qua PUT (đã re-test qua curl 2026-07-21, xem types/payment.ts):
+// amount, notes đều bị bỏ qua ở PUT /deposits/:id — đã BỎ HẲN UI "sửa số tiền cọc" khỏi trang chi
+// tiết, chỉ còn tạo yêu cầu mới (nơi amount/notes/dueDate/paymentMethod đều lưu được thật) và đổi
+// trạng thái. `evidenceIds` KHÁC 2 field trên — backend 2026-08-06 (commit d0db32a, docs/more-require.md
+// mục ay) đã cho ghi được, nhưng chỉ CÙNG LÚC đổi status (không có API gắn riêng lẻ) — xem
+// `EvidenceUploadField`/`uploadPaymentEvidence` ở modal "Xác nhận đã nhận cọc" bên dưới.
 //
 // Cập nhật 2026-07-21: khối "Cổng thanh toán VietQR" đổi từ mã giả (hoa văn ngẫu nhiên) sang mã VietQR
 // THẬT qua "Quick Link" công khai của img.vietqr.io (constants/company-bank.ts, không cần đăng ký/API
@@ -80,6 +83,8 @@ export default function DepositDetailView({ canManage, backHref }: Readonly<Depo
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [cancelingId, setCancelingId] = useState<string | null>(null);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [confirmEvidenceFile, setConfirmEvidenceFile] = useState<File | null>(null);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
 
   const load = () => {
     setIsLoading(true);
@@ -183,8 +188,10 @@ export default function DepositDetailView({ canManage, backHref }: Readonly<Depo
 
   const handleConfirm = async (depositId: string) => {
     setIsUpdatingStatus(true);
+    setConfirmError(null);
     try {
-      await paymentApiService.updateDepositStatus(depositId, { status: 'PAID' });
+      const evidenceIds = confirmEvidenceFile ? [await uploadPaymentEvidence(confirmEvidenceFile)] : undefined;
+      await paymentApiService.updateDepositStatus(depositId, { status: 'PAID', evidenceIds });
       // Backend không tự chuyển orderStatus khi xác nhận cọc (chỉ nâng paymentStatus lên DEPOSITED,
       // xem docs/datcoc_api.md) — nếu đơn còn "Mới" thì đẩy sang "Đã xác nhận" luôn từ phía FE để
       // tránh lệch pha "Thanh toán: Đã cọc" / "Đơn hàng: Mới" trên bảng Danh sách đơn.
@@ -192,7 +199,10 @@ export default function DepositDetailView({ canManage, backHref }: Readonly<Depo
         await orderApiService.updateOrderStatus(orderId, { orderStatus: 'CONFIRMED' });
       }
       setConfirmingId(null);
+      setConfirmEvidenceFile(null);
       load();
+    } catch {
+      setConfirmError('Không thể xác nhận đặt cọc. Vui lòng thử lại.');
     } finally {
       setIsUpdatingStatus(false);
     }
@@ -351,9 +361,18 @@ export default function DepositDetailView({ canManage, backHref }: Readonly<Depo
                     {copiedId === d.depositId && <p className="mt-1 text-xs text-emerald-600">Đã sao chép!</p>}
                   </div>
 
+                  <EvidenceBlock evidenceIds={d.evidenceIds} emptyLabel="Chưa có ảnh minh chứng thanh toán." />
+
                   {canManage && d.status === 'UNPAID' && (
                     <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-3">
-                      <Button size="sm" onClick={() => setConfirmingId(d.depositId)}>
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          setConfirmEvidenceFile(null);
+                          setConfirmError(null);
+                          setConfirmingId(d.depositId);
+                        }}
+                      >
                         <Check className="h-4 w-4" />
                         Xác nhận đã nhận cọc
                       </Button>
@@ -461,12 +480,22 @@ export default function DepositDetailView({ canManage, backHref }: Readonly<Depo
 
       <Modal
         isOpen={Boolean(confirmingId)}
-        onClose={() => setConfirmingId(null)}
+        onClose={() => {
+          setConfirmingId(null);
+          setConfirmEvidenceFile(null);
+        }}
         title="Xác nhận đã nhận cọc?"
         subtitle="Đơn sẽ tự chuyển trạng thái thanh toán sang Đã đặt cọc. Không thể sửa lại sau khi xác nhận."
         footer={
           <>
-            <Button variant="secondary" onClick={() => setConfirmingId(null)} disabled={isUpdatingStatus}>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setConfirmingId(null);
+                setConfirmEvidenceFile(null);
+              }}
+              disabled={isUpdatingStatus}
+            >
               Đóng
             </Button>
             <Button onClick={() => confirmingId && handleConfirm(confirmingId)} isLoading={isUpdatingStatus}>
@@ -475,7 +504,10 @@ export default function DepositDetailView({ canManage, backHref }: Readonly<Depo
           </>
         }
       >
-        <div />
+        <div className="space-y-3">
+          <EvidenceUploadField file={confirmEvidenceFile} onChange={setConfirmEvidenceFile} disabled={isUpdatingStatus} />
+          {confirmError && <p className="text-sm text-red-600">{confirmError}</p>}
+        </div>
       </Modal>
 
       <Modal
