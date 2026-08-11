@@ -100,6 +100,18 @@ export default function EditSchedulePlanModal({ isOpen, onClose, plan, eventDate
     [conflictPlans, startTime, endTime, plan.planId],
   );
 
+  // Cảnh báo trùng/kẹt lịch cho CẢ nhân sự đã gán (đổi giờ có thể làm họ trùng) lẫn nhân sự thêm mới.
+  const [acceptConflict, setAcceptConflict] = useState(false);
+  useEffect(() => setAcceptConflict(false), [startTime, endTime]);
+  const conflictedNames = useMemo(() => {
+    const ids = new Set<string>([...existingAssignees.map((a) => a.userId), ...newAssignees.map((a) => a.userId)].filter(Boolean));
+    return [...ids]
+      .filter((uid) => (conflictMap.get(uid)?.length ?? 0) > 0)
+      .map((uid) => staff.find((u) => u.userId === uid)?.fullName ?? existingAssignees.find((a) => a.userId === uid)?.fullName ?? '')
+      .filter(Boolean);
+  }, [existingAssignees, newAssignees, conflictMap, staff]);
+  const hasConflict = conflictedNames.length > 0;
+
   const nowInputValue = toLocalInputValue(new Date());
   const eventDateInputValue = eventDate ? toLocalInputValue(new Date(eventDate)) : undefined;
 
@@ -157,7 +169,8 @@ export default function EditSchedulePlanModal({ isOpen, onClose, plan, eventDate
       !startTime ||
       !!getStartTimeError(startTime, eventDate, isDateRestricted) ||
       !!getEndTimeError(startTime, endTime, eventDate, isDateRestricted) ||
-      totalAssigneeCount === 0;
+      totalAssigneeCount === 0 ||
+      (hasConflict && !acceptConflict);
     if (hasBlockingError) return;
 
     setIsSubmitting(true);
@@ -207,7 +220,7 @@ export default function EditSchedulePlanModal({ isOpen, onClose, plan, eventDate
           <Button variant="secondary" onClick={onClose} disabled={isSubmitting}>
             Hủy
           </Button>
-          <Button onClick={handleSubmit} isLoading={isSubmitting}>
+          <Button onClick={handleSubmit} isLoading={isSubmitting} disabled={hasConflict && !acceptConflict}>
             Lưu thay đổi
           </Button>
         </>
@@ -363,6 +376,23 @@ export default function EditSchedulePlanModal({ isOpen, onClose, plan, eventDate
             </div>
           )}
           {assigneesError && <p className="mt-1 text-xs text-red-600">{assigneesError}</p>}
+          {hasConflict && (
+            <div className="mt-2 rounded-lg border border-amber-300 bg-amber-50 p-3">
+              <p className="flex items-start gap-1.5 text-xs font-semibold text-amber-800">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                {conflictedNames.length} nhân sự bị trùng/kẹt lịch trong khung giờ này: {conflictedNames.join(', ')} — không thể ở 2 nơi cùng lúc.
+              </p>
+              <label className="mt-2 flex cursor-pointer items-center gap-2 text-xs font-medium text-amber-800">
+                <input
+                  type="checkbox"
+                  checked={acceptConflict}
+                  onChange={(e) => setAcceptConflict(e.target.checked)}
+                  className="h-4 w-4 rounded border-amber-400 text-amber-600 focus:ring-amber-500"
+                />
+                Tôi vẫn phân công dù trùng lịch (tự chịu trách nhiệm điều phối)
+              </label>
+            </div>
+          )}
         </div>
 
         <div className="flex flex-col gap-1">

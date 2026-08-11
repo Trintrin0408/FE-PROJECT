@@ -363,7 +363,6 @@ export default function AdminOrderDetailPage() {
                   </div>
                   <div className="text-center sm:text-left">
                     <p className={`text-xs font-bold ${isCurrent ? 'text-blue-600' : 'text-slate-800'}`}>{step.label}</p>
-                    <p className="text-[10px] text-slate-400">{step.desc}</p>
                   </div>
                 </div>
                 {idx < LIFECYCLE_STEPS.length - 1 && <div className={`hidden h-0.5 flex-1 md:block ${isPast ? 'bg-emerald-600' : 'bg-slate-100'}`} />}
