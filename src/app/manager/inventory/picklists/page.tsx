@@ -14,23 +14,19 @@ import { formatDate } from '@/utils/formatDate';
 import { orderApiService } from '@/services/order.service';
 import { schedulePlanApiService } from '@/services/schedulePlan.service';
 import { evidenceApiService } from '@/services/evidence.service';
+import { parseApiError } from '@/utils/apiError';
+import toast from 'react-hot-toast';
 import type { Order, OrderItem } from '@/types/order';
 import type { SchedulePlan } from '@/types/schedulePlan';
 import type { Evidence } from '@/types/evidence';
 import { groupPlansByOrder, getEarliestRowLead, SCHEDULE_STATUS_BADGE, SCHEDULE_STATUS_LABEL } from '@/utils/schedulePlanGroups';
 
-// Kết nối backend thật (2026-07-21) — xem docs/picklistxuatkho_api.md. Tài liệu đề xuất 1 endpoint
-// tổng hợp mới (`GET /orders/picklists`) + 1 endpoint hành động mới (`PUT /orders/:orderId/picklist/
-// picked-up`) + 2 cột mới `orders.picked_up_at`/`picked_up_by` — test lại bằng curl ngày 2026-07-21
-// xác nhận CẢ 3 đều CHƯA được Backend triển khai (`GET /orders/picklists` → 404, `GET /orders/:id`
-// không có field `pickedUpAt`/`itemsConfirmedAt`). Khác các màn trước (kehoachvaphancong, lịch
-// timeline...) nơi phần lớn đề xuất hóa ra đã có sẵn — màn này thật sự vẫn đang chờ Backend.
-//
-// Đã nối phần dữ liệu có thật (đơn CONFIRMED/IN_PROGRESS qua GET /orders, số lượng/đã chuẩn bị từng
-// đơn qua GET /orders/:id, "Điều phối viên" qua GET /schedule-plans — LEAD của dòng sớm nhất theo
-// order, đúng hướng đã chốt ở doc mục 3.4, dùng lại schedulePlanGroups.ts đã viết cho màn Kế hoạch).
-// Cột "Trạng thái xuất kho" + nút "Đã xuất kho" hiển thị in nghiêng vì KHÔNG có API/cột lưu trạng thái
-// này — xem ghi chú ngay dưới bảng.
+// Kết nối backend thật — xem docs/picklistxuatkho_api.md. Backend NAY ĐÃ có `PUT /orders/:orderId/
+// picklist/picked-up` + 2 cột `orders.picked_up_at`/`picked_up_by`, nên nút "Đã xuất kho" đã nối API
+// thật (không còn stub). Dữ liệu: đơn CONFIRMED/IN_PROGRESS qua GET /orders, số lượng/đã chuẩn bị từng
+// đơn + `pickedUpAt` qua GET /orders/:id, "Điều phối viên" qua GET /schedule-plans (LEAD của dòng sớm
+// nhất theo order, dùng lại schedulePlanGroups.ts). Backend guard: chặn nếu đã xuất kho rồi hoặc chưa
+// chuẩn bị đủ thiết bị (preparedQty < quantity) — FE hiện lỗi qua toast (parseApiError).
 //
 // Đổi tên hiển thị 2026-08-03: "Pick-list xuất kho" → "Xuất kho và bàn giao" + thêm nút "Xem bằng
 // chứng" (modal) hiển thị ảnh minh chứng Leader Staff gắn khi cập nhật trạng thái từng SchedulePlan
@@ -39,6 +35,9 @@ import { groupPlansByOrder, getEarliestRowLead, SCHEDULE_STATUS_BADGE, SCHEDULE_
 export default function ManagerPicklistsPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [itemTotals, setItemTotals] = useState<Map<string, { total: number; prepared: number }>>(new Map());
+  const [pickedUpMap, setPickedUpMap] = useState<Map<string, string | null>>(new Map());
+  const [reloadToken, setReloadToken] = useState(0);
+  const [markingId, setMarkingId] = useState<string | null>(null);
   const [coordinatorByOrderId, setCoordinatorByOrderId] = useState<Map<string, string>>(new Map());
   const [plansByOrderId, setPlansByOrderId] = useState<Map<string, SchedulePlan[]>>(new Map());
   const [loading, setLoading] = useState(true);
@@ -77,20 +76,23 @@ export default function ManagerPicklistsPage() {
           scoped.map((o) =>
             orderApiService
               .getOrder(o.orderId)
-              .then((res) => ({ orderId: o.orderId, items: (res.data.items ?? []) as OrderItem[] }))
-              .catch(() => ({ orderId: o.orderId, items: [] as OrderItem[] })),
+              .then((res) => ({ orderId: o.orderId, items: (res.data.items ?? []) as OrderItem[], pickedUpAt: (res.data.pickedUpAt ?? null) as string | null }))
+              .catch(() => ({ orderId: o.orderId, items: [] as OrderItem[], pickedUpAt: null as string | null })),
           ),
         );
         const totalsMap = new Map<string, { total: number; prepared: number }>();
+        const pickedMap = new Map<string, string | null>();
         for (const d of details) {
           const total = d.items.reduce((sum: number, it: OrderItem) => sum + (it.quantity ?? 0), 0);
           const prepared = d.items.reduce((sum: number, it: OrderItem) => sum + (it.preparedQty ?? 0), 0);
           totalsMap.set(d.orderId, { total, prepared });
+          pickedMap.set(d.orderId, d.pickedUpAt);
         }
 
         if (cancelled) return;
         setOrders(scoped);
         setItemTotals(totalsMap);
+        setPickedUpMap(pickedMap);
         setCoordinatorByOrderId(coordMap);
         setPlansByOrderId(plansMap);
       } catch {
@@ -103,7 +105,21 @@ export default function ManagerPicklistsPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [reloadToken]);
+
+  const handleMarkPickedUp = async (orderId: string) => {
+    setMarkingId(orderId);
+    try {
+      await orderApiService.markPicklistPickedUp(orderId);
+      toast.success('Đã đánh dấu xuất kho cho đơn.');
+      setReloadToken((t) => t + 1);
+    } catch (err) {
+      // Backend chặn nếu đã xuất kho rồi hoặc chưa chuẩn bị đủ thiết bị.
+      toast.error(parseApiError(err, 'Không thể đánh dấu đã xuất kho.'));
+    } finally {
+      setMarkingId(null);
+    }
+  };
 
   // Lấy đúng dòng SchedulePlan "lắp đặt/bàn giao" (taskCode === 'SETUP') — KHÔNG tính "Khảo sát hiện
   // trường" (SURVEY, chưa đụng thiết bị, luôn diễn ra sớm nhất nên trước đây bị getEarliestRowLead-style
@@ -159,11 +175,12 @@ export default function ManagerPicklistsPage() {
   }, [orders, search, readyFilter, itemTotals]);
 
   const readyCount = orders.filter((o) => isReady(o.orderId)).length;
+  const exportedCount = orders.filter((o) => pickedUpMap.get(o.orderId)).length;
 
   const kpis: KpiCardItem[] = [
     { label: 'Tổng phiếu chuẩn bị', value: orders.length, icon: ClipboardList, iconColor: 'blue' },
     { label: 'Sẵn sàng xuất kho (ước tính)', value: readyCount, icon: PackageCheck, iconColor: 'amber' },
-    { label: 'Đã xuất kho', value: '—', icon: CheckCircle2, iconColor: 'green' },
+    { label: 'Đã xuất kho', value: exportedCount, icon: CheckCircle2, iconColor: 'green' },
   ];
 
   const columns: TableColumn<Order>[] = [
@@ -211,15 +228,22 @@ export default function ManagerPicklistsPage() {
             <Camera className="h-3.5 w-3.5" />
             Xem bằng chứng
           </button>
-          <button
-            type="button"
-            disabled
-            title="Chưa có API: backend cần bổ sung cột orders.picked_up_at và endpoint PUT /orders/:orderId/picklist/picked-up (xem docs/more-require.md)"
-            className="inline-flex cursor-not-allowed items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-bold italic text-slate-400"
-          >
-            <Truck className="h-3.5 w-3.5" />
-            Đã xuất kho
-          </button>
+          {pickedUpMap.get(o.orderId) ? (
+            <span className="inline-flex items-center gap-1 rounded-lg border border-green-200 bg-green-50 px-2.5 py-1 text-xs font-bold text-green-600">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Đã xuất kho
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => handleMarkPickedUp(o.orderId)}
+              disabled={markingId === o.orderId}
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-bold text-slate-600 hover:border-blue-200 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Truck className="h-3.5 w-3.5" />
+              {markingId === o.orderId ? 'Đang xử lý…' : 'Đánh dấu xuất kho'}
+            </button>
+          )}
         </div>
       ),
     },
@@ -290,10 +314,9 @@ export default function ManagerPicklistsPage() {
         </div>
 
         <p className="mt-3 text-[11px] italic text-slate-400">
-          Ghi chú: &quot;Sẵn sàng xuất kho&quot; hiện tính ước tính từ tổng số lượng đã chuẩn bị/order_items — backend
-          chưa có cột xác nhận riêng (<code>items_confirmed_at</code>) như tài liệu đề xuất. Nút &quot;Đã xuất
-          kho&quot; chưa có API (thiếu cột <code>orders.picked_up_at</code> và endpoint tương ứng) — xem
-          docs/more-require.md.
+          Ghi chú: &quot;Sẵn sàng xuất kho&quot; là ước tính từ tổng số lượng đã chuẩn bị/order_items. Nút &quot;Đánh
+          dấu xuất kho&quot; ghi <code>orders.picked_up_at</code> qua API thật; backend chặn nếu chưa chuẩn bị
+          đủ thiết bị hoặc đơn đã xuất kho rồi.
         </p>
 
         {orders.length === 0 && !loading && (

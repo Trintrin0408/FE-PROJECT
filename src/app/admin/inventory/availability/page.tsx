@@ -3,15 +3,46 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { AlertTriangle, Calendar, Search } from 'lucide-react';
+import { AlertTriangle, Calendar, CalendarClock, Search } from 'lucide-react';
 import { Table, TableColumn } from '@/components/ui/Table';
 import { Input } from '@/components/ui/Input';
+import { Modal } from '@/components/ui/Modal';
 import { orderApiService } from '@/services/order.service';
 import { inventoryApiService } from '@/services/inventory.service';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatDate } from '@/utils/formatDate';
+import { parseApiError } from '@/utils/apiError';
+import toast from 'react-hot-toast';
 import type { Order } from '@/types/order';
-import type { PicklistItem } from '@/types/inventory';
+import type { ItemReservation, PicklistItem } from '@/types/inventory';
+
+// Timeline đơn giản: mỗi reservation là 1 thanh ngang, vị trí theo cửa sổ giữ trong khoảng min→max.
+function ReservationTimeline({ rows }: { rows: ItemReservation[] }) {
+  const starts = rows.map((r) => new Date(r.startAt).getTime());
+  const ends = rows.map((r) => new Date(r.endAt).getTime());
+  const min = Math.min(...starts);
+  const span = Math.max(Math.max(...ends) - min, 1);
+  return (
+    <div className="space-y-1.5">
+      {rows.map((r) => {
+        const left = ((new Date(r.startAt).getTime() - min) / span) * 100;
+        const width = Math.max(((new Date(r.endAt).getTime() - new Date(r.startAt).getTime()) / span) * 100, 2);
+        return (
+          <div key={r.reservationId} className="flex items-center gap-2">
+            <span className="w-16 shrink-0 font-mono text-[10px] text-slate-400">{r.orderCode ?? '—'}</span>
+            <div className="relative h-4 flex-1 rounded bg-slate-100">
+              <div
+                className="absolute top-0 h-4 rounded bg-blue-500/80"
+                style={{ left: `${left}%`, width: `${width}%` }}
+                title={`${formatDate(r.startAt)} → ${formatDate(r.endAt)} · giữ ${r.quantity}`}
+              />
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 interface ReservationRow {
   id: string; // orderItemId + source
@@ -37,6 +68,28 @@ export default function AdminAvailabilityPage() {
   const [dateFilter, setDateFilter] = useState('');
   const [onlyShortage, setOnlyShortage] = useState(false);
 
+  // Modal "lịch bận thiết bị" — các khoảng giữ chỗ của 1 item
+  const [resvItem, setResvItem] = useState<{ itemId: string; itemName: string } | null>(null);
+  const [resvRows, setResvRows] = useState<ItemReservation[]>([]);
+  const [resvLoading, setResvLoading] = useState(false);
+
+  const handleViewReservations = async (itemId: string, itemName: string) => {
+    setResvItem({ itemId, itemName });
+    setResvRows([]);
+    setResvLoading(true);
+    try {
+      const from = new Date().toISOString().slice(0, 10);
+      const to = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const res = await inventoryApiService.getItemReservations(itemId, { from, to });
+      setResvRows(res.data ?? []);
+    } catch (err) {
+      toast.error(parseApiError(err, 'Không tải được lịch bận thiết bị.'));
+      setResvItem(null);
+    } finally {
+      setResvLoading(false);
+    }
+  };
+
   useEffect(() => {
     let cancelled = false;
     setIsLoading(true);
@@ -44,8 +97,12 @@ export default function AdminAvailabilityPage() {
 
     async function loadData() {
       try {
-        const orderRes = await orderApiService.getOrders({ orderStatus: 'CONFIRMED,IN_PROGRESS', limit: 100 });
-        const orders = orderRes.data ?? [];
+        // Backend chỉ nhận orderStatus 1 giá trị (không nhận danh sách phẩy) — lấy tất cả rồi lọc
+        // client-side về các đơn đang giữ chỗ kho: CONFIRMED (đã cọc, chưa xuất) + IN_PROGRESS.
+        const orderRes = await orderApiService.getOrders({ limit: 100 });
+        const orders = (orderRes.data ?? []).filter(
+          (o: Order) => o.orderStatus === 'CONFIRMED' || o.orderStatus === 'IN_PROGRESS'
+        );
         
         // Fetch picklist for all active orders
         const picklistPromises = orders.map(async (order) => {
@@ -168,6 +225,21 @@ export default function AdminAvailabilityPage() {
         return <span className="font-bold text-emerald-600">✓ Đủ hàng</span>;
       },
     },
+    {
+      key: 'actions',
+      label: '',
+      className: 'text-center',
+      render: (row) => (
+        <button
+          type="button"
+          onClick={() => handleViewReservations(row.itemId, row.itemName)}
+          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-bold text-blue-600 hover:border-blue-200 hover:bg-blue-50"
+        >
+          <CalendarClock className="h-3.5 w-3.5" />
+          Lịch bận
+        </button>
+      ),
+    },
   ];
 
   return (
@@ -233,6 +305,38 @@ export default function AdminAvailabilityPage() {
           </div>
         )}
       </motion.div>
+
+      <Modal
+        isOpen={resvItem !== null}
+        onClose={() => setResvItem(null)}
+        title={`Lịch bận thiết bị${resvItem ? ` — ${resvItem.itemName}` : ''}`}
+      >
+        {resvLoading ? (
+          <p className="py-6 text-center text-sm text-slate-400">Đang tải lịch bận…</p>
+        ) : resvRows.length === 0 ? (
+          <p className="py-6 text-center text-sm text-slate-400">Thiết bị này chưa bị giữ trong 12 tháng tới.</p>
+        ) : (
+          <div className="space-y-4">
+            <ReservationTimeline rows={resvRows} />
+            <div className="divide-y divide-slate-100 rounded-lg border border-slate-200">
+              {resvRows.map((r) => (
+                <div key={r.reservationId} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+                  <div>
+                    <span className="font-mono font-semibold text-blue-600">{r.orderCode ?? '—'}</span>
+                    <span className="text-slate-500"> · {r.customerName ?? '—'}</span>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-medium text-slate-700">
+                      {formatDate(r.startAt)} → {formatDate(r.endAt)}
+                    </div>
+                    <div className="text-xs text-slate-400">Giữ {r.quantity}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

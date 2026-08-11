@@ -36,9 +36,9 @@ export interface Order {
   eventType: string;
   eventName?: string;
   eventDate: string;
-  // Cột `orders.end_date` thêm 2026-08-03 (migration `add_order_end_date_and_schedule_lat_lng`) — GET
-  // /orders và /orders/:id đã trả field này (nullable). CreateOrderBody thật (order.validators.ts) CHƯA
-  // nhận endDate khi tạo đơn và chưa có endpoint cập nhật riêng — xem docs/more-require.md mục mới nhất.
+  // Cột `orders.end_date` — GET /orders và /orders/:id trả field này (nullable). POST /orders NAY ĐÃ nhận
+  // endDate (createOrderBodySchema optional + refine ≥ eventDate) để dựng cửa sổ giữ chỗ thiết bị.
+  // Chưa có endpoint cập nhật endDate riêng sau khi tạo (PUT /orders/:id/items chỉ thay danh sách item).
   endDate?: string | null;
   location: string;
   /** Tọa độ địa điểm tổ chức — backend thật đã có sẵn 2 cột này (Prisma `Order.latitude/longitude`,
@@ -60,6 +60,7 @@ export interface Order {
   updatedAt?: string;
   closedAt?: string | null; // xác nhận qua curl thật 2026-07-20 — cột đã có (khác giả định cũ ở docs/tiendosukien_api.md mục 6)
   closedBy?: string | null;
+  closedByName?: string | null; // tên người đóng đơn (join closer.fullName ở BE) — hiển thị thay userId thô
   // set bởi POST /orders/:id/export-equipment — null nếu chưa xuất kho
   pickedUpAt?: string | null;
   pickedUpBy?: string | null;
@@ -142,8 +143,8 @@ export interface CreateOrderPayload {
   eventName?: string;
   eventType: string;
   eventDate: string; // ISO datetime string
-  // Backend hiện CHƯA nhận field này ở POST /orders (createOrderBodySchema chưa khai báo endDate) —
-  // gửi lên tạm thời sẽ bị bỏ qua, xem comment ở `Order.endDate` trên và docs/more-require.md.
+  // Backend NAY ĐÃ nhận endDate ở POST /orders (createOrderBodySchema: optional + refine endDate ≥ eventDate).
+  // Dùng để dựng cửa sổ giữ chỗ thiết bị [eventDate − đệm, endDate + turnaround]; bỏ trống → backend dùng eventDate.
   endDate?: string; // ISO datetime string, optional
   location: string;
   latitude?: number;
@@ -153,10 +154,21 @@ export interface CreateOrderPayload {
   notes?: string;
 }
 
-// POST /api/v1/orders trả về — KHÔNG trả full object, chỉ 2 field.
+// Cảnh báo mềm (KHÔNG chặn) khi nhu cầu thiết bị nội bộ vượt khả dụng cho cửa sổ đơn — trả kèm khi tạo đơn.
+export interface StockWarning {
+  itemId: string;
+  itemName: string;
+  requested: number;
+  available: number;
+  windowStart: string;
+  windowEnd: string;
+}
+
+// POST /api/v1/orders trả về orderId/orderCode + cảnh báo mềm (warnings[], rỗng nếu đủ hàng).
 export interface CreateOrderResult {
   orderId: string;
   orderCode: string;
+  warnings: StockWarning[];
 }
 
 // PUT /api/v1/orders/:id/status

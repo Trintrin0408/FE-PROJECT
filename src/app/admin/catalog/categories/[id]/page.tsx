@@ -63,7 +63,7 @@ export default function Page() {
       catalogApiService.getCategory(id),
       catalogApiService.getTypes({ categoryId: id, limit: 200 }),
       catalogApiService.getItems({ limit: 500 }),
-      inventoryApiService.getInventory({ limit: 500 }),
+      inventoryApiService.getInventory({ limit: 200 }),
     ])
       .then(([categoryRes, typesRes, itemsRes, inventoryRes]) => {
         setCategory(categoryRes.data);

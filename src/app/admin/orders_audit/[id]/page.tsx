@@ -14,6 +14,8 @@ import RecordSettlementModal from '@/components/orders/RecordSettlementModal';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { formatDate } from '@/utils/formatDate';
 import { getUrgencyBadgeVariant } from '@/utils/eventDate';
+import { parseApiError } from '@/utils/apiError';
+import toast from 'react-hot-toast';
 import { orderApiService } from '@/services/order.service';
 import { customerApiService } from '@/services/customer.service';
 import { paymentApiService } from '@/services/payment.service';
@@ -211,6 +213,8 @@ export default function AdminOrderDetailPage() {
     try {
       await paymentApiService.updateDepositStatus(latestDeposit.depositId, { status: 'PAID' });
       load();
+    } catch (err) {
+      toast.error(parseApiError(err, 'Không thể xác nhận đặt cọc. Vui lòng thử lại.'));
     } finally {
       setIsConfirmingDeposit(false);
     }

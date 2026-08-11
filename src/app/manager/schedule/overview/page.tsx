@@ -9,11 +9,11 @@ export default function Page() {
         <h1 className="text-xl font-semibold text-slate-900">Lịch tổng thể</h1>
         <p className="mt-1 text-sm text-slate-500">
           Bức tranh toàn cảnh: mức bận theo ngày, lịch sự kiện, timeline đơn, lịch nhân sự (cảnh báo trùng) và thời gian thiết bị đi/về —
-          để nắm nhanh đang trống hay kín mà sắp xếp.
+          để nắm nhanh đang trống hay kín mà sắp xếp nhân sự, thiết bị.
         </p>
       </div>
       <div className="mt-6">
-        <MasterSchedule orderHref={(orderId) => `/admin/orders_audit/${orderId}`} />
+        <MasterSchedule orderHref={(orderId) => `/manager/orders/${orderId}`} />
       </div>
     </div>
   );

@@ -48,8 +48,15 @@ export default function AdminWarehouseOutboundPage() {
   useEffect(() => {
     setIsLoading(true);
     orderApiService
-      .getOrders({ orderStatus: 'CONFIRMED,IN_PROGRESS', limit: 200 })
-      .then((res) => setOrders(res.data ?? []))
+      // Backend chỉ nhận orderStatus 1 giá trị & limit tối đa 100 — lấy rồi lọc client-side đơn cần xuất kho.
+      .getOrders({ limit: 100 })
+      .then((res) =>
+        setOrders(
+          (res.data ?? []).filter(
+            (o: Order) => o.orderStatus === 'CONFIRMED' || o.orderStatus === 'IN_PROGRESS'
+          )
+        )
+      )
       .catch(() => setLoadError('Không tải được danh sách phiếu xuất kho.'))
       .finally(() => setIsLoading(false));
   }, [reloadToken]);

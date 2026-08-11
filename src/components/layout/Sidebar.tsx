@@ -13,6 +13,7 @@ import {
   ShoppingBag,
   MapPin,
   Calendar,
+  CalendarRange,
   CalendarCheck,
   Truck,
   HardHat,
@@ -31,6 +32,7 @@ import {
   Boxes,
   Wrench,
   Shield,
+  ShieldCheck,
   History,
   Settings,
   ChevronDown,
@@ -106,6 +108,7 @@ const ADMIN_NAV_SECTIONS: NavSection[] = [
   {
     title: 'CÔNG VIỆC',
     items: [
+      { label: 'Lịch tổng thể', href: '/admin/schedule', icon: CalendarRange },
       { label: 'Lịch điều phối', href: '/admin/coordination/planning', icon: Calendar },
       { label: 'Công việc', href: '/admin/work-tasks', icon: ClipboardList },
       { label: 'Chấm công', href: '/admin/schedule/attendances', icon: CalendarCheck },
@@ -114,10 +117,10 @@ const ADMIN_NAV_SECTIONS: NavSection[] = [
   {
     title: 'BÁO CÁO & KIỂM TOÁN',
     items: [
-      // { label: 'Báo cáo doanh thu', href: '/admin/reports/revenue', icon: TrendingUp },
-      // { label: 'Thống kê đơn hàng', href: '/admin/reports/orders', icon: BarChart3 },
-      // { label: 'Báo cáo tồn kho', href: '/admin/reports/inventory', icon: Boxes },
-      // { label: 'Nhật ký hệ thống', href: '/admin/settings/audit-log', icon: History },
+      { label: 'Báo cáo doanh thu', href: '/admin/reports/revenue', icon: TrendingUp },
+      { label: 'Thống kê đơn hàng', href: '/admin/reports/orders', icon: BarChart3 },
+      { label: 'Báo cáo tồn kho', href: '/admin/reports/inventory', icon: Boxes },
+      // { label: 'Nhật ký hệ thống', href: '/admin/settings/audit-log', icon: History }, // chưa có endpoint audit ở BE
     ],
   },
 ];
@@ -126,6 +129,7 @@ const MANAGER_NAV_SECTIONS: NavSection[] = [
   {
     items: [
       { label: 'Tổng quan', href: '/manager/dashboard', icon: LayoutGrid },
+      { label: 'Sẵn sàng vận hành', href: '/manager/readiness', icon: ShieldCheck },
       { label: 'Khách hàng', href: '/manager/customers', icon: Users },
       {
         label: 'Quản lý đơn đặt',
@@ -136,9 +140,12 @@ const MANAGER_NAV_SECTIONS: NavSection[] = [
           { label: 'Báo giá', href: '/manager/quotations', icon: FileText },
           { label: 'Đặt cọc', href: '/manager/payments/deposits', icon: CreditCard },
           { label: 'Thanh toán', href: '/manager/payments/settlements', icon: Wallet },
+          { label: 'Công nợ & dòng tiền', href: '/manager/payments/aging', icon: TrendingUp },
         ],
       },
       { label: 'Báo cáo khảo sát', href: '/manager/survey', icon: MapPin },
+      { label: 'Lịch tổng thể', href: '/manager/schedule/overview', icon: CalendarRange },
+      { label: 'Điều vận theo ngày', href: '/manager/schedule/day', icon: CalendarCheck },
       { label: 'Lịch trình', href: '/manager/schedule/plans', icon: Calendar },
       {
         label: 'Tồn kho',

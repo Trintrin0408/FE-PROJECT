@@ -4,7 +4,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Activity, Ban, Box, Calendar, Check, CheckCircle2, ChevronLeft, Clock, Eye, FileText, Lock, Link2, MapPin, Package, Pencil, Phone, PlayCircle, Plus, Users } from 'lucide-react';
+import { Activity, Ban, Box, Calendar, CalendarClock, Check, CheckCircle2, ChevronLeft, Clock, Eye, FileText, Lock, Link2, MapPin, Package, Pencil, Phone, PlayCircle, Plus, Users } from 'lucide-react';
 import { Badge, getStatusBadgeVariant, type BadgeVariant } from '@/components/ui/Badge';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Button } from '@/components/ui/Button';
@@ -12,6 +12,8 @@ import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
 import RecordSettlementModal from '@/components/orders/RecordSettlementModal';
+import RescheduleOrderModal from '@/components/orders/RescheduleOrderModal';
+import ConfirmOrderModal, { PlanToCreate } from '@/components/orders/ConfirmOrderModal';
 import CreateSchedulePlanModal from '@/components/schedule/CreateSchedulePlanModal';
 import OrderTabs from '@/components/orders/OrderTabs';
 import CreateQuotationWizardModal from '@/components/quotations/CreateQuotationWizardModal';
@@ -21,6 +23,8 @@ import { formatCurrency } from '@/utils/formatCurrency';
 import { formatDate, formatDateTime, formatTime, toDateInputValue } from '@/utils/formatDate';
 import { getUrgencyBadgeVariant } from '@/utils/eventDate';
 import { computeOrderLockWindow } from '@/utils/inventoryLock';
+import { parseApiError } from '@/utils/apiError';
+import toast from 'react-hot-toast';
 import { orderApiService } from '@/services/order.service';
 import { customerApiService } from '@/services/customer.service';
 import { paymentApiService } from '@/services/payment.service';
@@ -98,9 +102,9 @@ import type { SurveyReportListItem } from '@/types/survey';
 // tiền đọc thẳng `subtotal` thật, không tự tính `unitPrice * quantity`. Modal Picklist đơn giản hoá
 // theo Hướng A (bỏ BOM/vật tư cấu thành dựng sẵn), có thêm cột "Tồn kho khả dụng" thật qua
 // `inventoryApiService` (bảng `inventory` đã có — xem docs/more-require.md mục (u)/(v), khác giả định
-// "chưa có bảng inventory" của doc gốc). Nút "Xác nhận đã chuẩn bị xong" tạm khóa — endpoint
-// `PUT /orders/:id/items/confirm-prepared` (mục 2b doc) test qua `curl` không hoạt động như mô tả
-// (rơi vào validate của route khác), xem docs/more-require.md mục (w).
+// "chưa có bảng inventory" của doc gốc). Nút "Xác nhận đã chuẩn bị xong" đã nối thật vào endpoint
+// `PUT /orders/:id/items/confirm-prepared` (set preparedQty = quantity mọi dòng) — xác nhận endpoint
+// hoạt động đúng qua test E2E 2026-08-11 (guard "chưa hoạt động" trước đây là giả định lỗi thời).
 //
 // Cập nhật 2026-08-03 (tiếp) — tách nội dung tab "Thiết bị & Kho hàng" thành 2 sub-view độc lập:
 // "Thiết bị" (đọc thẳng order.items, cảnh báo thiếu hàng cố định đúng 2 ngày [ngày liền trước, ngày tổ
@@ -240,9 +244,12 @@ function ManagerOrderDetailContent() {
   }, []);
 
   const [isCancelOpen, setIsCancelOpen] = useState(false);
+  const [isRescheduleOpen, setIsRescheduleOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [isCancelling, setIsCancelling] = useState(false);
   const [isChangingStatus, setIsChangingStatus] = useState(false);
+  const [isConfirmOrderOpen, setIsConfirmOrderOpen] = useState(false);
+  const [isConfirmingOrder, setIsConfirmingOrder] = useState(false);
 
   const [deposits, setDeposits] = useState<Deposit[]>([]);
   const [settlement, setSettlement] = useState<Settlement | null>(null);
@@ -256,6 +263,7 @@ function ManagerOrderDetailContent() {
   const [isSettlementModalOpen, setIsSettlementModalOpen] = useState(false);
   const [isCompletingSettlement, setIsCompletingSettlement] = useState(false);
   const [isClosingOrder, setIsClosingOrder] = useState(false);
+  const [isConfirmingPrepared, setIsConfirmingPrepared] = useState(false);
 
   const [picklistInventory, setPicklistInventory] = useState<Record<string, InventoryRow>>({});
   const [itemSupplierMap, setItemSupplierMap] = useState<Record<string, { supplierName: string; quantity: number }>>({});
@@ -585,12 +593,34 @@ function ManagerOrderDetailContent() {
   }
 
   const handleStatusChange = async (status: OrderStatus) => {
+    // Chuyển sang "Đã xác nhận" → mở popup xác nhận + checklist tạo lịch, không đổi ngay.
+    if (status === 'CONFIRMED' && order.orderStatus !== 'CONFIRMED') {
+      setIsConfirmOrderOpen(true);
+      return;
+    }
     setIsChangingStatus(true);
     try {
       await orderApiService.updateOrderStatus(order.orderId, { orderStatus: status });
       load();
     } finally {
       setIsChangingStatus(false);
+    }
+  };
+
+  // Xác nhận đơn từ popup: chốt sang CONFIRMED rồi tạo các lịch công việc đã tích (chưa gán nhân sự).
+  const handleConfirmOrderWithPlans = async (plans: PlanToCreate[]) => {
+    setIsConfirmingOrder(true);
+    try {
+      await orderApiService.updateOrderStatus(order.orderId, { orderStatus: 'CONFIRMED' });
+      for (const p of plans) {
+        await schedulePlanApiService
+          .createSchedulePlan({ orderId: order.orderId, taskId: p.taskId, startTime: p.startTime, endTime: p.endTime })
+          .catch(() => {});
+      }
+      setIsConfirmOrderOpen(false);
+      load();
+    } finally {
+      setIsConfirmingOrder(false);
     }
   };
 
@@ -627,6 +657,9 @@ function ManagerOrderDetailContent() {
         await orderApiService.updateOrderStatus(order.orderId, { orderStatus: 'CONFIRMED' });
       }
       load();
+    } catch (err) {
+      // 409 overbooking: kho không đủ cho khoảng của đơn → hiện rõ thiết bị + khả dụng.
+      toast.error(parseApiError(err, 'Không thể xác nhận đặt cọc. Vui lòng thử lại.'));
     } finally {
       setIsConfirmingDeposit(false);
     }
@@ -683,6 +716,28 @@ function ManagerOrderDetailContent() {
       load();
     } finally {
       setIsClosingOrder(false);
+    }
+  };
+
+  // Ghi nhận "đã chuẩn bị xong" = set preparedQty = quantity cho mọi dòng (điều kiện để "Đánh dấu xuất
+  // kho" ở trang Xuất kho & bàn giao). Chỉ áp cho dòng lấy từ kho nhà (INTERNAL) có orderItemId.
+  const handleConfirmPrepared = async () => {
+    const items = order.items
+      .filter((it) => it.orderItemId)
+      .map((it) => ({ orderItemId: it.orderItemId as string, preparedQty: it.quantity }));
+    if (items.length === 0) {
+      toast.error('Đơn chưa có hạng mục thiết bị để xác nhận chuẩn bị.');
+      return;
+    }
+    setIsConfirmingPrepared(true);
+    try {
+      await orderApiService.confirmPreparedItems(order.orderId, { items });
+      toast.success('Đã xác nhận chuẩn bị đủ thiết bị. Có thể xuất kho ở trang "Xuất kho và bàn giao".');
+      load();
+    } catch (err) {
+      toast.error(parseApiError(err, 'Không thể xác nhận chuẩn bị. Vui lòng thử lại.'));
+    } finally {
+      setIsConfirmingPrepared(false);
     }
   };
 
@@ -880,17 +935,48 @@ function ManagerOrderDetailContent() {
               </Button>
             </>
           )}
+          {order.orderStatus !== 'COMPLETED' && order.orderStatus !== 'CANCELLED' && (
+            <Button variant="secondary" onClick={() => setIsRescheduleOpen(true)}>
+              <CalendarClock className="h-4 w-4" /> Đổi ngày
+            </Button>
+          )}
+          {isReadyToClose && (
+            <Button onClick={handleCloseOrder} isLoading={isClosingOrder}>
+              <Lock className="h-4 w-4" /> Đóng đơn hàng
+            </Button>
+          )}
           <Button disabled title="Modal Chỉnh sửa đơn đặt chưa tương thích dữ liệu thật — xem docs/taodondatlichtiecmoi_api.md">
             Chỉnh sửa đơn đặt
           </Button>
         </div>
       </div>
 
+      <RescheduleOrderModal
+        isOpen={isRescheduleOpen}
+        onClose={() => setIsRescheduleOpen(false)}
+        orderId={order.orderId}
+        orderCode={order.orderCode}
+        currentEventDate={order.eventDate}
+        currentEndDate={order.endDate}
+        onSuccess={load}
+      />
+
+      <ConfirmOrderModal
+        isOpen={isConfirmOrderOpen}
+        orderCode={order.orderCode}
+        eventDate={order.eventDate}
+        endDate={order.endDate}
+        existingTaskCodes={schedulePlans.map((p) => p.taskCode ?? '')}
+        isSubmitting={isConfirmingOrder}
+        onCancel={() => setIsConfirmOrderOpen(false)}
+        onConfirm={handleConfirmOrderWithPlans}
+      />
+
       {order.closedAt && (
         <div className="mt-4 flex items-center gap-2.5 rounded-xl border border-slate-200 bg-slate-50 p-3.5 text-xs text-slate-600">
           <Lock className="h-4 w-4 shrink-0 text-slate-400" />
           <p>
-            Đơn hàng đã được đóng {order.closedBy ? <>bởi <strong className="text-slate-800">{order.closedBy}</strong> </> : ''}ngày {formatDate(order.closedAt)}. Không thể đổi trạng thái hoặc chỉnh sửa thêm.
+            Đơn hàng đã được đóng {order.closedByName || order.closedBy ? <>bởi <strong className="text-slate-800">{order.closedByName || order.closedBy}</strong> </> : ''}ngày {formatDate(order.closedAt)}. Không thể đổi trạng thái hoặc chỉnh sửa thêm.
           </p>
         </div>
       )}
@@ -1500,8 +1586,10 @@ function ManagerOrderDetailContent() {
                   <div className="mt-4 flex justify-end">
                     <Button
                       size="sm"
-                      disabled
-                      title="Endpoint PUT /orders/:id/items/confirm-prepared chưa hoạt động đúng như tài liệu — xem docs/more-require.md mục (w)"
+                      onClick={handleConfirmPrepared}
+                      isLoading={isConfirmingPrepared}
+                      disabled={order.orderStatus === 'COMPLETED' || order.orderStatus === 'CANCELLED' || !!order.pickedUpAt}
+                      title={order.pickedUpAt ? 'Đơn đã xuất kho.' : 'Ghi nhận đã chuẩn bị đủ số lượng cho mọi thiết bị (bắt buộc trước khi xuất kho).'}
                     >
                       <CheckCircle2 className="h-4 w-4" />
                       Xác nhận đã chuẩn bị xong

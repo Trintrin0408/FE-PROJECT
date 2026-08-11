@@ -97,14 +97,20 @@ export default function ManagerStockCheckPage() {
     },
     { key: 'categoryName', label: 'Nhóm sản phẩm', render: (row) => <span className="text-slate-600">{row.categoryName}</span> },
     {
+      key: 'quantityOnHand',
+      label: 'Tồn thực (on-hand)',
+      className: 'text-center',
+      render: (row) => <span className="font-bold text-slate-700">{row.quantityOnHand ?? row.quantityTotal - row.quantityDamaged}</span>,
+    },
+    {
       key: 'quantityAvailable',
-      label: 'Tổng khả dụng',
+      label: 'Khả dụng (theo ngày)',
       className: 'text-center',
       render: (row) => <span className="font-bold text-emerald-600">{row.quantityAvailable}</span>,
     },
     {
       key: 'quantityReserved',
-      label: 'Số lượng đã khóa',
+      label: 'Đã giữ (theo ngày)',
       className: 'text-center',
       render: (row) => <span className="font-bold text-blue-600">{row.quantityReserved}</span>,
     },

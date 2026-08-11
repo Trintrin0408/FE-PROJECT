@@ -21,6 +21,7 @@ export interface InventoryRow {
   quantityDamaged: number;
   quantityReserved: number;
   quantityAvailable: number;
+  quantityOnHand?: number; // tồn vật lý đang trong kho = total − damaged − (đang cho mượn ngoài); thêm 2026-08
   itemName?: string; // join thêm khi GET
   itemCode?: string; // join thêm khi GET
   unit?: string; // join thêm khi GET
@@ -50,6 +51,86 @@ export interface AdjustInventoryPayload {
   deltaTotal: number;
   deltaDamaged?: number;
   notes?: string;
+}
+
+// POST /inventory/repair (sửa xong: damaged−) · POST /inventory/scrap (thanh lý: damaged−, total−)
+export interface RepairInventoryPayload {
+  itemId: string;
+  quantity: number;
+  notes?: string;
+}
+export type ScrapInventoryPayload = RepairInventoryPayload;
+
+// GET /inventory/:itemId/reservations — lịch bận thiết bị (từng khoảng giữ chỗ của item)
+export interface ItemReservation {
+  reservationId: string;
+  itemId: string;
+  orderId: string | null;
+  orderCode: string | null;
+  customerName: string | null;
+  eventDate: string | null;
+  endDate: string | null;
+  startAt: string;
+  endAt: string;
+  quantity: number;
+  status: string;
+}
+export interface GetItemReservationsQuery {
+  from?: string;
+  to?: string;
+}
+
+// GET /inventory/reservations-timeline — reservation mọi item trong [from,to], gom theo item + over-committed
+export interface TimelineReservation {
+  reservationId: string;
+  orderId: string | null;
+  orderCode: string | null;
+  customerName: string | null;
+  quantity: number;
+  startAt: string;
+  endAt: string;
+  status: string;
+}
+export interface TimelineItem {
+  itemId: string;
+  itemName: string;
+  itemCode: string;
+  quantityTotal: number;
+  quantityDamaged: number;
+  capacity: number; // total − damaged
+  maxConcurrent: number; // đỉnh reservation chồng nhau
+  overCommitted: boolean; // maxConcurrent > capacity
+  reservations: TimelineReservation[];
+}
+export interface EquipmentTimeline {
+  from: string;
+  to: string;
+  items: TimelineItem[];
+}
+export interface GetReservationsTimelineQuery {
+  from?: string;
+  to?: string;
+  categoryId?: string;
+}
+
+// GET /inventory/reconcile — đối soát on_hand từ inventory_movements
+export interface ReconcileItem {
+  itemId: string;
+  itemName: string;
+  quantityTotal: number;
+  quantityDamaged: number;
+  outbound: number;
+  inbound: number;
+  outstanding: number;
+  onHand: number;
+  flags: string[];
+}
+export interface ReconcileResult {
+  checkedAt: string;
+  totalItems: number;
+  anomalyCount: number;
+  anomalies: ReconcileItem[];
+  items: ReconcileItem[];
 }
 
 export type MovementType = 'OUTBOUND' | 'INBOUND' | 'ADJUSTMENT';

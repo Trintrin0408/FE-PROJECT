@@ -6,10 +6,11 @@ export const ROLES = {
   STAFF: 'STAFF',
 } as const;
 
+// STAFF không dùng web (đã chuyển sang app Flutter riêng) — không có route dashboard web. Bỏ entry STAFF
+// khiến đăng nhập hiện lỗi "Vai trò không được hỗ trợ trên web" thay vì điều hướng tới route 404 /staff-mobile.
 export const ROLE_DASHBOARD_PATH: Record<string, string> = {
   Admin: '/admin/settings/users',
   Manager: '/manager/dashboard',
-  STAFF: '/staff-mobile/dashboard',
 };
 
 // Không còn endpoint GET /roles — role là enum cố định. Dùng cho AuthProfile.role.roleName

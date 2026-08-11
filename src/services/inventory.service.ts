@@ -1,5 +1,17 @@
 import api from './api';
-import type { AdjustInventoryPayload, GetInventoryMovementsQuery, GetInventoryQuery, PicklistItem } from '@/types/inventory';
+import type {
+  AdjustInventoryPayload,
+  EquipmentTimeline,
+  GetInventoryMovementsQuery,
+  GetInventoryQuery,
+  GetItemReservationsQuery,
+  GetReservationsTimelineQuery,
+  ItemReservation,
+  PicklistItem,
+  ReconcileResult,
+  RepairInventoryPayload,
+  ScrapInventoryPayload,
+} from '@/types/inventory';
 import type { GetReturnReportsQuery } from '@/types/collectedEquipmentReport';
 
 export const inventoryApiService = {
@@ -12,6 +24,36 @@ export const inventoryApiService = {
   /** POST /api/v1/inventory/adjust */
   async adjustInventory(payload: AdjustInventoryPayload) {
     const response = await api.post('/inventory/adjust', payload);
+    return response.data;
+  },
+
+  /** POST /api/v1/inventory/repair — sửa xong hàng hỏng (damaged−, total giữ nguyên). MANAGER/ADMIN. */
+  async repairInventory(payload: RepairInventoryPayload) {
+    const response = await api.post('/inventory/repair', payload);
+    return response.data;
+  },
+
+  /** POST /api/v1/inventory/scrap — thanh lý hàng hỏng (damaged−, total−). MANAGER/ADMIN. */
+  async scrapInventory(payload: ScrapInventoryPayload) {
+    const response = await api.post('/inventory/scrap', payload);
+    return response.data;
+  },
+
+  /** GET /api/v1/inventory/:itemId/reservations — lịch bận thiết bị (các khoảng giữ chỗ của item). */
+  async getItemReservations(itemId: string, params?: GetItemReservationsQuery): Promise<{ data: ItemReservation[] }> {
+    const response = await api.get(`/inventory/${itemId}/reservations`, { params });
+    return response.data;
+  },
+
+  /** GET /api/v1/inventory/reservations-timeline — reservation mọi item trong [from,to] + cờ over-committed. */
+  async getReservationsTimeline(params?: GetReservationsTimelineQuery): Promise<{ data: EquipmentTimeline }> {
+    const response = await api.get('/inventory/reservations-timeline', { params });
+    return response.data;
+  },
+
+  /** GET /api/v1/inventory/reconcile — đối soát on_hand từ inventory_movements (Manager/Admin). */
+  async getReconcile(): Promise<{ data: ReconcileResult }> {
+    const response = await api.get('/inventory/reconcile');
     return response.data;
   },
 

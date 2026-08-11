@@ -110,8 +110,11 @@ export function InventoryDetailModal({ isOpen, onClose, itemId, selectedDate, on
 
     (async () => {
       try {
-        const orderRes = await orderApiService.getOrders({ orderStatus: 'CONFIRMED,IN_PROGRESS', limit: 100 });
-        const activeOrders = ((orderRes.data ?? []) as Order[]).filter((o) => !o.pickedUpAt);
+        // Backend chỉ nhận orderStatus 1 giá trị — lấy tất cả rồi lọc client-side (CONFIRMED/IN_PROGRESS, chưa xuất).
+        const orderRes = await orderApiService.getOrders({ limit: 100 });
+        const activeOrders = ((orderRes.data ?? []) as Order[]).filter(
+          (o) => (o.orderStatus === 'CONFIRMED' || o.orderStatus === 'IN_PROGRESS') && !o.pickedUpAt,
+        );
 
         const picklistResults = await Promise.all(
           activeOrders.map((o) =>

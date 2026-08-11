@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Modal } from '@/components/ui/Modal';
 import Reveal from '@/components/ui/Reveal';
+import { parseApiError } from '@/utils/apiError';
 import { EvidenceBlock, EvidenceUploadField, uploadPaymentEvidence } from '@/components/payments/EvidenceBlock';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { formatDate } from '@/utils/formatDate';
@@ -201,8 +202,9 @@ export default function DepositDetailView({ canManage, backHref }: Readonly<Depo
       setConfirmingId(null);
       setConfirmEvidenceFile(null);
       load();
-    } catch {
-      setConfirmError('Không thể xác nhận đặt cọc. Vui lòng thử lại.');
+    } catch (err) {
+      // 409 overbooking (kho không đủ cho khoảng của đơn) hiện rõ item + khả dụng; lỗi khác giữ message chung.
+      setConfirmError(parseApiError(err, 'Không thể xác nhận đặt cọc. Vui lòng thử lại.'));
     } finally {
       setIsUpdatingStatus(false);
     }

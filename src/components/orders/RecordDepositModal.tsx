@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { paymentApiService } from '@/services/payment.service';
+import { parseApiError } from '@/utils/apiError';
 
 interface RecordDepositModalProps {
   isOpen: boolean;
@@ -55,8 +56,9 @@ export default function RecordDepositModal({ isOpen, orderId, onClose, onSuccess
       }
       onSuccess();
       resetAndClose();
-    } catch {
-      setError('Không thể ghi nhận tiền cọc. Vui lòng thử lại.');
+    } catch (err) {
+      // Xác nhận cọc "đã nhận đủ" có thể bị backend chặn 409 nếu kho không đủ cho khoảng của đơn.
+      setError(parseApiError(err, 'Không thể ghi nhận tiền cọc. Vui lòng thử lại.'));
     } finally {
       setIsSubmitting(false);
     }

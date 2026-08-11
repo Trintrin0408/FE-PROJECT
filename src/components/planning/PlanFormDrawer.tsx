@@ -760,7 +760,7 @@ export default function PlanFormDrawer({ isOpen, editingGroup, selectableOrders,
                           className={`w-full rounded-lg border bg-white p-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500 ${startTimeError ? 'border-red-300' : 'border-slate-200'}`}
                         />
                         {itemIsRestricted && !startTimeError && (
-                          <p className="mt-1 text-[10px] text-slate-400">Loại việc này phải diễn ra trước ngày tổ chức sự kiện.</p>
+                          <p className="mt-1 text-[10px] text-slate-400">Loại việc này phải hoàn tất chậm nhất trong ngày tổ chức sự kiện.</p>
                         )}
                         {startTimeError && <p className="mt-1 text-[10px] text-red-600">{startTimeError}</p>}
                       </div>

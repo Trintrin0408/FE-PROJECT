@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import type { AxiosError } from 'axios';
+import toast from 'react-hot-toast';
 import { Check, Package, Plus, Trash2, User } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
@@ -13,6 +14,7 @@ import { catalogApiService } from '@/services/catalog.service';
 import { EVENT_TYPES } from '@/constants/order-event-type';
 import { VN_TIME_ZONE } from '@/utils/formatDate';
 import type { QuotationDetailApi } from '@/types/quotation';
+import type { StockWarning } from '@/types/order';
 import type { Item } from '@/types/catalog';
 
 // Viết lại 2026-07-21 để nối API thật — bản cũ nhận prop `AdminQuotationRow` (shape mock) và gọi thẳng
@@ -175,6 +177,15 @@ export default function CreateOrderFromQuotationModal({ isOpen, onClose, quotati
         items: items.map((item) => ({ itemId: item.itemId, quantity: item.quantity, unitPrice: item.unitPrice })),
         notes: notes.trim() || undefined,
       });
+      // Cảnh báo mềm (không chặn tạo đơn): item vượt khả dụng cho cửa sổ đơn — sales biết trước khi thu cọc.
+      const warnings = (res.data.warnings ?? []) as StockWarning[];
+      if (warnings.length > 0) {
+        const detail = warnings.map((w) => `${w.itemName} (cần ${w.requested}, còn ${w.available})`).join('; ');
+        toast(`⚠️ Vượt tồn cho khoảng của đơn: ${detail}. Đơn vẫn được tạo — kiểm tra kho trước khi thu cọc.`, {
+          duration: 9000,
+          style: { background: '#fffbeb', color: '#92400e', border: '1px solid #fde68a', maxWidth: '520px' },
+        });
+      }
       onCreated(res.data.orderId);
     } catch (err) {
       const axiosError = err as AxiosError<{ message?: string }>;

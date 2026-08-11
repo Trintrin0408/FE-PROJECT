@@ -8,27 +8,14 @@ import UpcomingEventsCard from '@/components/dashboard/UpcomingEventsCard';
 import RecentOrdersCard from '@/components/dashboard/RecentOrdersCard';
 import StaffOnDutyCard from '@/components/dashboard/StaffOnDutyCard';
 import Reveal from '@/components/ui/Reveal';
-import {
-  getAdminDashboardKpis,
-  getOrderStatusBreakdown,
-  getRecentOrders,
-  getRevenueTrend,
-  getStaffOnDuty,
-  getUpcomingEvents,
-} from '@/mocks/adminDashboard';
+import { useAdminDashboard } from '@/hooks/useAdminDashboard';
 import { formatCurrency } from '@/utils/formatCurrency';
 
-// ⚠️ Backend hiện không gọi được (docs/more-require.md mục (jj)) — trang này tạm dùng dữ liệu ảo cố
-// định ở src/mocks/adminDashboard.ts thay vì gọi reportApiService. Khôi phục lại API thật khi backend
-// hoạt động bình thường trở lại. Đơn đặt mới/biểu đồ trạng thái/đơn gần đây tính từ
-// src/mocks/db/orders.ts (dữ liệu thật, xem DEMO_CHECKLIST.md Task 14).
+// Administrative Dashboard (Admin) — tổng hợp dữ liệu THẬT client-side (không có endpoint /dashboard/admin
+// hay /reports/revenue: đều 404). Nguồn: /orders (+meta.counts), /quotations, /customers, /schedule-plans.
 export default function Page() {
-  const kpis = getAdminDashboardKpis();
-  const orderStatusBreakdown = getOrderStatusBreakdown();
-  const recentOrders = getRecentOrders();
-  const revenueTrend = getRevenueTrend();
-  const upcomingEvents = getUpcomingEvents();
-  const staffOnDuty = getStaffOnDuty();
+  const { isLoading, loadError, kpis, revenueTrend, orderStatusBreakdown, upcomingEvents, recentOrders, staffOnDuty } =
+    useAdminDashboard();
   const totalOrders = orderStatusBreakdown.reduce((sum, slice) => sum + slice.count, 0);
 
   const items: KpiCardItem[] = [
@@ -37,17 +24,17 @@ export default function Page() {
       value: formatCurrency(kpis.monthlyRevenue),
       icon: DollarSign,
       iconColor: 'blue',
-      changeLabel: `${kpis.monthlyRevenueChange} so với tháng trước`,
-      changeDirection: 'up',
+      changeLabel: kpis.monthlyRevenueChangeLabel,
+      changeDirection: kpis.monthlyRevenueChangeDirection,
       href: '/admin/reports/revenue',
     },
     {
-      label: 'Đơn đặt mới',
+      label: 'Đơn đặt mới (tháng)',
       value: kpis.newOrders,
       icon: ShoppingCart,
       iconColor: 'green',
-      changeLabel: `${kpis.newOrdersChange} so với tháng trước`,
-      changeDirection: 'up',
+      changeLabel: kpis.newOrdersChangeLabel,
+      changeDirection: kpis.newOrdersChangeDirection,
       href: '/admin/orders_audit',
     },
     {
@@ -55,7 +42,7 @@ export default function Page() {
       value: kpis.pendingQuotations,
       icon: FileText,
       iconColor: 'amber',
-      changeLabel: `${kpis.pendingQuotationsChange} so với tháng trước`,
+      changeLabel: 'Bản nháp chưa duyệt',
       changeDirection: 'up',
       href: '/admin/quotations',
     },
@@ -64,8 +51,8 @@ export default function Page() {
       value: kpis.newCustomers,
       icon: Users,
       iconColor: 'pink',
-      changeLabel: `${kpis.newCustomersChange} so với tháng trước`,
-      changeDirection: 'up',
+      changeLabel: kpis.newCustomersChangeLabel,
+      changeDirection: kpis.newCustomersChangeDirection,
       href: '/admin/customers',
     },
   ];
@@ -73,39 +60,42 @@ export default function Page() {
   return (
     <div className="p-6">
       <div>
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Tổng quan</h1>
-          <p className="mt-1 text-sm text-slate-500">Theo dõi hoạt động kinh doanh và vận hành dịch vụ tiệc cưới.</p>
-          <p className="mt-1 text-xs italic text-slate-400" title="Backend hiện không gọi được — dữ liệu minh họa">
-            Đang hiển thị dữ liệu minh họa (backend chưa kết nối được).
-          </p>
-        </div>
+        <h1 className="text-2xl font-bold text-slate-900">Tổng quan</h1>
+        <p className="mt-1 text-sm text-slate-500">Theo dõi hoạt động kinh doanh và vận hành dịch vụ tiệc cưới.</p>
       </div>
 
-      <div className="mt-6">
-        <DashboardStats items={items} />
-      </div>
+      {loadError ? (
+        <div className="mt-6 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-600">{loadError}</div>
+      ) : (
+        <>
+          <div className="mt-6">
+            <DashboardStats items={items} />
+          </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-4">
-        <Reveal className="lg:col-span-2">
-          <RevenueChart data={revenueTrend} />
-        </Reveal>
-        <Reveal delay={0.05}>
-          <OrderStatusDonut data={orderStatusBreakdown} total={totalOrders} />
-        </Reveal>
-        <Reveal delay={0.1}>
-          <UpcomingEventsCard events={upcomingEvents} />
-        </Reveal>
-      </div>
+          <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-4">
+            <Reveal className="lg:col-span-2">
+              <RevenueChart data={revenueTrend} />
+            </Reveal>
+            <Reveal delay={0.05}>
+              <OrderStatusDonut data={orderStatusBreakdown} total={totalOrders} />
+            </Reveal>
+            <Reveal delay={0.1}>
+              <UpcomingEventsCard events={upcomingEvents} />
+            </Reveal>
+          </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <Reveal className="lg:col-span-2">
-          <RecentOrdersCard orders={recentOrders} />
-        </Reveal>
-        <Reveal delay={0.05}>
-          <StaffOnDutyCard staff={staffOnDuty} />
-        </Reveal>
-      </div>
+          <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <Reveal className="lg:col-span-2">
+              <RecentOrdersCard orders={recentOrders} />
+            </Reveal>
+            <Reveal delay={0.05}>
+              <StaffOnDutyCard staff={staffOnDuty} />
+            </Reveal>
+          </div>
+
+          {isLoading && <p className="mt-4 text-xs text-slate-400">Đang tải dữ liệu tổng quan…</p>}
+        </>
+      )}
     </div>
   );
 }

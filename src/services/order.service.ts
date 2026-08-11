@@ -52,6 +52,27 @@ export const orderApiService = {
     return response.data;
   },
 
+  /** PUT /api/v1/orders/{id}/dates — đổi ngày sự kiện (đơn đã chốt tự dời cửa sổ giữ chỗ, 409 nếu thiếu). */
+  async updateOrderDates(id: string, payload: { eventDate: string; endDate?: string }) {
+    const response = await api.put(`/orders/${id}/dates`, payload);
+    return response.data;
+  },
+
+  /** PUT /api/v1/orders/{id}/picklist/picked-up — đánh dấu đơn đã xuất kho (set orders.picked_up_at).
+   *  Backend chặn nếu đã xuất kho rồi hoặc chưa chuẩn bị đủ (preparedQty < quantity). */
+  async markPicklistPickedUp(id: string) {
+    const response = await api.put(`/orders/${id}/picklist/picked-up`);
+    return response.data;
+  },
+
+  /** PUT /api/v1/orders/{id}/items/confirm-prepared — ghi nhận số lượng đã chuẩn bị cho từng order_item
+   *  (điều kiện tiên quyết của bước "Đánh dấu xuất kho": cần preparedQty >= quantity mọi dòng).
+   *  Backend đã hoạt động đúng — xác nhận qua test E2E 2026-08-11. */
+  async confirmPreparedItems(id: string, payload: { items: { orderItemId: string; preparedQty: number }[] }) {
+    const response = await api.put(`/orders/${id}/items/confirm-prepared`, payload);
+    return response.data;
+  },
+
   /** PATCH /api/v1/orders/{id}/live-checklist — trả lại object checklist đầy đủ mới nhất */
   async updateLiveChecklist(id: string, payload: UpdateLiveChecklistPayload) {
     const response = await api.patch(`/orders/${id}/live-checklist`, payload);

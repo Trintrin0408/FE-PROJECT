@@ -255,7 +255,7 @@ export default function CreateSchedulePlanModal({ isOpen, onClose, orderId, defa
             min={nowInputValue}
             max={isDateRestricted ? eventDateInputValue : undefined}
             error={startTimeError}
-            helpText={isDateRestricted ? 'Loại việc này phải diễn ra trước ngày tổ chức sự kiện.' : undefined}
+            helpText={isDateRestricted ? 'Loại việc này phải hoàn tất chậm nhất trong ngày tổ chức sự kiện.' : undefined}
           />
           <Input
             type="datetime-local"
