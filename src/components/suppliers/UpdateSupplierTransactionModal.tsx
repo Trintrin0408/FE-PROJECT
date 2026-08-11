@@ -273,8 +273,8 @@ export default function UpdateSupplierTransactionModal({
                       <td className="px-3 py-3 text-slate-400">{idx + 1}</td>
                       <td className="px-3 py-3 font-medium text-slate-800">{item.itemName || supplierItems.find(si => si.itemId === item.itemId)?.itemName || '---'}</td>
                       <td className="px-3 py-3 text-center text-slate-600">{item.quantity}</td>
-                      <td className="px-3 py-3 text-right text-slate-600">{formatCurrency(item.unitCost)}</td>
-                      <td className="px-3 py-3 text-right font-medium text-slate-800">{formatCurrency(item.quantity * item.unitCost)}</td>
+                      <td className="px-3 py-3 text-right text-slate-600">{formatCurrency(item.unitCost ?? 0)}</td>
+                      <td className="px-3 py-3 text-right font-medium text-slate-800">{formatCurrency(item.quantity * (item.unitCost ?? 0))}</td>
                     </tr>
                   )) : (
                     <tr>
@@ -434,7 +434,7 @@ export default function UpdateSupplierTransactionModal({
               onChange={(e) => setServiceTitle(e.target.value)}
               placeholder="Vd: Thuê âm thanh ánh sáng cho sự kiện..."
               required
-              disabled={mode === 'view' || Boolean(transaction?.status && transaction.status !== 'PENDING')}
+              disabled={Boolean(transaction?.status && transaction.status !== 'PENDING')}
             />
           </div>
 
@@ -446,7 +446,7 @@ export default function UpdateSupplierTransactionModal({
               value={depositAmount || ''}
               onChange={(e) => setDepositAmount(Number(e.target.value))}
               placeholder="0"
-              disabled={mode === 'view' || Boolean(transaction?.status && transaction.status !== 'PENDING')}
+              disabled={Boolean(transaction?.status && transaction.status !== 'PENDING')}
             />
           </div>
         </div>
@@ -471,7 +471,7 @@ export default function UpdateSupplierTransactionModal({
                     onChange={(e) => handleItemChange(index, 'itemId', e.target.value)}
                     className="w-full rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none disabled:bg-slate-50 disabled:text-slate-500"
                     required
-                    disabled={mode === 'view' || Boolean(transaction?.status && transaction.status !== 'PENDING')}
+                    disabled={Boolean(transaction?.status && transaction.status !== 'PENDING')}
                   >
                     <option value="">
                       {(!item.itemId && item.itemName) ? `${item.itemName} (Hạng mục đã bị xoá)` : '-- Chọn hạng mục --'}
@@ -494,7 +494,7 @@ export default function UpdateSupplierTransactionModal({
                     min="1"
                     value={item.quantity?.toString() ?? '1'}
                     onChange={(e) => handleItemChange(index, 'quantity', e.target.value === '' ? '' : Number(e.target.value))}
-                    disabled={mode === 'view' || Boolean(transaction?.status && transaction.status !== 'PENDING')}
+                    disabled={Boolean(transaction?.status && transaction.status !== 'PENDING')}
                   />
                 </div>
                 
@@ -505,7 +505,7 @@ export default function UpdateSupplierTransactionModal({
                     min="0"
                     value={item.unitCost?.toString() ?? '0'}
                     onChange={(e) => handleItemChange(index, 'unitCost', e.target.value === '' ? '' : Number(e.target.value))}
-                    disabled={mode === 'view' || Boolean(transaction?.status && transaction.status !== 'PENDING')}
+                    disabled={Boolean(transaction?.status && transaction.status !== 'PENDING')}
                   />
                 </div>
 

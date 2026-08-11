@@ -472,6 +472,7 @@ function toApiItem(row: AdminEquipment): Item {
     unit: row.unit,
     rentalPrice: row.price,
     status: row.status === 'active' ? 'ACTIVE' : 'INACTIVE',
+    isCombo: false,
     inventory: { quantityTotal: row.totalStock, quantityAvailable: row.availableStock },
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,

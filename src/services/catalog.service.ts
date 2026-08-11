@@ -3,6 +3,7 @@ import type {
   CreateItemCategoryPayload,
   CreateItemPayload,
   CreateItemTypePayload,
+  ItemStatus,
   UpdateItemCategoryPayload,
   UpdateItemCategoryStatusPayload,
   UpdateItemPayload,
