@@ -35,6 +35,7 @@ import { groupPlansByOrder, getEarliestRowLead, SCHEDULE_STATUS_BADGE, SCHEDULE_
 export default function ManagerPicklistsPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [itemTotals, setItemTotals] = useState<Map<string, { total: number; prepared: number }>>(new Map());
+  const [itemsByOrderId, setItemsByOrderId] = useState<Map<string, OrderItem[]>>(new Map());
   const [pickedUpMap, setPickedUpMap] = useState<Map<string, string | null>>(new Map());
   const [reloadToken, setReloadToken] = useState(0);
   const [markingId, setMarkingId] = useState<string | null>(null);
@@ -82,17 +83,20 @@ export default function ManagerPicklistsPage() {
         );
         const totalsMap = new Map<string, { total: number; prepared: number }>();
         const pickedMap = new Map<string, string | null>();
+        const itemsMap = new Map<string, OrderItem[]>();
         for (const d of details) {
           const total = d.items.reduce((sum: number, it: OrderItem) => sum + (it.quantity ?? 0), 0);
           const prepared = d.items.reduce((sum: number, it: OrderItem) => sum + (it.preparedQty ?? 0), 0);
           totalsMap.set(d.orderId, { total, prepared });
           pickedMap.set(d.orderId, d.pickedUpAt);
+          itemsMap.set(d.orderId, d.items);
         }
 
         if (cancelled) return;
         setOrders(scoped);
         setItemTotals(totalsMap);
         setPickedUpMap(pickedMap);
+        setItemsByOrderId(itemsMap);
         setCoordinatorByOrderId(coordMap);
         setPlansByOrderId(plansMap);
       } catch {
@@ -107,15 +111,31 @@ export default function ManagerPicklistsPage() {
     };
   }, [reloadToken]);
 
+  // Đơn chưa chuẩn bị đủ (preparedQty < quantity ở ít nhất 1 dòng) → nút sẽ gộp thêm bước chuẩn bị.
+  const needsPrepare = (orderId: string) => {
+    const t = itemTotals.get(orderId);
+    return !!t && t.prepared < t.total;
+  };
+
   const handleMarkPickedUp = async (orderId: string) => {
     setMarkingId(orderId);
     try {
+      // Gộp 1 nút: nếu chưa chuẩn bị đủ thì TỰ xác nhận chuẩn bị đủ (preparedQty = quantity mọi dòng)
+      // trước, rồi mới đánh dấu xuất kho — khỏi phải sang trang chi tiết đơn bấm "Xác nhận đã chuẩn bị xong".
+      if (needsPrepare(orderId)) {
+        const lines = (itemsByOrderId.get(orderId) ?? [])
+          .filter((it) => it.orderItemId)
+          .map((it) => ({ orderItemId: it.orderItemId as string, preparedQty: it.quantity }));
+        if (lines.length > 0) {
+          await orderApiService.confirmPreparedItems(orderId, { items: lines });
+        }
+      }
       await orderApiService.markPicklistPickedUp(orderId);
-      toast.success('Đã đánh dấu xuất kho cho đơn.');
+      toast.success('Đã chuẩn bị đủ & xuất kho cho đơn.');
       setReloadToken((t) => t + 1);
     } catch (err) {
-      // Backend chặn nếu đã xuất kho rồi hoặc chưa chuẩn bị đủ thiết bị.
-      toast.error(parseApiError(err, 'Không thể đánh dấu đã xuất kho.'));
+      // Backend vẫn chặn nếu đơn đã xuất kho rồi.
+      toast.error(parseApiError(err, 'Không thể xuất kho.'));
     } finally {
       setMarkingId(null);
     }
@@ -241,7 +261,7 @@ export default function ManagerPicklistsPage() {
               className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-bold text-slate-600 hover:border-blue-200 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Truck className="h-3.5 w-3.5" />
-              {markingId === o.orderId ? 'Đang xử lý…' : 'Đánh dấu xuất kho'}
+              {markingId === o.orderId ? 'Đang xử lý…' : needsPrepare(o.orderId) ? 'Chuẩn bị đủ & xuất kho' : 'Đánh dấu xuất kho'}
             </button>
           )}
         </div>
