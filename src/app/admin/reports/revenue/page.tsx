@@ -190,6 +190,18 @@ export default function Page() {
     { label: 'Năm nay', apply: () => { const n = new Date(); setFrom(isoOf(new Date(n.getFullYear(), 0, 1))); setTo(isoOf(n)); } },
   ];
 
+  // Auto-validate khoảng ngày: luôn giữ bất biến from ≤ to. Khi người dùng chọn 1 đầu vượt qua đầu kia
+  // thì kéo đầu kia theo (chuỗi ISO YYYY-MM-DD so sánh theo thứ tự = so sánh thời gian). Tránh khoảng đảo
+  // ngược khiến báo cáo rỗng: cả inRange lẫn monthKeysBetween đều ra rỗng khi from > to.
+  const handleFromChange = (v: string) => {
+    setFrom(v);
+    if (v && to && v > to) setTo(v);
+  };
+  const handleToChange = (v: string) => {
+    setTo(v);
+    if (v && from && v < from) setFrom(v);
+  };
+
   return (
     <div className="p-6">
       {/* Header + filter */}
@@ -207,9 +219,9 @@ export default function Page() {
             </button>
           ))}
           <div className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 py-1">
-            <input type="date" value={from} max={to} onChange={(e) => setFrom(e.target.value)} className="bg-transparent text-xs text-slate-700 outline-none" />
+            <input type="date" value={from} max={to || undefined} onChange={(e) => handleFromChange(e.target.value)} className="bg-transparent text-xs text-slate-700 outline-none" />
             <span className="text-xs text-slate-400">→</span>
-            <input type="date" value={to} min={from} onChange={(e) => setTo(e.target.value)} className="bg-transparent text-xs text-slate-700 outline-none" />
+            <input type="date" value={to} min={from || undefined} onChange={(e) => handleToChange(e.target.value)} className="bg-transparent text-xs text-slate-700 outline-none" />
           </div>
         </div>
       </div>

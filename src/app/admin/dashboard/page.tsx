@@ -1,33 +1,24 @@
 'use client';
 
-import { DollarSign, ShoppingCart, FileText, Users } from 'lucide-react';
+import { ShoppingCart, FileText, Users } from 'lucide-react';
 import DashboardStats, { KpiCardItem } from '@/components/reports/DashboardStats';
-import RevenueChart from '@/components/reports/RevenueChart';
 import OrderStatusDonut from '@/components/dashboard/OrderStatusDonut';
 import UpcomingEventsCard from '@/components/dashboard/UpcomingEventsCard';
 import RecentOrdersCard from '@/components/dashboard/RecentOrdersCard';
 import StaffOnDutyCard from '@/components/dashboard/StaffOnDutyCard';
 import Reveal from '@/components/ui/Reveal';
 import { useAdminDashboard } from '@/hooks/useAdminDashboard';
-import { formatCurrency } from '@/utils/formatCurrency';
 
 // Administrative Dashboard (Admin) — tổng hợp dữ liệu THẬT client-side (không có endpoint /dashboard/admin
 // hay /reports/revenue: đều 404). Nguồn: /orders (+meta.counts), /quotations, /customers, /schedule-plans.
 export default function Page() {
-  const { isLoading, loadError, kpis, revenueTrend, orderStatusBreakdown, upcomingEvents, recentOrders, staffOnDuty } =
+  const { isLoading, loadError, kpis, orderStatusBreakdown, upcomingEvents, recentOrders, staffOnDuty } =
     useAdminDashboard();
   const totalOrders = orderStatusBreakdown.reduce((sum, slice) => sum + slice.count, 0);
 
+  // Đã ẩn KPI "Doanh thu tháng" + biểu đồ doanh thu theo yêu cầu — dữ liệu doanh thu chỉ còn ở trang
+  // /admin/reports/revenue.
   const items: KpiCardItem[] = [
-    {
-      label: 'Doanh thu tháng',
-      value: formatCurrency(kpis.monthlyRevenue),
-      icon: DollarSign,
-      iconColor: 'blue',
-      changeLabel: kpis.monthlyRevenueChangeLabel,
-      changeDirection: kpis.monthlyRevenueChangeDirection,
-      href: '/admin/reports/revenue',
-    },
     {
       label: 'Đơn đặt mới (tháng)',
       value: kpis.newOrders,
@@ -72,14 +63,11 @@ export default function Page() {
             <DashboardStats items={items} />
           </div>
 
-          <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-4">
-            <Reveal className="lg:col-span-2">
-              <RevenueChart data={revenueTrend} />
-            </Reveal>
-            <Reveal delay={0.05}>
+          <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <Reveal>
               <OrderStatusDonut data={orderStatusBreakdown} total={totalOrders} />
             </Reveal>
-            <Reveal delay={0.1}>
+            <Reveal delay={0.05}>
               <UpcomingEventsCard events={upcomingEvents} />
             </Reveal>
           </div>
