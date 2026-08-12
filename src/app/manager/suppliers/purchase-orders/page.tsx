@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Avatar } from '@/components/ui/Avatar';
 import PurchaseOrderFormModal from '@/components/suppliers/PurchaseOrderFormModal';
+import SupplierTransactionStatusActions from '@/components/suppliers/SupplierTransactionStatusActions';
 import OrderQuickViewModal from '@/components/orders/OrderQuickViewModal';
 import Reveal from '@/components/ui/Reveal';
 import { formatCurrency } from '@/utils/formatCurrency';
@@ -172,7 +173,9 @@ export default function Page() {
       key: 'actions',
       label: 'Thao tác',
       render: (t) => (
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
+          <SupplierTransactionStatusActions transaction={t} onDone={refresh} />
+          <div className="flex items-center gap-1">
           <button
             type="button"
             aria-label="Xem chi tiết"
@@ -201,6 +204,7 @@ export default function Page() {
           >
             <Trash2 className="h-4 w-4" />
           </button>
+          </div>
         </div>
       ),
     },
@@ -300,7 +304,14 @@ export default function Page() {
         </div>
       </Reveal>
 
-      <TransactionDetailModal transaction={detailTransaction} onClose={() => setDetailTransaction(null)} />
+      <TransactionDetailModal
+        transaction={detailTransaction}
+        onClose={() => setDetailTransaction(null)}
+        onDone={() => {
+          refresh();
+          setDetailTransaction(null);
+        }}
+      />
 
       <OrderQuickViewModal isOpen={!!viewOrderId} onClose={() => setViewOrderId(null)} orderId={viewOrderId} />
 
@@ -315,7 +326,7 @@ export default function Page() {
   );
 }
 
-function TransactionDetailModal({ transaction, onClose }: Readonly<{ transaction: SupplierTransaction | null; onClose: () => void }>) {
+function TransactionDetailModal({ transaction, onClose, onDone }: Readonly<{ transaction: SupplierTransaction | null; onClose: () => void; onDone: () => void }>) {
   const [items, setItems] = useState<TransactionItemInput[]>([]);
 
   useEffect(() => {
@@ -440,8 +451,11 @@ function TransactionDetailModal({ transaction, onClose }: Readonly<{ transaction
           </div>
         </div>
 
-        <div className="flex justify-end border-t border-slate-100 px-6 py-4">
-          <Button onClick={onClose}>Đóng</Button>
+        <div className="flex items-center gap-3 border-t border-slate-100 px-6 py-4">
+          <div className="mr-auto">
+            <SupplierTransactionStatusActions transaction={transaction} onDone={onDone} size="md" />
+          </div>
+          <Button variant="secondary" onClick={onClose}>Đóng</Button>
         </div>
       </div>
     </div>

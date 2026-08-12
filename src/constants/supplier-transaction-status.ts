@@ -29,3 +29,14 @@ export const SUPPLIER_TRANSACTION_PAYMENT_STATUS_META: Record<SupplierTransactio
   DEPOSITED: { label: 'Đã đặt cọc', variant: 'warning' },
   PAID: { label: 'Đã thanh toán', variant: 'success' },
 };
+
+// Máy trạng thái forward-only — KHỚP guard phía BE (supplier.service.updateTransactionStatus): mỗi trạng
+// thái hiện tại → các trạng thái hợp lệ có thể chuyển tới. COMPLETED/CANCELLED là điểm cuối (rỗng). Nguồn
+// chân lý duy nhất để dựng nút thao tác (SupplierTransactionStatusActions) — không hardcode rải rác nữa.
+export const SUPPLIER_TRANSACTION_NEXT_STATUSES: Record<SupplierTransactionStatus, SupplierTransactionStatus[]> = {
+  PENDING: ['APPROVED', 'CANCELLED'],
+  APPROVED: ['RECEIVED', 'CANCELLED'],
+  RECEIVED: ['COMPLETED'],
+  COMPLETED: [],
+  CANCELLED: [],
+};
