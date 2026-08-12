@@ -43,10 +43,15 @@ export interface CollectedEquipmentReport {
   items: CollectedEquipmentReportItem[];
 }
 
-// GET /api/v1/inventory/return-reports — không hỗ trợ tìm kiếm tự do (search), chỉ status/orderId.
+// GET /api/v1/inventory/return-reports — không hỗ trợ tìm kiếm tự do (search), chỉ status/orderId/
+// reportType/transactionId. `reportType` (INTERNAL|SUPPLIER) đã được BE bổ sung để trang suppliers/returns
+// chỉ kéo báo cáo trả NCC; nếu BE đang chạy chưa deploy bản này thì param bị bỏ qua (Zod strip) — FE vẫn
+// lọc client-side để an toàn.
 export interface GetReturnReportsQuery {
   status?: CollectedEquipmentReportStatus;
   orderId?: string;
+  reportType?: CollectedEquipmentReportType;
+  transactionId?: string;
   page?: number;
   limit?: number;
 }
