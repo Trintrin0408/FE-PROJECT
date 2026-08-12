@@ -817,19 +817,12 @@ function ManagerOrderDetailContent() {
     }
   };
 
-  // Yêu cầu người dùng (2026-07-22): chỉ tạo lịch trình loại việc "Lắp đặt thiết bị" (tab "Lịch trình
-  // & Kỹ thuật") mới tự chuyển mốc tiến trình đơn sang "3. Đang thực hiện" — các loại việc khác (khảo
-  // sát, vận chuyển, thu hồi...) không kích hoạt transition này. Chỉ chuyển tiếp (không lùi lại), nên
-  // bỏ qua nếu đơn đã ở IN_PROGRESS/COMPLETED/CANCELLED.
-  const handleSchedulePlanCreated = async (taskName: string) => {
-    const shouldActivate =
-      taskName === 'Lắp đặt thiết bị' &&
-      order.orderStatus !== 'IN_PROGRESS' &&
-      order.orderStatus !== 'COMPLETED' &&
-      order.orderStatus !== 'CANCELLED';
-    if (shouldActivate) {
-      await orderApiService.updateOrderStatus(order.orderId, { orderStatus: 'IN_PROGRESS' });
-    }
+  // Tạo lịch = LẬP KẾ HOẠCH, KHÔNG còn tự chuyển đơn sang "Đang thực hiện" nữa (trước đây tạo lịch "Lắp
+  // đặt thiết bị" là promote luôn — gây hiểu nhầm đơn đã chạy trong khi thực tế chưa ai bắt đầu). Mốc
+  // IN_PROGRESS giờ do BE tự set khi Trưởng nhóm CHECK-IN lịch "Lắp đặt thiết bị" (thi công thật bắt
+  // đầu) — xem schedule.service.checkIn. Manager vẫn có thể chuyển thủ công qua dropdown / "Kích hoạt
+  // live show" nếu cần. Ở đây chỉ tải lại dữ liệu.
+  const handleSchedulePlanCreated = async () => {
     await load();
   };
 

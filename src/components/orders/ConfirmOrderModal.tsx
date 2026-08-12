@@ -45,8 +45,9 @@ const HOUR = 3_600_000;
 const SNAP_MS = 15 * 60_000; // hít 15 phút
 const MIN_DUR_MS = 30 * 60_000;
 const ROW_H = 40; // chiều cao 1 làn block
-const MIN_PXH = 8;
-const MAX_PXH = 40;
+const MIN_PXH = 12;
+const MAX_PXH = 56;
+const DEFAULT_PXH = 30; // mặc định "phóng" đủ rộng để 1 việc 2h ~60px, dễ đọc
 
 // Loại việc gợi ý tự xếp sẵn khi mở popup.
 const SUGGESTED = new Set(['SURVEY', 'SETUP', 'COLLECT', 'RETURN']);
@@ -98,7 +99,7 @@ export default function ConfirmOrderModal({ isOpen, orderCode, eventDate, endDat
   const [tasks, setTasks] = useState<WorkTask[]>([]);
   const [loading, setLoading] = useState(false);
   const [blocks, setBlocks] = useState<Block[]>([]);
-  const [pxPerHour, setPxPerHour] = useState(14);
+  const [pxPerHour, setPxPerHour] = useState(DEFAULT_PXH);
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
   const contentRef = useRef<HTMLDivElement>(null);
@@ -111,8 +112,8 @@ export default function ConfirmOrderModal({ isOpen, orderCode, eventDate, endDat
   const endKey = useMemo(() => toDateInputValue(endDate ?? eventDate), [endDate, eventDate]);
 
   // Khoảng thời gian của timeline: đệm 1 ngày quanh khảo sát (−3) và thu hồi (+2).
-  const rangeStartKey = useMemo(() => addDaysKey(evKey, -3), [evKey]);
-  const rangeEndKey = useMemo(() => addDaysKey(endKey, 2), [endKey]);
+  const rangeStartKey = useMemo(() => addDaysKey(evKey, -2), [evKey]);
+  const rangeEndKey = useMemo(() => addDaysKey(endKey, 1), [endKey]);
   const days = useMemo(() => enumerateDayKeys(rangeStartKey, rangeEndKey), [rangeStartKey, rangeEndKey]);
   const rangeStartMs = useMemo(() => vnMidnightMs(rangeStartKey), [rangeStartKey]);
   const totalHours = days.length * 24;
@@ -127,7 +128,7 @@ export default function ConfirmOrderModal({ isOpen, orderCode, eventDate, endDat
   useEffect(() => {
     if (!isOpen) return;
     setLoading(true);
-    setPxPerHour(14);
+    setPxPerHour(DEFAULT_PXH);
     workTaskApiService
       .getWorkTasks({ isActive: true })
       .then((res) => {
@@ -364,14 +365,14 @@ export default function ConfirmOrderModal({ isOpen, orderCode, eventDate, endDat
                 const x = msToX(b.startMs);
                 const w = (b.durMs / HOUR) * pxPerHour;
                 const top = laneOf[b.id] * ROW_H + 6;
-                const wide = w > 92;
+                const wide = w > 80;
                 return (
                   <div
                     key={b.id}
                     onPointerDown={(e) => startBlockDrag(e, b, 'move')}
                     title={`${b.taskName} · ${formatDate(new Date(b.startMs).toISOString())} ${formatTime(b.startMs)}–${formatTime(b.startMs + b.durMs)}`}
                     className={`group absolute flex touch-none cursor-grab select-none flex-col justify-center overflow-hidden rounded-lg px-2 text-white shadow-sm ring-2 ring-white transition-colors active:cursor-grabbing ${c.block} ${draggingId === b.id ? 'z-20 opacity-90 shadow-lg' : ''}`}
-                    style={{ left: x, width: Math.max(w, 34), top, height: ROW_H - 12 }}
+                    style={{ left: x, width: Math.max(w, 44), top, height: ROW_H - 12 }}
                   >
                     <div className="flex items-center gap-1 leading-none">
                       <span className="truncate text-[11px] font-bold">{b.taskName}</span>
