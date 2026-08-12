@@ -7,11 +7,13 @@ export interface StaffConflictDateWindow {
   to: string; // YYYY-MM-DD
 }
 
-// Lấy toàn bộ lịch trình (mọi đơn) giao với khoảng ngày cần kiểm tra, để tìm nhân sự đang bận trùng
-// giờ. GET /schedule-plans?dateFrom&dateTo (không truyền orderId) đã xác nhận hoạt động thật qua curl
-// 2026-07-21 (xem đính chính trong src/types/schedulePlan.ts) — server lọc ở mức khoảng ngày của đơn
-// (có thể trả dư, không lọc thiếu), nên bên gọi hook này luôn phải tự lọc chính xác theo giờ
-// (buildStaffConflictMap trong src/utils/staffAvailability.ts) trước khi dùng kết quả.
+// Lấy toàn bộ lịch trình (mọi đơn) có GIỜ giao với khoảng ngày cần kiểm tra, để tìm nhân sự đang bận
+// trùng giờ. BẮT BUỘC dùng dateMode:'plan' — chế độ này lọc theo start_time của TỪNG lịch. KHÔNG được
+// để mặc định 'timeline': timeline lọc theo [orders.event_date, MAX(end_time)] của cả đơn, nên các lịch
+// diễn ra TRƯỚC ngày sự kiện (điển hình là lịch KHẢO SÁT) sẽ bị BỎ SÓT khi event_date của đơn nằm ngoài
+// cửa sổ ngày đang check → không phát hiện được trùng lịch (bug: sửa lắp đặt về 23/08 09:00, Thắng đã có
+// khảo sát 09:00 cùng đơn nhưng không cảnh báo vì đơn có event_date muộn hơn dateTo). Sau khi fetch,
+// buildStaffConflictMap (src/utils/staffAvailability.ts) vẫn lọc lại chính xác theo giờ.
 export function useStaffConflictPlans(dateWindow: StaffConflictDateWindow | null): { plans: SchedulePlan[]; isLoading: boolean } {
   const [plans, setPlans] = useState<SchedulePlan[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -24,7 +26,7 @@ export function useStaffConflictPlans(dateWindow: StaffConflictDateWindow | null
     let cancelled = false;
     setIsLoading(true);
     schedulePlanApiService
-      .getSchedulePlans({ dateFrom: dateWindow.from, dateTo: dateWindow.to, limit: 200 })
+      .getSchedulePlans({ dateFrom: dateWindow.from, dateTo: dateWindow.to, dateMode: 'plan', limit: 200 })
       .then((res) => {
         if (cancelled) return;
         setPlans(res.data ?? []);
