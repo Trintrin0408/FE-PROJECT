@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Eye, MoreHorizontal, Search, SlidersHorizontal, Box, Lock, AlertTriangle, XCircle, CheckCircle2 } from 'lucide-react';
+import { Eye, MoreHorizontal, Search, SlidersHorizontal, Box, Lock, XCircle, CheckCircle2 } from 'lucide-react';
 import { Table, TableColumn } from '@/components/ui/Table';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
@@ -32,8 +32,6 @@ export default function AdminStockStatusPage() {
   const [searchInput, setSearchInput] = useState('');
   const search = useDebounce(searchInput, 300);
   const [categoryFilter, setCategoryFilter] = useState('');
-  const [onlyReserved, setOnlyReserved] = useState(false);
-  const [onlyLowStock, setOnlyLowStock] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [page, setPage] = useState(1);
   const limit = 10;
@@ -67,7 +65,7 @@ export default function AdminStockStatusPage() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reset trang khi đổi bộ lọc/tìm kiếm
     setPage(1);
-  }, [search, categoryFilter, onlyReserved, onlyLowStock, selectedDate]);
+  }, [search, categoryFilter, selectedDate]);
 
   const categoryOptions = useMemo(
     () => Array.from(new Set(rows.map((r) => r.categoryName).filter((v): v is string => Boolean(v)))),
@@ -78,11 +76,9 @@ export default function AdminStockStatusPage() {
     () =>
       rows.filter((r) => {
         if (categoryFilter && r.categoryName !== categoryFilter) return false;
-        if (onlyReserved && r.quantityReserved <= 0) return false;
-        if (onlyLowStock && r.quantityAvailable >= 5) return false; // Giả định threshold = 5
         return true;
       }),
-    [rows, categoryFilter, onlyReserved, onlyLowStock],
+    [rows, categoryFilter],
   );
 
   const summary = useMemo(() => {
@@ -222,32 +218,6 @@ export default function AdminStockStatusPage() {
               onChange={(e) => setSelectedDate(e.target.value)}
               placeholder="Chọn ngày xem kho"
             />
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setOnlyReserved(!onlyReserved)}
-              className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-                onlyReserved
-                  ? 'border-blue-200 bg-blue-50 text-blue-700'
-                  : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-              }`}
-            >
-              <Lock className="h-4 w-4" />
-              Đang Reserved
-            </button>
-            <button
-              type="button"
-              onClick={() => setOnlyLowStock(!onlyLowStock)}
-              className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-                onlyLowStock
-                  ? 'border-red-200 bg-red-50 text-red-700'
-                  : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-              }`}
-            >
-              <AlertTriangle className="h-4 w-4" />
-              Tồn thấp
-            </button>
           </div>
         </div>
 

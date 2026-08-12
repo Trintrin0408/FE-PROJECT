@@ -25,7 +25,7 @@ export const ROLE_OPTIONS = [
 // GET/POST/PUT /users trả role RAW enum (không hậu tố _STAFF) — khác ROLE_OPTIONS ở trên.
 // Nguồn: D:\bnwems-backend-api prisma/schema.prisma enum Role.
 export const USER_ROLE_OPTIONS = [
-  { value: 'ADMIN', label: 'Admin' },
-  { value: 'MANAGER', label: 'Manager' },
+  { value: 'ADMIN', label: 'Quản trị viên' },
+  { value: 'MANAGER', label: 'Quản lý' },
   { value: 'STAFF', label: 'Nhân viên' },
 ];

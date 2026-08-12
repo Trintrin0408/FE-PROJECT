@@ -5,14 +5,11 @@
 
 import type { LucideIcon } from 'lucide-react';
 import {
-  Area,
   Bar,
   BarChart,
   CartesianGrid,
   Cell,
-  ComposedChart,
   Legend,
-  Line,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -85,34 +82,32 @@ function EmptyChart({ text = 'Chưa có dữ liệu trong khoảng đã chọn.'
   return <div className="flex h-64 items-center justify-center text-xs text-slate-400">{text}</div>;
 }
 
-// ── Chart 1: Doanh thu đặt (area) vs Đã thu (line) theo tháng ──────────────────────────────────────
-export interface TrendPoint {
+// ── Chart 1: Doanh thu & thu tiền theo tháng (cột chồng: đã thu + còn phải thu) ──────────────────────
+// Một trục thời gian NHẤT QUÁN: cả cột được gom theo THÁNG SỰ KIỆN (khi doanh thu được ghi nhận). Tổng
+// mỗi cột = giá trị hợp đồng đã chốt của tháng đó; chồng phần đã thu (xanh) + còn phải thu (vàng) để
+// thấy ngay tình hình thu tiền — thay cho kiểu cũ trộn 2 trục (đặt theo ngày sự kiện vs thu theo ngày
+// thanh toán) khiến 2 đường lệch nhau gây khó hiểu.
+export interface MonthlyMoneyPoint {
   month: string;
-  booked: number;
   collected: number;
+  outstanding: number;
 }
-export function RevenueTrendChart({ data }: Readonly<{ data: TrendPoint[] }>) {
-  const hasData = data.some((d) => d.booked > 0 || d.collected > 0);
+export function MonthlyMoneyChart({ data }: Readonly<{ data: MonthlyMoneyPoint[] }>) {
+  const hasData = data.some((d) => d.collected > 0 || d.outstanding > 0);
   return (
-    <ChartCard title="Doanh thu theo tháng" subtitle="Doanh thu đặt (đơn hiệu lực) vs tiền đã thu (cọc) · 12 tháng gần nhất">
+    <ChartCard title="Doanh thu & thu tiền theo tháng" subtitle="Cột = giá trị hợp đồng đã chốt (theo tháng sự kiện) · xanh: đã thu · vàng: còn phải thu">
       {hasData ? (
         <div className="h-72">
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
-              <defs>
-                <linearGradient id="bookedFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#2563eb" stopOpacity={0.25} />
-                  <stop offset="100%" stopColor="#2563eb" stopOpacity={0} />
-                </linearGradient>
-              </defs>
+            <BarChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
               <CartesianGrid vertical={false} stroke={GRID} />
               <XAxis dataKey="month" tick={AXIS} axisLine={false} tickLine={false} />
               <YAxis tick={AXIS} axisLine={false} tickLine={false} tickFormatter={formatMillions} width={40} />
-              <Tooltip formatter={(v, n) => [formatCurrency(Number(v)), n === 'booked' ? 'Doanh thu đặt' : 'Đã thu (cọc)']} />
+              <Tooltip formatter={(v, n) => [formatCurrency(Number(v)), n === 'collected' ? 'Đã thu' : 'Còn phải thu']} />
               <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
-              <Area type="monotone" dataKey="booked" name="Doanh thu đặt" stroke="#2563eb" strokeWidth={2} fill="url(#bookedFill)" isAnimationActive={false} />
-              <Line type="monotone" dataKey="collected" name="Đã thu (cọc)" stroke="#16a34a" strokeWidth={2} dot={false} isAnimationActive={false} />
-            </ComposedChart>
+              <Bar dataKey="collected" stackId="money" name="Đã thu" fill="#16a34a" maxBarSize={44} isAnimationActive={false} />
+              <Bar dataKey="outstanding" stackId="money" name="Còn phải thu" fill="#f59e0b" radius={[4, 4, 0, 0]} maxBarSize={44} isAnimationActive={false} />
+            </BarChart>
           </ResponsiveContainer>
         </div>
       ) : (
@@ -128,8 +123,25 @@ export interface DonutSlice {
   value: number;
   color: string;
 }
-export function StatusDonut({ title, subtitle, centerLabel, data }: Readonly<{ title: string; subtitle?: string; centerLabel: string; data: DonutSlice[] }>) {
+export function StatusDonut({
+  title,
+  subtitle,
+  centerLabel,
+  data,
+  valueFormat = (n) => `${n}`,
+  centerFormat,
+  unit = 'Số đơn',
+}: Readonly<{
+  title: string;
+  subtitle?: string;
+  centerLabel: string;
+  data: DonutSlice[];
+  valueFormat?: (n: number) => string; // định dạng số ở tooltip + danh sách (vd formatCurrency cho tiền)
+  centerFormat?: (n: number) => string; // định dạng số ở tâm donut (mặc định theo valueFormat)
+  unit?: string; // nhãn đơn vị ở tooltip
+}>) {
   const total = data.reduce((s, d) => s + d.value, 0);
+  const centerFmt = centerFormat ?? valueFormat;
   return (
     <ChartCard title={title} subtitle={subtitle}>
       {total > 0 ? (
@@ -142,12 +154,12 @@ export function StatusDonut({ title, subtitle, centerLabel, data }: Readonly<{ t
                     <Cell key={d.label} fill={d.color} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(v) => [`${v}`, 'Số đơn']} />
+                <Tooltip formatter={(v) => [valueFormat(Number(v)), unit]} />
               </PieChart>
             </ResponsiveContainer>
             <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-2xl font-bold text-slate-900">{total}</span>
-              <span className="text-[11px] text-slate-400">{centerLabel}</span>
+              <span className="text-xl font-bold text-slate-900">{centerFmt(total)}</span>
+              <span className="mt-0.5 text-[11px] text-slate-400">{centerLabel}</span>
             </div>
           </div>
           <div className="mt-3 space-y-1.5">
@@ -157,7 +169,7 @@ export function StatusDonut({ title, subtitle, centerLabel, data }: Readonly<{ t
                   <span className="h-2.5 w-2.5 rounded-full" style={{ background: d.color }} /> {d.label}
                 </span>
                 <span className="font-semibold text-slate-800">
-                  {d.value} · {total === 0 ? 0 : Math.round((d.value / total) * 100)}%
+                  {valueFormat(d.value)} · {total === 0 ? 0 : Math.round((d.value / total) * 100)}%
                 </span>
               </div>
             ))}
@@ -173,7 +185,7 @@ export function StatusDonut({ title, subtitle, centerLabel, data }: Readonly<{ t
 // ── Chart 3: Bar doanh thu theo loại sự kiện ────────────────────────────────────────────────────────
 export function EventTypeBar({ data }: Readonly<{ data: { eventType: string; revenue: number }[] }>) {
   return (
-    <ChartCard title="Doanh thu theo loại sự kiện" subtitle="Tổng doanh thu đặt theo từng loại">
+    <ChartCard title="Doanh thu theo loại sự kiện" subtitle="Giá trị hợp đồng đã chốt theo từng loại">
       {data.length > 0 ? (
         <div className="h-72">
           <ResponsiveContainer width="100%" height="100%">
@@ -193,33 +205,7 @@ export function EventTypeBar({ data }: Readonly<{ data: { eventType: string; rev
   );
 }
 
-// ── Chart 4: Doanh thu (bar) vs Chi phí NCC (line) theo tháng ────────────────────────────────────────
-export function RevenueVsCostChart({ data }: Readonly<{ data: { month: string; revenue: number; cost: number }[] }>) {
-  const hasData = data.some((d) => d.revenue > 0 || d.cost > 0);
-  return (
-    <ChartCard title="Doanh thu vs Chi phí Nhà cung cấp" subtitle="Cột: doanh thu đặt · Đường: chi phí thuê/mua NCC · theo tháng">
-      {hasData ? (
-        <div className="h-72">
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={data} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
-              <CartesianGrid vertical={false} stroke={GRID} />
-              <XAxis dataKey="month" tick={AXIS} axisLine={false} tickLine={false} />
-              <YAxis tick={AXIS} axisLine={false} tickLine={false} tickFormatter={formatMillions} width={40} />
-              <Tooltip formatter={(v, n) => [formatCurrency(Number(v)), n === 'revenue' ? 'Doanh thu' : 'Chi phí NCC']} />
-              <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
-              <Bar dataKey="revenue" name="Doanh thu" fill="#2563eb" radius={[5, 5, 0, 0]} barSize={18} isAnimationActive={false} />
-              <Line type="monotone" dataKey="cost" name="Chi phí NCC" stroke="#ef4444" strokeWidth={2} dot={false} isAnimationActive={false} />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
-      ) : (
-        <EmptyChart />
-      )}
-    </ChartCard>
-  );
-}
-
-// ── Chart 5: Bar ngang Top khách hàng ───────────────────────────────────────────────────────────────
+// ── Chart 4: Bar ngang Top khách hàng ───────────────────────────────────────────────────────────────
 export function TopCustomersBar({ data }: Readonly<{ data: { name: string; revenue: number }[] }>) {
   return (
     <ChartCard title="Top khách hàng theo doanh thu" subtitle="10 khách hàng doanh thu cao nhất">

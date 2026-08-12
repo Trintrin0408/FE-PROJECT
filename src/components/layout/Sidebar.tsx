@@ -96,7 +96,6 @@ const ADMIN_NAV_SECTIONS: NavSection[] = [
         children: [
           { label: 'Danh sách nhà cung cấp', href: '/admin/suppliers', icon: Building2 },
           { label: 'Đơn thuê/mua', href: '/admin/suppliers/purchase-orders', icon: FileSignature },
-          { label: 'Trả thiết bị NCC', href: '/admin/suppliers/returns', icon: RotateCcw },
         ],
       },
     ],
