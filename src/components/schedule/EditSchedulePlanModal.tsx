@@ -12,6 +12,7 @@ import { userApiService } from '@/services/user.service';
 import { schedulePlanApiService } from '@/services/schedulePlan.service';
 import { useStaffConflictPlans, type StaffConflictDateWindow } from '@/hooks/useStaffConflictPlans';
 import { buildStaffConflictMap, type StaffConflict } from '@/utils/staffAvailability';
+import { addDaysKey } from '@/utils/scheduleCalendar';
 import { formatTime } from '@/utils/formatDate';
 import { ROLE_LABEL, SCHEDULE_STATUS_BADGE, SCHEDULE_STATUS_LABEL } from '@/utils/schedulePlanGroups';
 import { getEndTimeError, getStartTimeError, isDateRestrictedTaskName, toLocalInputValue } from '@/utils/schedulePlanValidation';
@@ -91,8 +92,10 @@ export default function EditSchedulePlanModal({ isOpen, onClose, plan, eventDate
 
   // Check trùng lịch nhân sự — chỉ cảnh báo mềm, không chặn (giống CreateSchedulePlanModal.tsx). Loại
   // trừ chính lịch trình đang sửa khỏi tập trùng lịch để không tự báo trùng với chính nó.
+  // Nới cửa sổ fetch ±1 ngày (xem giải thích ở CreateSchedulePlanModal): so trùng theo GIỜ thực tế nên
+  // lịch vắt qua nửa đêm / đè lịch hôm trước cần dữ liệu ngày kề để đổi giờ vẫn cảnh báo đúng.
   const conflictDateWindow: StaffConflictDateWindow | null = startTime
-    ? { from: startTime.slice(0, 10), to: (endTime || startTime).slice(0, 10) }
+    ? { from: addDaysKey(startTime.slice(0, 10), -1), to: addDaysKey((endTime || startTime).slice(0, 10), 1) }
     : null;
   const { plans: conflictPlans, isLoading: checkingConflicts } = useStaffConflictPlans(conflictDateWindow);
   const conflictMap: Map<string, StaffConflict[]> = useMemo(

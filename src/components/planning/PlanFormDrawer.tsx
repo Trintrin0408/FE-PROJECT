@@ -16,6 +16,7 @@ import { userApiService } from '@/services/user.service';
 import { orderApiService } from '@/services/order.service';
 import { useStaffConflictPlans, type StaffConflictDateWindow } from '@/hooks/useStaffConflictPlans';
 import { DEFAULT_TASK_DURATION_MS, buildStaffConflictMap, type StaffConflict } from '@/utils/staffAvailability';
+import { addDaysKey } from '@/utils/scheduleCalendar';
 import {
   getEndTimeError as getItemEndTimeError,
   getStartTimeError as getItemStartTimeError,
@@ -222,7 +223,12 @@ export default function PlanFormDrawer({ isOpen, editingGroup, selectableOrders,
       ends.push(row.endTime ? new Date(row.endTime).getTime() : s + DEFAULT_TASK_DURATION_MS);
     }
     if (starts.length === 0) return null;
-    return { from: new Date(Math.min(...starts)).toISOString().slice(0, 10), to: new Date(Math.max(...ends)).toISOString().slice(0, 10) };
+    // Đệm ±1 ngày để bắt cả lịch của người đó bắt đầu từ hôm trước (vắt qua giờ đang chọn) hoặc sang
+    // hôm sau — đổi GIỜ trong drawer vẫn luôn có sẵn plan ngày kề cho client lọc lại (xem CreateSchedulePlanModal).
+    return {
+      from: addDaysKey(new Date(Math.min(...starts)).toISOString().slice(0, 10), -1),
+      to: addDaysKey(new Date(Math.max(...ends)).toISOString().slice(0, 10), 1),
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- dùng itemTimeRangesKey (chuỗi start|end) làm dep thay cho items để tránh re-run vì đổi field khác (taskId, notes...)
   }, [itemTimeRangesKey, editingGroup?.rows]);
   const { plans: conflictPlans, isLoading: checkingConflicts } = useStaffConflictPlans(dateWindow);

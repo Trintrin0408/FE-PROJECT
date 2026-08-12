@@ -13,6 +13,7 @@ import { userApiService } from '@/services/user.service';
 import { schedulePlanApiService } from '@/services/schedulePlan.service';
 import { useStaffConflictPlans, type StaffConflictDateWindow } from '@/hooks/useStaffConflictPlans';
 import { buildStaffConflictMap, type StaffConflict } from '@/utils/staffAvailability';
+import { addDaysKey } from '@/utils/scheduleCalendar';
 import { formatTime } from '@/utils/formatDate';
 import { getEndTimeError, getStartTimeError, isDateRestrictedTaskName, toLocalInputValue } from '@/utils/schedulePlanValidation';
 import type { WorkTask } from '@/types/workTask';
@@ -105,8 +106,13 @@ export default function CreateSchedulePlanModal({ isOpen, onClose, orderId, defa
   // rồi lọc chính xác theo giờ ở client (useStaffConflictPlans/buildStaffConflictMap) — chỉ để CẢNH
   // BÁO MỀM, không chặn chọn người đang bận (xác nhận với người dùng: không có ràng buộc backend nào
   // cấm 1 người nhận nhiều việc trùng giờ, Manager tự quyết định).
+  // Nới cửa sổ fetch ±1 ngày quanh khoảng ngày người dùng chọn: buildStaffConflictMap so trùng theo
+  // GIỜ thực tế (start → end, mặc định +2h nếu chưa nhập end), nên 1 lịch có thể vắt qua nửa đêm hoặc
+  // đè lên lịch bắt đầu từ hôm trước. Nếu chỉ fetch đúng ngày của startTime thì các case sát nửa
+  // đêm/khác ngày sẽ không có dữ liệu để so → không hiện cảnh báo dù thực tế trùng người. Đệm ±1 ngày
+  // để đổi GIỜ (không đổi ngày) vẫn luôn có sẵn plan liên quan cho client lọc lại theo giờ.
   const conflictDateWindow: StaffConflictDateWindow | null = startTime
-    ? { from: startTime.slice(0, 10), to: (endTime || startTime).slice(0, 10) }
+    ? { from: addDaysKey(startTime.slice(0, 10), -1), to: addDaysKey((endTime || startTime).slice(0, 10), 1) }
     : null;
   const { plans: conflictPlans, isLoading: checkingConflicts } = useStaffConflictPlans(conflictDateWindow);
   const conflictMap: Map<string, StaffConflict[]> = useMemo(
