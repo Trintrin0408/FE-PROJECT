@@ -12,7 +12,6 @@ import {
   IdCard,
   ShoppingBag,
   MapPin,
-  Calendar,
   CalendarRange,
   CalendarCheck,
   Truck,
@@ -144,7 +143,8 @@ const MANAGER_NAV_SECTIONS: NavSection[] = [
       { label: 'Báo cáo khảo sát', href: '/manager/survey', icon: MapPin },
       { label: 'Lịch tổng thể', href: '/manager/schedule/overview', icon: CalendarRange },
       { label: 'Điều vận theo ngày', href: '/manager/schedule/day', icon: CalendarCheck },
-      { label: 'Lịch trình', href: '/manager/schedule/plans', icon: Calendar },
+      // Đã ẩn nav "Lịch trình" (/manager/schedule/plans) theo yêu cầu — "Lịch tổng thể" đã bao quát đủ. Route
+      // vẫn còn (không xóa trang), chỉ bỏ khỏi sidebar.
       {
         label: 'Tồn kho',
         href: '/manager/inventory/stock-check',
