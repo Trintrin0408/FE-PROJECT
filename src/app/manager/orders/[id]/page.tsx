@@ -149,6 +149,15 @@ const LIFECYCLE_STEPS: { id: OrderStatus; label: string; desc: string }[] = [
 ];
 const LIFECYCLE_ORDER: OrderStatus[] = ['NEW', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED'];
 
+// Màu badge trạng thái đơn cho khối hành động ở "Tổng quan sự kiện".
+const ORDER_STATUS_BADGE: Record<OrderStatus, BadgeVariant> = {
+  NEW: 'neutral',
+  CONFIRMED: 'info',
+  IN_PROGRESS: 'warning',
+  COMPLETED: 'success',
+  CANCELLED: 'error',
+};
+
 // Đã cọc/đã thanh toán thì đơn coi như được xác nhận — cùng quy tắc hiển thị với bảng "Danh sách đơn
 // đặt" (src/app/manager/orders/page.tsx) để 2 màn không lệch pha nhau khi dữ liệu cũ vẫn còn kẹt ở
 // "Mới" (vd tạo trước khi handleConfirmDeposit tự đẩy orderStatus lên CONFIRMED). Chỉ ảnh hưởng phần
@@ -914,19 +923,9 @@ function ManagerOrderDetailContent() {
 
         <div className="flex flex-wrap items-center gap-2">
           {order.orderStatus !== 'CANCELLED' && !order.closedAt && (
-            <>
-              <div className="w-44">
-                <Select
-                  value={displayStatus}
-                  onChange={(e) => handleStatusChange(e.target.value as OrderStatus)}
-                  disabled={isChangingStatus}
-                  options={LIFECYCLE_ORDER.map((s) => ({ value: s, label: ORDER_STATUS_LABEL[s] }))}
-                />
-              </div>
-              <Button variant="danger" onClick={() => setIsCancelOpen(true)}>
-                Hủy đơn hàng
-              </Button>
-            </>
+            <Button variant="danger" onClick={() => setIsCancelOpen(true)}>
+              Hủy đơn hàng
+            </Button>
           )}
           {order.orderStatus !== 'COMPLETED' && order.orderStatus !== 'CANCELLED' && (
             <Button variant="secondary" onClick={() => setIsRescheduleOpen(true)}>
@@ -1036,9 +1035,37 @@ function ManagerOrderDetailContent() {
               transition={{ duration: 0.25 }}
               className="space-y-6 rounded-xl border border-slate-200 bg-white p-4 shadow-xs"
             >
-              <div className="border-b border-slate-100 pb-3">
-                <h4 className="text-sm font-bold text-slate-950">Hồ sơ thông tin sự kiện</h4>
-                <p className="text-xs text-slate-400">Các tham số địa điểm, ngày thi công và khối lượng khách mời.</p>
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                <div>
+                  <h4 className="text-sm font-bold text-slate-950">Hồ sơ thông tin sự kiện</h4>
+                  <p className="text-xs text-slate-400">Các tham số địa điểm, ngày thi công và khối lượng khách mời.</p>
+                </div>
+                {/* Trạng thái + nút tiến mốc đơn — thay cho dropdown, đặt cùng hàng tiêu đề cho gọn. */}
+                {!order.closedAt && order.orderStatus !== 'CANCELLED' && (
+                  <div className="flex items-center gap-2">
+                    <Badge variant={ORDER_STATUS_BADGE[displayStatus]}>{ORDER_STATUS_LABEL[displayStatus]}</Badge>
+                    {displayStatus === 'NEW' && (
+                      <Button onClick={() => handleStatusChange('CONFIRMED')} isLoading={isChangingStatus || isConfirmingOrder}>
+                        <Check className="h-4 w-4" /> Xác nhận đơn
+                      </Button>
+                    )}
+                    {displayStatus === 'CONFIRMED' && (
+                      <Button variant="secondary" onClick={() => handleStatusChange('IN_PROGRESS')} isLoading={isChangingStatus}>
+                        <PlayCircle className="h-4 w-4" /> Bắt đầu thực hiện
+                      </Button>
+                    )}
+                    {displayStatus === 'IN_PROGRESS' && (
+                      <Button onClick={() => handleStatusChange('COMPLETED')} isLoading={isChangingStatus}>
+                        <CheckCircle2 className="h-4 w-4" /> Hoàn thành sự kiện
+                      </Button>
+                    )}
+                    {displayStatus === 'COMPLETED' && (
+                      <span className="inline-flex items-center gap-1.5 text-sm font-bold text-emerald-600">
+                        <CheckCircle2 className="h-4 w-4" /> Đã hoàn thành
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 gap-6 text-xs sm:grid-cols-2">
