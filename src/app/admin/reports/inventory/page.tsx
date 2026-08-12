@@ -7,24 +7,21 @@ import InventoryHealthHeatmap from '@/components/reports/InventoryHealthHeatmap'
 import { Table, TableColumn } from '@/components/ui/Table';
 import Reveal from '@/components/ui/Reveal';
 import { inventoryApiService } from '@/services/inventory.service';
-import type { InventoryRow, ReconcileItem, TimelineItem } from '@/types/inventory';
+import type { InventoryRow, TimelineItem } from '@/types/inventory';
 
 export default function Page() {
   const [inventory, setInventory] = useState<InventoryRow[]>([]);
   const [timeline, setTimeline] = useState<TimelineItem[]>([]);
-  const [anomalies, setAnomalies] = useState<ReconcileItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
       inventoryApiService.getInventory({ limit: 200 }).catch(() => ({ data: [] })),
       inventoryApiService.getReservationsTimeline({ from: '2026-01-01', to: '2027-12-31' }).catch(() => ({ data: { items: [] } as { items: TimelineItem[] } })),
-      inventoryApiService.getReconcile().catch(() => ({ data: { anomalies: [] } as { anomalies: ReconcileItem[] } })),
     ])
-      .then(([invRes, tlRes, rcRes]) => {
+      .then(([invRes, tlRes]) => {
         setInventory((invRes.data ?? []) as InventoryRow[]);
         setTimeline(((tlRes.data as { items?: TimelineItem[] })?.items ?? []));
-        setAnomalies(((rcRes.data as { anomalies?: ReconcileItem[] })?.anomalies ?? []));
       })
       .finally(() => setLoading(false));
   }, []);
@@ -58,14 +55,6 @@ export default function Page() {
     },
   ];
 
-  const anomalyCols: TableColumn<ReconcileItem>[] = [
-    { key: 'itemName', label: 'Thiết bị', render: (r) => <span className="font-semibold text-slate-800">{r.itemName}</span> },
-    { key: 'outbound', label: 'Xuất', className: 'text-center', render: (r) => r.outbound },
-    { key: 'inbound', label: 'Nhập', className: 'text-center', render: (r) => r.inbound },
-    { key: 'onHand', label: 'Tồn thực', className: 'text-center', render: (r) => r.onHand },
-    { key: 'flags', label: 'Bất thường', render: (r) => <span className="text-xs text-rose-600">{r.flags.join('; ')}</span> },
-  ];
-
   return (
     <div className="p-6">
       <div>
@@ -88,14 +77,7 @@ export default function Page() {
         </div>
       </Reveal>
 
-      <Reveal delay={0.05} className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
-        <h3 className="flex items-center gap-2 text-sm font-extrabold text-slate-800">
-          <AlertTriangle className="h-4 w-4 text-rose-500" /> Đối soát tồn kho — bất thường ({anomalies.length})
-        </h3>
-        <div className="mt-3">
-          <Table columns={anomalyCols} rows={anomalies} rowKey={(r) => r.itemId} isLoading={loading} emptyText="Không có bất thường — tồn kho khớp lịch sử xuất/nhập." />
-        </div>
-      </Reveal>
+      {/* Ẩn khối "Đối soát tồn kho — bất thường" theo yêu cầu. */}
     </div>
   );
 }

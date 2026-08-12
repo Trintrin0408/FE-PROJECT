@@ -826,11 +826,9 @@ function ManagerOrderDetailContent() {
     }
   };
 
-  // Tạo lịch = LẬP KẾ HOẠCH, KHÔNG còn tự chuyển đơn sang "Đang thực hiện" nữa (trước đây tạo lịch "Lắp
-  // đặt thiết bị" là promote luôn — gây hiểu nhầm đơn đã chạy trong khi thực tế chưa ai bắt đầu). Mốc
-  // IN_PROGRESS giờ do BE tự set khi Trưởng nhóm CHECK-IN lịch "Lắp đặt thiết bị" (thi công thật bắt
-  // đầu) — xem schedule.service.checkIn. Manager vẫn có thể chuyển thủ công qua dropdown / "Kích hoạt
-  // live show" nếu cần. Ở đây chỉ tải lại dữ liệu.
+  // Tạo lịch = LẬP KẾ HOẠCH, KHÔNG tự chuyển đơn sang "Đang thực hiện". Mốc IN_PROGRESS giờ do BE tự set
+  // khi có BẤT KỲ check-in nào ở lịch của đơn (mọi loại lịch, mọi vai trò) — xem schedule.service.checkIn.
+  // Manager vẫn có thể chuyển thủ công qua dropdown / "Kích hoạt live show" nếu cần. Ở đây chỉ tải lại dữ liệu.
   const handleSchedulePlanCreated = async () => {
     await load();
   };
@@ -1049,11 +1047,8 @@ function ManagerOrderDetailContent() {
                         <Check className="h-4 w-4" /> Xác nhận đơn
                       </Button>
                     )}
-                    {displayStatus === 'CONFIRMED' && (
-                      <Button variant="secondary" onClick={() => handleStatusChange('IN_PROGRESS')} isLoading={isChangingStatus}>
-                        <PlayCircle className="h-4 w-4" /> Bắt đầu thực hiện
-                      </Button>
-                    )}
+                    {/* Đã xác nhận: KHÔNG có nút "Bắt đầu thực hiện" — đơn tự sang "Đang thực hiện" khi có
+                        bất kỳ check-in nào ở lịch của đơn (BE). Chỉ hiện badge trạng thái. */}
                     {displayStatus === 'IN_PROGRESS' && (
                       <Button onClick={() => handleStatusChange('COMPLETED')} isLoading={isChangingStatus}>
                         <CheckCircle2 className="h-4 w-4" /> Hoàn thành sự kiện

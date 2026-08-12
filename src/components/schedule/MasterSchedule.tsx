@@ -6,7 +6,6 @@ import {
   AlertTriangle,
   BarChart3,
   CalendarDays,
-  CalendarRange,
   ClipboardList,
   GanttChartSquare,
   Loader2,
@@ -15,7 +14,9 @@ import {
   Truck,
   Users,
 } from 'lucide-react';
+import { AnimatePresence } from 'framer-motion';
 import { Modal } from '@/components/ui/Modal';
+import PlanDetailDrawer from '@/components/planning/PlanDetailDrawer';
 import Reveal from '@/components/ui/Reveal';
 import OrderTimelineChart, { TIMELINE_DAY_COUNT, toDateStr, addDaysStr } from '@/components/timeline/OrderTimelineChart';
 import { orderApiService } from '@/services/order.service';
@@ -37,7 +38,6 @@ import {
 } from '@/utils/scheduleCalendar';
 import type { Order } from '@/types/order';
 import type { SchedulePlan } from '@/types/schedulePlan';
-import CapacityOverview from './master/CapacityOverview';
 import EventCalendar from './master/EventCalendar';
 import StaffScheduleGrid from './master/StaffScheduleGrid';
 import EquipmentMovementBoard from './master/EquipmentMovementBoard';
@@ -45,10 +45,9 @@ import EquipmentReservationTimeline from './master/EquipmentReservationTimeline'
 import DispatchBoard from './master/DispatchBoard';
 import StaffUtilization from './master/StaffUtilization';
 
-type ViewKey = 'overview' | 'events' | 'orders' | 'staff' | 'utilization' | 'equipment' | 'reservations' | 'dispatch';
+type ViewKey = 'events' | 'orders' | 'staff' | 'utilization' | 'equipment' | 'reservations' | 'dispatch';
 
 const VIEWS: { key: ViewKey; label: string; icon: typeof CalendarDays }[] = [
-  { key: 'overview', label: 'Tổng quan', icon: CalendarRange },
   { key: 'events', label: 'Lịch sự kiện', icon: CalendarDays },
   { key: 'orders', label: 'Timeline đơn', icon: GanttChartSquare },
   { key: 'staff', label: 'Lịch nhân sự', icon: Users },
@@ -73,7 +72,7 @@ export default function MasterSchedule({ orderHref }: Props) {
   // "Hôm nay" cho timeline dùng CÙNG ngày VN với toàn trang (tránh lệch 1 ngày lúc rạng sáng do UTC).
   const todayStr = todayKey;
 
-  const [view, setView] = useState<ViewKey>('overview');
+  const [view, setView] = useState<ViewKey>('events');
   // Tháng đang xem lưu bằng chỉ số tuyệt đối (year*12 + month0) theo giờ VN — lùi/tiến không cần setState lồng.
   const [monthIndex, setMonthIndex] = useState(() => {
     const [y, m] = todayKeyVN().split('-').map(Number);
@@ -119,7 +118,7 @@ export default function MasterSchedule({ orderHref }: Props) {
     };
   }, []);
 
-  // Filter trạng thái đơn (áp cho lịch sự kiện + heatmap tổng quan).
+  // Filter trạng thái đơn (áp cho lịch sự kiện — đã gộp cả mức bận vào view này).
   const [hiddenStatuses, setHiddenStatuses] = useState<Set<string>>(new Set());
   const toggleStatus = useCallback(
     (s: string) =>
@@ -245,8 +244,8 @@ export default function MasterSchedule({ orderHref }: Props) {
         })}
       </div>
 
-      {/* Filter trạng thái (chỉ cho lịch sự kiện + tổng quan) */}
-      {(view === 'overview' || view === 'events') && (
+      {/* Filter trạng thái (chỉ cho lịch sự kiện) */}
+      {view === 'events' && (
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Lọc trạng thái:</span>
           {ORDER_STATUS_ORDER.map((s) => {
@@ -268,19 +267,6 @@ export default function MasterSchedule({ orderHref }: Props) {
       )}
 
       {/* Views */}
-      {view === 'overview' && (
-        <CapacityOverview
-          year={calYear}
-          month0={calMonth}
-          todayKey={todayKey}
-          dayLoadMap={dayLoadMap}
-          selectedDay={selectedDay}
-          onPrevMonth={prevMonth}
-          onNextMonth={nextMonth}
-          onToday={goToday}
-          onSelectDay={openDay}
-        />
-      )}
       {view === 'events' && (
         <EventCalendar
           year={calYear}
@@ -354,31 +340,16 @@ export default function MasterSchedule({ orderHref }: Props) {
         )}
       </Modal>
 
-      {/* Modal chi tiết nhóm đơn (từ Gantt) */}
-      <Modal isOpen={groupDetail !== null} onClose={() => setGroupDetail(null)} title={groupDetail ? `Kế hoạch đơn ${groupDetail.orderCode}` : ''} size="lg">
+      {/* Chi tiết kế hoạch đơn khi bấm 1 đơn ở Timeline — dạng SIDEBAR trượt từ phải (như trang Lịch
+          điều phối), thay cho modal cũ. */}
+      <AnimatePresence>
         {groupDetail && (
-          <div className="space-y-3">
-            <div className="rounded-xl bg-slate-50 p-3">
-              <p className="text-sm font-bold text-slate-800">{groupDetail.eventName || groupDetail.customerName}</p>
-              <p className="text-[11px] text-slate-400">{groupDetail.customerName} · {groupDetail.location}</p>
-            </div>
-            <div className="divide-y divide-slate-100 rounded-xl border border-slate-200">
-              {groupDetail.rows.map((r) => (
-                <div key={r.planId} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
-                  <div className="min-w-0">
-                    <p className="truncate font-semibold text-slate-700">{r.taskName || r.taskCode}</p>
-                    <p className="text-[11px] text-slate-400">{(r.assignees ?? []).map((a) => a.fullName).join(', ') || 'Chưa phân công'}</p>
-                  </div>
-                  <p className="shrink-0 font-mono text-[11px] text-slate-500">{formatDate(r.startTime)}</p>
-                </div>
-              ))}
-            </div>
-            <Link href={orderHref(groupDetail.orderId)} className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-bold text-white hover:bg-blue-700">
-              Mở chi tiết đơn {groupDetail.orderCode}
-            </Link>
-          </div>
+          <PlanDetailDrawer
+            group={groups.find((g) => g.orderId === groupDetail.orderId) ?? groupDetail}
+            onClose={() => setGroupDetail(null)}
+          />
         )}
-      </Modal>
+      </AnimatePresence>
     </div>
   );
 }
