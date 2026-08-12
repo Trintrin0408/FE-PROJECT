@@ -30,7 +30,10 @@ export interface SchedulePlan {
   latitude?: number | null;
   longitude?: number | null;
   status: ScheduleStatus;
-  evidenceId?: string;
+  // GET /schedule-plans trả về MẢNG evidenceIds (ảnh biên bản bàn giao/nghiệm thu — mapPlan → row.evidences[]),
+  // KHÔNG còn phát 1 evidenceId đơn. Dùng evidenceIds để render gallery (giống mobile + luồng Khảo sát).
+  evidenceId?: string; // (cũ, BE không còn trả — giữ để các nơi khác chưa migrate không vỡ type)
+  evidenceIds?: string[];
   notes?: string;
   createdBy: string;
   createdAt: string;

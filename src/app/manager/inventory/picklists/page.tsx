@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { AlertTriangle, Camera, CheckCircle2, ClipboardList, Loader2, PackageCheck, Search, Truck } from 'lucide-react';
+import { AlertTriangle, Camera, CheckCircle2, ClipboardList, Loader2, PackageCheck, Search } from 'lucide-react';
 import { Table, TableColumn } from '@/components/ui/Table';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
@@ -254,15 +254,10 @@ export default function ManagerPicklistsPage() {
               Đã xuất kho
             </span>
           ) : (
-            <button
-              type="button"
-              onClick={() => handleMarkPickedUp(o.orderId)}
-              disabled={markingId === o.orderId}
-              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-bold text-slate-600 hover:border-blue-200 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <Truck className="h-3.5 w-3.5" />
-              {markingId === o.orderId ? 'Đang xử lý…' : needsPrepare(o.orderId) ? 'Chuẩn bị đủ & xuất kho' : 'Đánh dấu xuất kho'}
-            </button>
+            // Nút "Đánh dấu xuất kho" đã ẩn theo yêu cầu — chỉ hiển thị trạng thái, không cho thao tác ở đây.
+            <span className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-bold text-slate-400">
+              Chưa xuất kho
+            </span>
           )}
         </div>
       ),

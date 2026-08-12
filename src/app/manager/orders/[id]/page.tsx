@@ -4,7 +4,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Activity, Ban, Box, Calendar, CalendarClock, Check, CheckCircle2, ChevronLeft, Clock, Eye, FileText, Lock, Link2, MapPin, Package, Pencil, Phone, PlayCircle, Plus, Users } from 'lucide-react';
+import { Activity, Ban, Box, Calendar, CalendarClock, Check, CheckCircle2, ChevronLeft, Clock, Eye, FileText, Lock, Link2, MapPin, Pencil, Phone, PlayCircle, Plus, Users } from 'lucide-react';
 import { Badge, getStatusBadgeVariant, type BadgeVariant } from '@/components/ui/Badge';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Button } from '@/components/ui/Button';
@@ -32,7 +32,7 @@ import { settlementApiService } from '@/services/settlement.service';
 import { schedulePlanApiService } from '@/services/schedulePlan.service';
 import { inventoryApiService } from '@/services/inventory.service';
 import { catalogApiService } from '@/services/catalog.service';
-import { evidenceApiService } from '@/services/evidence.service';
+import { EvidenceBlock } from '@/components/payments/EvidenceBlock';
 import { quotationApiService } from '@/services/quotation.service';
 import { surveyApiService } from '@/services/survey.service';
 import { supplierApiService } from '@/services/supplier.service';
@@ -46,7 +46,6 @@ import type { Settlement } from '@/types/settlement';
 import type { SchedulePlan } from '@/types/schedulePlan';
 import type { InventoryRow } from '@/types/inventory';
 import type { Item } from '@/types/catalog';
-import type { Evidence } from '@/types/evidence';
 import type { QuotationDetailApi, QuotationDetailItem, QuotationListItem } from '@/types/quotation';
 import type { SurveyReportListItem } from '@/types/survey';
 
@@ -296,7 +295,6 @@ function ManagerOrderDetailContent() {
 
   const [cancelingPlanId, setCancelingPlanId] = useState<string | null>(null);
   const [isUpdatingPlanStatus, setIsUpdatingPlanStatus] = useState(false);
-  const [evidenceModal, setEvidenceModal] = useState<{ isLoading: boolean; evidence: Evidence | null } | null>(null);
   const [isCreatePlanOpen, setIsCreatePlanOpen] = useState(false);
   const [supplierRentalPrefill, setSupplierRentalPrefill] = useState<CreateFormPrefill | null>(null);
   const [supplierRentalToast, setSupplierRentalToast] = useState(false);
@@ -759,14 +757,6 @@ function ManagerOrderDetailContent() {
     } finally {
       setIsUpdatingPlanStatus(false);
     }
-  };
-
-  const handleViewEvidence = (evidenceId: string) => {
-    setEvidenceModal({ isLoading: true, evidence: null });
-    evidenceApiService
-      .getEvidenceById(evidenceId)
-      .then((res) => setEvidenceModal({ isLoading: false, evidence: res.data ?? null }))
-      .catch(() => setEvidenceModal({ isLoading: false, evidence: null }));
   };
 
   const handleLinkQuotation = async (quotationIdOverride?: string) => {
@@ -1700,19 +1690,6 @@ function ManagerOrderDetailContent() {
                             <Eye className="h-3.5 w-3.5" />
                             Xem chi tiết
                           </Link>
-                          {plan.status === 'COMPLETED' && plan.evidenceId && (
-                            <button
-                              type="button"
-                              onClick={() => handleViewEvidence(plan.evidenceId as string)}
-                              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:border-blue-300 hover:bg-slate-50"
-                            >
-                              <Package className="h-3.5 w-3.5" />
-                              Xem ảnh minh chứng
-                            </button>
-                          )}
-                          {plan.status === 'COMPLETED' && !plan.evidenceId && (
-                            <span className="text-xs italic text-slate-400">Chưa có ảnh minh chứng</span>
-                          )}
                           <button
                             type="button"
                             disabled={!canEdit}
@@ -1734,6 +1711,13 @@ function ManagerOrderDetailContent() {
                             </button>
                           )}
                         </div>
+                        {plan.status === 'COMPLETED' && (
+                          <EvidenceBlock
+                            evidenceIds={plan.evidenceIds ?? []}
+                            title="Bằng chứng bàn giao"
+                            emptyLabel="Chưa có ảnh minh chứng"
+                          />
+                        )}
                       </div>
                     );
                   })}
@@ -1942,29 +1926,6 @@ function ManagerOrderDetailContent() {
         }
       >
         <div />
-      </Modal>
-
-      <Modal
-        isOpen={Boolean(evidenceModal)}
-        onClose={() => setEvidenceModal(null)}
-        title="Ảnh minh chứng thi công"
-        footer={
-          <Button variant="secondary" onClick={() => setEvidenceModal(null)}>
-            Đóng
-          </Button>
-        }
-      >
-        {evidenceModal?.isLoading ? (
-          <p className="py-6 text-center text-sm text-slate-400">Đang tải ảnh minh chứng...</p>
-        ) : evidenceModal?.evidence?.fileUrl ? (
-          <div className="space-y-2">
-            {/* eslint-disable-next-line @next/next/no-img-element -- ảnh thật từ Firebase Storage */}
-            <img src={evidenceModal.evidence.fileUrl} alt="Ảnh minh chứng thi công" className="max-h-96 w-full rounded-lg border border-slate-200 object-contain" />
-            {evidenceModal.evidence.description && <p className="text-xs text-slate-500">{evidenceModal.evidence.description}</p>}
-          </div>
-        ) : (
-          <p className="py-6 text-center text-sm italic text-slate-400">Chưa có ảnh minh chứng.</p>
-        )}
       </Modal>
 
       <CreateSchedulePlanModal
