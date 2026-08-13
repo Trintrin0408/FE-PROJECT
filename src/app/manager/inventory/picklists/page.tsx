@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
+import { EvidenceBlock } from '@/components/payments/EvidenceBlock';
 import DashboardStats, { KpiCardItem } from '@/components/reports/DashboardStats';
 import { formatDate } from '@/utils/formatDate';
 import { orderApiService } from '@/services/order.service';
@@ -48,9 +49,6 @@ export default function ManagerPicklistsPage() {
   const [readyFilter, setReadyFilter] = useState<'' | 'READY' | 'NOT_READY'>('');
 
   const [viewingEvidenceOrder, setViewingEvidenceOrder] = useState<Order | null>(null);
-  const [evidenceByPlanId, setEvidenceByPlanId] = useState<Map<string, Evidence | null>>(new Map());
-  const [evidenceLoading, setEvidenceLoading] = useState(false);
-  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -154,26 +152,7 @@ export default function ManagerPicklistsPage() {
     return rows.find((r) => !/khảo sát|thu hồi/i.test(r.taskName ?? '')) ?? null;
   }, [viewingEvidenceOrder, plansByOrderId]);
 
-  useEffect(() => {
-    const evidenceId = handoverRow?.evidenceId;
-    if (!evidenceId) return;
-
-    let cancelled = false;
-    async function loadEvidence() {
-      setEvidenceLoading(true);
-      const res = await evidenceApiService.getEvidenceById(evidenceId as string).catch(() => null);
-      if (cancelled) return;
-      setEvidenceByPlanId(new Map([[evidenceId as string, (res?.data ?? null) as Evidence | null]]));
-      setEvidenceLoading(false);
-    }
-    loadEvidence();
-    return () => {
-      cancelled = true;
-    };
-  }, [handoverRow]);
-
   const handleViewEvidence = (order: Order) => {
-    setEvidenceByPlanId(new Map());
     setViewingEvidenceOrder(order);
   };
 
@@ -359,7 +338,6 @@ export default function ManagerPicklistsPage() {
           }
           const r = handoverRow;
           const lead = r.assignees?.find((a) => a.role === 'LEAD');
-          const evidence = r.evidenceId ? evidenceByPlanId.get(r.evidenceId) : undefined;
           return (
             <div className="rounded-xl border border-slate-200 p-3.5">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -372,40 +350,17 @@ export default function ManagerPicklistsPage() {
                 </span>
               </div>
 
-              <div className="mt-3">
-                {!r.evidenceId && <p className="text-xs italic text-slate-400">Chưa có bằng chứng cho công việc này.</p>}
-                {r.evidenceId && evidenceLoading && evidence === undefined && (
-                  <p className="flex items-center gap-1.5 text-xs text-slate-400">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Đang tải ảnh minh chứng...
-                  </p>
-                )}
-                {r.evidenceId && !evidenceLoading && !evidence?.fileUrl && (
-                  <p className="text-xs italic text-slate-400">Không tải được ảnh minh chứng.</p>
-                )}
-                {evidence?.fileUrl && (
-                  // eslint-disable-next-line @next/next/no-img-element -- ảnh thật từ Firebase Storage
-                  <img
-                    src={evidence.fileUrl}
-                    alt={`Bằng chứng bàn giao — ${r.taskName ?? r.planId}`}
-                    onClick={() => setLightboxImage(evidence.fileUrl)}
-                    className="h-28 w-28 cursor-zoom-in rounded-lg border border-slate-100 object-cover transition-opacity hover:opacity-80"
-                  />
-                )}
+              <div className="mt-3 border-t border-slate-100 pt-3">
+                <EvidenceBlock
+                  evidenceIds={r.evidenceIds ?? []}
+                  title="Bằng chứng bàn giao (lắp đặt)"
+                  emptyLabel="Chưa có bằng chứng cho công việc này."
+                />
               </div>
             </div>
           );
         })()}
       </Modal>
-
-      {lightboxImage && (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-8"
-          onClick={() => setLightboxImage(null)}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element -- ảnh thật từ Firebase Storage */}
-          <img src={lightboxImage} alt="Bằng chứng bàn giao (phóng to)" className="max-h-full max-w-full rounded-lg object-contain" />
-        </div>
-      )}
     </div>
   );
 }
