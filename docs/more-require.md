@@ -2523,3 +2523,32 @@ trả sẵn).
   `D:\sep490-backend-api` (chỉ đọc đối chiếu, theo CLAUDE.md). FE giữ nguyên như đã làm ở (ay) (upload +
   gửi `evidenceIds` đúng payload) — không cần đổi gì thêm phía FE, chỉ cần Backend thêm `include` là ảnh
   sẽ hiện đúng ngay mà không phải sửa lại FE.
+
+- **Cập nhật 2026-08-13 — ĐÃ FIX**: đối chiếu lại `order.repository.ts` (`D:\sep490-backend-api`), cả
+  `findDeposits` (dòng 321-329) lẫn `findLatestSettlement` (dòng 372-378) nay đều đã có
+  `include: { evidences: { select: { evidenceId: true } } }` — đúng như yêu cầu. Ảnh minh chứng cọc/quyết
+  toán hiển thị đúng qua `DepositDetailView.tsx`/`SettlementDetailView.tsx` mà không cần sửa gì thêm ở FE.
+
+## (bb) 2026-08-13 — `GET /survey-reports` (danh sách) chưa map `evidenceIds` vào response, chỉ endpoint chi tiết `/survey-reports/:id` mới có
+
+- **Bối cảnh**: theo yêu cầu Frontend xử lý hiển thị ảnh minh chứng ở 3 khu vực Khảo sát/Đặt cọc/Thu hồi
+  thiết bị, phần fallback "dùng ảnh khảo sát khi đặt cọc chưa có ảnh riêng" (`DepositDetailView.tsx`,
+  cũng dùng ở `orders/[id]/page.tsx` cho `surveyReport`) cần `SurveyReportListItem.evidenceIds` từ kết quả
+  `GET /survey-reports?search=...`.
+- **Đã đọc thẳng source thật để xác nhận** (`D:\sep490-backend-api`, chỉ đọc, không sửa):
+  `src/modules/operations/survey.service.ts` — hàm `mapListItem` (dòng 53-67, dùng cho `listSurveyReports`
+  → backend cho endpoint LIST) **không** có field `evidenceIds` trong object trả về. Trong khi đó hàm
+  `mapDetail` (dòng 81, dùng cho `getSurveyReportById` → endpoint DETAIL `/survey-reports/:id`) đã có
+  `evidenceIds: row.evidences ? row.evidences.map((e) => e.evidenceId) : []`. Dữ liệu join `evidences` vẫn
+  được Prisma fetch ở cả 2 trường hợp (`survey.repository.ts:49`, `detailInclude` có `include: {
+  evidences: {...} }`) — chỉ riêng bước map sang JSON ở `mapListItem` là thiếu đúng 1 dòng.
+- **Hệ quả phía FE**: `SurveyReportListItem.evidenceIds` (đã thêm field này vào `types/survey.ts` theo
+  yêu cầu Frontend) sẽ luôn là `undefined` khi lấy qua danh sách — phần fallback ảnh khảo sát ở
+  `DepositDetailView.tsx` vẫn code đúng nhưng sẽ không hiển thị được ảnh nào trên thực tế cho tới khi
+  Backend sửa xong mục dưới đây.
+- **Việc Backend cần làm**: `survey.service.ts` hàm `mapListItem` (dòng 53-67) — thêm đúng 1 dòng
+  `evidenceIds: row.evidences ? row.evidences.map((e) => e.evidenceId) : []` giống hệt `mapDetail` đã có.
+- **Phạm vi KHÔNG đổi trong đợt này**: chỉ ghi đặc tả gap ở mục này — không sửa code ở
+  `D:\sep490-backend-api` (chỉ đọc đối chiếu, theo CLAUDE.md). FE vẫn giữ nguyên logic fallback đã viết
+  (đúng yêu cầu) — không cần đổi gì thêm phía FE, chỉ cần Backend bổ sung dòng map trên là ảnh khảo sát sẽ
+  tự hiện đúng ở phần fallback mà không phải sửa lại FE.

@@ -38,6 +38,7 @@ export interface CollectedEquipmentReport {
   reportedBy: CollectedEquipmentReportActor;
   confirmedBy: CollectedEquipmentReportActor | null;
   confirmedAt: string | null;
+  evidenceIds: string[];
   notes: string | null;
   createdAt: string;
   items: CollectedEquipmentReportItem[];

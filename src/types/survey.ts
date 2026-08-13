@@ -55,6 +55,7 @@ export interface SurveyReportListItem {
   eventName?: string;
   surveyDate: string;
   location: string;
+  evidenceIds: string[];
   status: SurveyStatus;
   reportedByName?: string;
 }

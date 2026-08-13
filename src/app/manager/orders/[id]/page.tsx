@@ -48,6 +48,7 @@ import type { InventoryRow } from '@/types/inventory';
 import type { Item } from '@/types/catalog';
 import type { QuotationDetailApi, QuotationDetailItem, QuotationListItem } from '@/types/quotation';
 import type { SurveyReportListItem } from '@/types/survey';
+import type { CollectedEquipmentReport } from '@/types/collectedEquipmentReport';
 
 // Nối API thật theo docs/tongquansukien_api.md (2026-07-20) — header + mốc tiến trình + tab "Tổng
 // quan sự kiện" (mặc định) đã nối `orderApiService.getOrder()`/`customerApiService.getCustomer()`
@@ -263,6 +264,7 @@ function ManagerOrderDetailContent() {
   const [settlement, setSettlement] = useState<Settlement | null>(null);
   const [schedulePlans, setSchedulePlans] = useState<SchedulePlan[]>([]);
   const [surveyReport, setSurveyReport] = useState<SurveyReportListItem | null>(null);
+  const [returnReports, setReturnReports] = useState<CollectedEquipmentReport[]>([]);
   const [liveChecklist, setLiveChecklist] = useState<LiveShowChecklist>(EMPTY_CHECKLIST);
   const [isConfirmingDeposit, setIsConfirmingDeposit] = useState(false);
   const [isConfirmingSurvey, setIsConfirmingSurvey] = useState(false);
@@ -325,15 +327,17 @@ function ManagerOrderDetailContent() {
           // GET /survey-reports không có param lọc orderId thật (test qua curl xác nhận bị bỏ qua) —
           // dùng search=orderCode rồi khớp chính xác orderId phía client (mục 6.1 comment đầu file).
           surveyApiService.getSurveyReports({ search: detail.orderCode }).catch(() => ({ data: [] })),
+          inventoryApiService.getReturnReports({ orderId: detail.orderId }).catch(() => ({ data: [] })),
         ]);
       })
-      .then(([customerRes, depositsRes, settlementRes, plansRes, surveyRes]) => {
+      .then(([customerRes, depositsRes, settlementRes, plansRes, surveyRes, returnRes]) => {
         setCustomer(customerRes.data ?? null);
         setDeposits(depositsRes.data ?? []);
         setSettlement(settlementRes.data ?? null);
         setSchedulePlans(plansRes.data ?? []);
         const surveys: SurveyReportListItem[] = surveyRes.data ?? [];
         setSurveyReport(surveys.find((s) => s.orderId === orderId) ?? null);
+        setReturnReports(returnRes.data ?? []);
       })
       .catch(() => {
         setOrder(null);
@@ -1713,7 +1717,13 @@ function ManagerOrderDetailContent() {
                         </div>
                         {plan.status === 'COMPLETED' && (
                           <EvidenceBlock
-                            evidenceIds={plan.evidenceIds ?? []}
+                            evidenceIds={
+                              plan.evidenceIds && plan.evidenceIds.length > 0
+                                ? plan.evidenceIds
+                                : plan.taskCode === 'COLLECT' && returnReports.length > 0
+                                  ? (returnReports[0].evidenceIds ?? [])
+                                  : []
+                            }
                             title="Bằng chứng bàn giao"
                             emptyLabel="Chưa có ảnh minh chứng"
                           />

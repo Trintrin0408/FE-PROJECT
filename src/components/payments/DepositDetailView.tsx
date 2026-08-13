@@ -19,11 +19,13 @@ import { formatCurrency } from '@/utils/formatCurrency';
 import { formatDate } from '@/utils/formatDate';
 import { orderApiService } from '@/services/order.service';
 import { paymentApiService } from '@/services/payment.service';
+import { surveyApiService } from '@/services/survey.service';
 import { DEPOSIT_STATUS_LABEL, paymentMethodLabel } from '@/constants/deposit-status';
 import { ORDER_PAYMENT_STATUS_LABEL } from '@/constants/order-status';
 import { COMPANY_BANK_ACCOUNT, buildVietQrImageUrl } from '@/constants/company-bank';
 import type { Order } from '@/types/order';
 import type { Deposit } from '@/types/payment';
+import type { SurveyReportListItem } from '@/types/survey';
 
 // Nối API thật theo docs/datcoc_api.md — `[id]` trên URL vẫn quy ước là orderId (giữ nguyên hành vi
 // mock cũ), gọi GET /orders/:id (banner) + GET /orders/:id/deposits (danh sách hồ sơ cọc — API trả
@@ -68,6 +70,7 @@ export default function DepositDetailView({ canManage, backHref }: Readonly<Depo
 
   const [order, setOrder] = useState<Order | null>(null);
   const [deposits, setDeposits] = useState<Deposit[]>([]);
+  const [surveyReport, setSurveyReport] = useState<SurveyReportListItem | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -92,8 +95,19 @@ export default function DepositDetailView({ canManage, backHref }: Readonly<Depo
     setLoadError(null);
     Promise.all([orderApiService.getOrder(orderId), paymentApiService.getOrderDeposits(orderId)])
       .then(([orderRes, depositsRes]) => {
-        setOrder(orderRes.data ?? null);
+        const orderData = orderRes.data ?? null;
+        setOrder(orderData);
         setDeposits(([...(depositsRes.data ?? [])] as Deposit[]).sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1)));
+
+        if (orderData) {
+          surveyApiService
+            .getSurveyReports({ search: orderData.orderCode })
+            .then((surveyRes) => {
+              const surveys = (surveyRes.data ?? []) as SurveyReportListItem[];
+              setSurveyReport(surveys.find((s) => s.orderId === orderId) ?? null);
+            })
+            .catch(() => setSurveyReport(null));
+        }
       })
       .catch(() => {
         setOrder(null);
@@ -363,7 +377,17 @@ export default function DepositDetailView({ canManage, backHref }: Readonly<Depo
                     {copiedId === d.depositId && <p className="mt-1 text-xs text-emerald-600">Đã sao chép!</p>}
                   </div>
 
-                  <EvidenceBlock evidenceIds={d.evidenceIds} emptyLabel="Chưa có ảnh minh chứng thanh toán." />
+                  {(() => {
+                    const hasDepositEvidence = d.evidenceIds && d.evidenceIds.length > 0;
+                    const evidenceIdsToUse = hasDepositEvidence ? d.evidenceIds : (surveyReport?.evidenceIds ?? []);
+                    return (
+                      <EvidenceBlock
+                        evidenceIds={evidenceIdsToUse}
+                        title={hasDepositEvidence ? 'Bằng chứng thanh toán' : 'Ảnh minh chứng (từ báo cáo khảo sát)'}
+                        emptyLabel="Chưa có ảnh minh chứng thanh toán."
+                      />
+                    );
+                  })()}
 
                   {canManage && d.status === 'UNPAID' && (
                     <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-3">

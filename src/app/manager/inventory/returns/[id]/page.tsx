@@ -4,19 +4,16 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import type { AxiosError } from 'axios';
-import { ChevronLeft, CheckCircle2, Info, Loader2 } from 'lucide-react';
+import { ChevronLeft, CheckCircle2, Info } from 'lucide-react';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Button } from '@/components/ui/Button';
 import Reveal from '@/components/ui/Reveal';
+import { EvidenceBlock } from '@/components/payments/EvidenceBlock';
 import { formatDate, formatTime } from '@/utils/formatDate';
 import { inventoryApiService } from '@/services/inventory.service';
 import { orderApiService } from '@/services/order.service';
-import { schedulePlanApiService } from '@/services/schedulePlan.service';
-import { evidenceApiService } from '@/services/evidence.service';
 import type { CollectedEquipmentReport } from '@/types/collectedEquipmentReport';
 import type { InventoryRow } from '@/types/inventory';
-import type { SchedulePlan } from '@/types/schedulePlan';
-import type { Evidence } from '@/types/evidence';
 import { usePermission } from '@/hooks/usePermission';
 
 // Trang chi tiết báo cáo hoàn kho — nối API thật GET /api/v1/inventory/return-reports/:id (backend đang
@@ -25,11 +22,9 @@ import { usePermission } from '@/hooks/usePermission';
 // PUT .../confirm — chỉ role MANAGER gọi được (gate qua usePermission, Admin không thấy nút này, đúng
 // "Admin không xử lý vận hành hằng ngày").
 //
-// Ảnh bằng chứng thu hồi thiết bị: CollectedEquipmentReport không có field evidence riêng (đối chiếu
-// prisma/schema.prisma), nhưng mỗi order khi hoàn tất có 1 SchedulePlan ứng với WorkTask "Thu hồi thiết
-// bị" (taskCode COLLECT, prisma/seed.ts) — SchedulePlan.evidenceId (field thật) là nơi Leader Staff gắn
-// ảnh khi cập nhật trạng thái công việc này qua mobile, cùng cơ chế đã dùng ở
-// manager/inventory/picklists/page.tsx cho ảnh bàn giao lắp đặt.
+// Ảnh bằng chứng thu hồi thiết bị: CollectedEquipmentReport nay đã có evidenceIds thật từ backend (join
+// bảng CollectedEquipmentReportEvidence, xem prisma/schema.prisma) — không cần suy ra qua
+// SchedulePlan.evidenceId như trước nữa.
 
 const STATUS_META = {
   SUBMITTED: { label: 'CHƯA HOÀN', badgeClass: 'bg-amber-100 text-amber-700' },
@@ -53,10 +48,6 @@ export default function ManagerReturnSlipDetailPage() {
   const [loadError, setLoadError] = useState('');
   const [confirmError, setConfirmError] = useState('');
   const [isConfirming, setIsConfirming] = useState(false);
-  const [collectPlan, setCollectPlan] = useState<SchedulePlan | null>(null);
-  const [collectEvidence, setCollectEvidence] = useState<Evidence | null>(null);
-  const [evidenceLoading, setEvidenceLoading] = useState(false);
-  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -79,42 +70,6 @@ export default function ManagerReturnSlipDetailPage() {
             });
           })
           .catch(() => {});
-        setEvidenceLoading(true);
-        schedulePlanApiService
-          .getSchedulePlans({ orderId: data.orderId })
-          .then((plansRes) => {
-            if (cancelled) return;
-            const plans: SchedulePlan[] = plansRes.data ?? [];
-            // Ưu tiên taskCode === 'COLLECT' (field thật, đúng "Thu hồi thiết bị" — không lẫn "Khảo sát
-            // hiện trường"/"Lắp đặt thiết bị"), fallback theo tên khi dữ liệu cũ chưa có taskCode. Loại
-            // trừ dòng đã hủy, và nếu đơn có nhiều dòng thu hồi (đổi lịch) thì ưu tiên dòng đã có ảnh
-            // minh chứng, nếu không thì lấy dòng gần nhất.
-            const collectCandidates = plans
-              .filter((p) => p.status !== 'CANCELLED')
-              .filter((p) => p.taskCode === 'COLLECT' || (p.taskName ?? '').includes('Thu hồi'));
-            const plan =
-              collectCandidates.find((p) => p.evidenceId) ??
-              [...collectCandidates].sort((a, b) => b.startTime.localeCompare(a.startTime))[0] ??
-              null;
-            setCollectPlan(plan);
-            if (plan?.evidenceId) {
-              return evidenceApiService
-                .getEvidenceById(plan.evidenceId)
-                .then((evidenceRes) => {
-                  if (cancelled) return;
-                  setCollectEvidence((evidenceRes?.data ?? null) as Evidence | null);
-                })
-                .catch(() => {
-                  if (!cancelled) setCollectEvidence(null);
-                });
-            }
-          })
-          .catch(() => {
-            if (!cancelled) setCollectPlan(null);
-          })
-          .finally(() => {
-            if (!cancelled) setEvidenceLoading(false);
-          });
         if (data.status === 'SUBMITTED') {
           Promise.all(
             data.items.map((item) =>
@@ -245,29 +200,11 @@ export default function ManagerReturnSlipDetailPage() {
       </Reveal>
 
       <Reveal delay={0.05} className="mt-4 rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
-        <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Bằng chứng thu hồi thiết bị</p>
-        <div className="mt-2.5">
-          {!collectPlan?.evidenceId && !evidenceLoading && (
-            <p className="text-sm italic text-slate-400">Chưa có ảnh bằng chứng cho công việc thu hồi thiết bị của đơn này.</p>
-          )}
-          {collectPlan?.evidenceId && evidenceLoading && collectEvidence === null && (
-            <p className="flex items-center gap-1.5 text-sm text-slate-400">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Đang tải ảnh minh chứng...
-            </p>
-          )}
-          {collectPlan?.evidenceId && !evidenceLoading && !collectEvidence?.fileUrl && (
-            <p className="text-sm italic text-slate-400">Không tải được ảnh minh chứng.</p>
-          )}
-          {collectEvidence?.fileUrl && (
-            // eslint-disable-next-line @next/next/no-img-element -- ảnh thật từ Firebase Storage
-            <img
-              src={collectEvidence.fileUrl}
-              alt="Bằng chứng thu hồi thiết bị"
-              onClick={() => setLightboxImage(collectEvidence.fileUrl)}
-              className="h-28 w-28 cursor-zoom-in rounded-lg border border-slate-100 object-cover transition-opacity hover:opacity-80"
-            />
-          )}
-        </div>
+        <EvidenceBlock
+          evidenceIds={report.evidenceIds ?? []}
+          title="Bằng chứng thu hồi thiết bị"
+          emptyLabel="Chưa có ảnh chụp thực trạng."
+        />
       </Reveal>
 
       <Reveal delay={0.08} className="mt-4 rounded-xl border border-blue-100 bg-blue-50/60 p-4">
@@ -428,16 +365,6 @@ export default function ManagerReturnSlipDetailPage() {
           )}
         </Reveal>
       </div>
-
-      {lightboxImage && (
-        <div
-          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-8"
-          onClick={() => setLightboxImage(null)}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element -- ảnh thật từ Firebase Storage */}
-          <img src={lightboxImage} alt="Bằng chứng thu hồi thiết bị (phóng to)" className="max-h-full max-w-full rounded-lg object-contain" />
-        </div>
-      )}
     </div>
   );
 }
