@@ -1722,7 +1722,9 @@ function ManagerOrderDetailContent() {
                                 ? plan.evidenceIds
                                 : plan.taskCode === 'COLLECT' && returnReports.length > 0
                                   ? (returnReports[0].evidenceIds ?? [])
-                                  : []
+                                  : plan.taskCode === 'SURVEY' && surveyReport
+                                    ? (surveyReport.evidenceIds ?? [])
+                                    : []
                             }
                             title="Bằng chứng bàn giao"
                             emptyLabel="Chưa có ảnh minh chứng"
