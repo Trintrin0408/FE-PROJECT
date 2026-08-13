@@ -416,7 +416,7 @@ function ManagerOrderDetailContent() {
         Promise.all(
           datesToCheck.map((date) =>
             inventoryApiService
-              .getInventory({ itemId: item.itemId, date, limit: 1 })
+              .getInventory({ itemId: item.itemId, date, limit: 1, excludeOrderId: order.orderId })
               .then((res) => ({ date, row: (res.data ?? [])[0] as InventoryRow | undefined }))
               .catch(() => ({ date, row: undefined as InventoryRow | undefined })),
           ),
@@ -507,7 +507,7 @@ function ManagerOrderDetailContent() {
         Promise.all(
           datesToCheck.map((date) =>
             inventoryApiService
-              .getInventory({ itemId, date, limit: 1 })
+              .getInventory({ itemId, date, limit: 1, excludeOrderId: order.orderId })
               .then((res) => ({ date, row: (res.data ?? [])[0] as InventoryRow | undefined }))
               .catch(() => ({ date, row: undefined as InventoryRow | undefined })),
           ),

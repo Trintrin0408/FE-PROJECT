@@ -40,6 +40,9 @@ export interface GetInventoryQuery {
   categoryId?: string; // BE nhận nhưng KHÔNG lọc — xem more-require.md mục (u)
   date?: string; // Đã hoạt động đúng — lọc quantityReserved/quantityAvailable theo ngày, xem mục (at)/(au)
   onlyDamaged?: boolean; // BE nhận nhưng KHÔNG lọc — xem more-require.md mục (u)
+  // Loại trừ reservation của 1 đơn khỏi phần "đã giữ chỗ" — trang chi tiết đơn truyền orderId của chính
+  // nó để khả dụng phản ánh "cho đơn này" (không tự trừ phần đơn đã CONFIRMED giữ).
+  excludeOrderId?: string;
   page?: number;
   limit?: number;
 }
