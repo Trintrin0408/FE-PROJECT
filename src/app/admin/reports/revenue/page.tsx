@@ -129,7 +129,7 @@ export default function CEORevenueReportPage() {
               }`}
             >
               <BarChart3 className="w-5 h-5" />
-              Hiệu quả Kinh doanh (P&L)
+              Hiệu quả Kinh doanh
             </button>
             <button
               onClick={() => setActiveTab('cashflow')}
@@ -140,7 +140,7 @@ export default function CEORevenueReportPage() {
               }`}
             >
               <ArrowRightLeft className="w-5 h-5" />
-              Lưu lượng Dòng tiền (Cash-flow)
+              Lưu lượng Dòng tiền
             </button>
           </div>
 
@@ -163,7 +163,7 @@ export default function CEORevenueReportPage() {
                   tone="red"
                 />
                 <KpiTile
-                  label="Lãi gộp (Gross Profit)"
+                  label="Lãi gộp"
                   value={formatCurrency(pnl.revenueAfterSupplier)}
                   sub={`Tỷ suất Lãi gộp: ${pnl.committed > 0 ? Math.round((pnl.revenueAfterSupplier / pnl.committed) * 100) : 0}%`}
                   icon={Scale}
@@ -205,21 +205,21 @@ export default function CEORevenueReportPage() {
               {/* Cash-flow Top KPIs */}
               <div className="mb-8 grid grid-cols-1 gap-6 sm:grid-cols-3">
                 <KpiTile
-                  label="Dòng tiền VÀO (Cash In)"
+                  label="Dòng tiền VÀO"
                   value={formatCurrency(cf.totalCashIn)}
                   sub="Tổng Cọc & Quyết toán đã nhận"
                   icon={TrendingUp}
                   tone="green"
                 />
                 <KpiTile
-                  label="Dòng tiền RA (Cash Out)"
+                  label="Dòng tiền RA"
                   value={formatCurrency(cf.totalCashOut)}
                   sub="Tiền thanh toán cho NCC"
                   icon={Receipt}
                   tone="red"
                 />
                 <KpiTile
-                  label="Dòng tiền THUẦN (Net Cash-flow)"
+                  label="Dòng tiền THUẦN"
                   value={formatCurrency(cf.netCashFlow)}
                   sub="Tiền vào - Tiền ra trong kỳ"
                   icon={DollarSign}
@@ -237,14 +237,8 @@ export default function CEORevenueReportPage() {
               <div className="mt-6 p-6 rounded-2xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100/50 flex flex-col sm:flex-row justify-between items-center gap-6">
                 <div>
                   <h3 className="text-xl font-bold text-emerald-900">Quản trị Dòng tiền</h3>
-                  <p className="mt-1 max-w-2xl text-sm text-emerald-700">Dòng tiền thuần dương là tín hiệu tốt. Bạn có thể xem chi tiết từng giao dịch trong mục Quản lý Ngân sách. Số dư nợ đọng cần thu hồi là <strong>{formatCurrency(cf.totalOutstandingDebt)}</strong>.</p>
+                  <p className="mt-1 max-w-2xl text-sm text-emerald-700">Dòng tiền thuần dương là tín hiệu tốt. Bạn có thể theo dõi chi tiết ở các báo cáo khác. Số dư nợ đọng cần thu hồi hiện tại là <strong>{formatCurrency(cf.totalOutstandingDebt)}</strong>.</p>
                 </div>
-                <button
-                  onClick={() => window.location.href = '/admin/reports/budget'}
-                  className="px-6 py-2.5 rounded-xl bg-emerald-600 text-white font-bold text-sm shadow-md shadow-emerald-200 hover:bg-emerald-500 hover:shadow-lg transition-all"
-                >
-                  Xem Báo cáo Ngân sách chi tiết
-                </button>
               </div>
             </div>
           )}

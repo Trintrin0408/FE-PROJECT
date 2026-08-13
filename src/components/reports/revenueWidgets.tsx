@@ -226,8 +226,8 @@ export function StatusDonut({
                 <Tooltip formatter={(v) => [valueFormat(Number(v)), unit]} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
               </PieChart>
             </ResponsiveContainer>
-            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-2xl font-bold tracking-tight text-slate-900">{centerFmt(total)}</span>
+            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
+              <span className="text-[17px] font-bold tracking-tight text-slate-900">{centerFmt(total)}</span>
               <span className="mt-1 text-xs font-medium text-slate-400">{centerLabel}</span>
             </div>
           </div>
