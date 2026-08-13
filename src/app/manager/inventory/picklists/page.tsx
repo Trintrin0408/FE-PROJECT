@@ -62,7 +62,7 @@ export default function ManagerPicklistsPage() {
           orderApiService.getOrders({ limit: 100 }),
           schedulePlanApiService.getSchedulePlans(),
         ]);
-        const scoped = (ordersRes.data ?? []).filter((o) => o.orderStatus === 'CONFIRMED' || o.orderStatus === 'IN_PROGRESS');
+        const scoped = (ordersRes.data ?? []).filter((o) => o.orderStatus === 'CONFIRMED' || o.orderStatus === 'IN_PROGRESS' || o.orderStatus === 'COMPLETED');
 
         const groups = groupPlansByOrder(plansRes.data ?? []);
         const coordMap = new Map<string, string>();
