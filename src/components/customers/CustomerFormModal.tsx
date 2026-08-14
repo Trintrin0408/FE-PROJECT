@@ -141,7 +141,7 @@ export function CustomerFormModal({ isOpen, onClose, editingCustomer, isSubmitti
           />
         </div>
         <Select
-          label="Trạng thái vận hành"
+          label="Trạng thái "
           value={values.status}
           onChange={(e) => setValues((v) => ({ ...v, status: e.target.value as CustomerStatus }))}
           options={[
