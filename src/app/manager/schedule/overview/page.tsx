@@ -13,7 +13,7 @@ export default function Page() {
         </p>
       </div>
       <div className="mt-6">
-        <MasterSchedule orderHref={(orderId) => `/manager/orders/${orderId}`} />
+        <MasterSchedule orderHref={(orderId) => `/manager/orders/${orderId}`} hiddenViews={['dispatch']} />
       </div>
     </div>
   );

@@ -60,9 +60,11 @@ const VIEWS: { key: ViewKey; label: string; icon: typeof CalendarDays }[] = [
 interface Props {
   /** Sinh đường dẫn tới chi tiết đơn theo vai trò (admin: /admin/orders_audit/:id, manager: /manager/orders/:id). */
   orderHref: (orderId: string) => string;
+  /** Danh sách các tab cần ẩn đi */
+  hiddenViews?: ViewKey[];
 }
 
-export default function MasterSchedule({ orderHref }: Props) {
+export default function MasterSchedule({ orderHref, hiddenViews = [] }: Props) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [plans, setPlans] = useState<SchedulePlan[]>([]);
   const [loading, setLoading] = useState(true);
@@ -224,7 +226,7 @@ export default function MasterSchedule({ orderHref }: Props) {
 
       {/* View switcher */}
       <div className="mt-5 flex flex-wrap gap-1.5 rounded-xl border border-slate-200 bg-white p-1.5 shadow-xs">
-        {VIEWS.map((v) => {
+        {VIEWS.filter(v => !hiddenViews.includes(v.key)).map((v) => {
           const Icon = v.icon;
           const activeView = v.key === view;
           return (
