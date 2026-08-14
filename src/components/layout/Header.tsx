@@ -186,7 +186,7 @@ export default function Header() {
                   )}
                 </div>
 
-                {!isAdmin && (
+                {/* {!isAdmin && (
                   <>
                     <div className="h-px bg-slate-100" />
                     <div className="flex items-center justify-between px-3.5 py-2.5">
@@ -242,7 +242,7 @@ export default function Header() {
                       )}
                     </div>
                   </>
-                )}
+                )} */}
               </motion.div>
             )}
           </AnimatePresence>
