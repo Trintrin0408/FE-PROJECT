@@ -173,10 +173,10 @@ export default function Page() {
 
         <Pagination pagination={pagination} onPageChange={setPage} />
 
-        <p className="mt-3 text-[11px] italic text-slate-400">
-          Ghi chú: báo cáo hoàn kho do Leader Staff ghi nhận tại hiện trường qua ứng dụng di động — web chỉ xem và xác
+        {/* <p className="mt-3 text-[11px] italic text-slate-400">
+           — web chỉ xem và xác
           nhận, không có chức năng tạo báo cáo trên web.
-        </p>
+        </p> */}
       </Reveal>
     </div>
   );

@@ -274,10 +274,10 @@ export default function Page() {
 
         <Pagination pagination={pagination} onPageChange={setPage} />
 
-        <p className="mt-3 text-[11px] italic text-slate-400">
+        {/* <p className="mt-3 text-[11px] italic text-slate-400">
           Ghi chú: phiếu trả thiết bị NCC do Leader Staff ghi nhận tại hiện trường qua ứng dụng di động — web chỉ xem và
           xác nhận, không có chức năng tạo phiếu trên web.
-        </p>
+        </p> */}
       </Reveal>
 
       <SupplierReturnDetailModal

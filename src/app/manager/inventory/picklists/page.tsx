@@ -307,11 +307,11 @@ export default function ManagerPicklistsPage() {
           <Table columns={columns} rows={filtered} rowKey={(row) => row.orderId} />
         </div>
 
-        <p className="mt-3 text-[11px] italic text-slate-400">
+        {/* <p className="mt-3 text-[11px] italic text-slate-400">
           Ghi chú: &quot;Sẵn sàng xuất kho&quot; là ước tính từ tổng số lượng đã chuẩn bị/order_items. Nút &quot;Đánh
           dấu xuất kho&quot; ghi <code>orders.picked_up_at</code> qua API thật; backend chặn nếu chưa chuẩn bị
           đủ thiết bị hoặc đơn đã xuất kho rồi.
-        </p>
+        </p> */}
 
         {orders.length === 0 && !loading && (
           <div className="mt-4 flex flex-col items-center gap-2 rounded-xl border border-dashed border-slate-200 bg-slate-50/40 p-10 text-center">
