@@ -1726,8 +1726,8 @@ function ManagerOrderDetailContent() {
                                     ? (surveyReport.evidenceIds ?? [])
                                     : []
                             }
-                            title="Bằng chứng bàn giao"
-                            emptyLabel="Chưa có ảnh minh chứng"
+                            title="Bằng chứng thực hiện"
+                            emptyLabel="Chưa có ảnh"
                           />
                         )}
                       </div>
