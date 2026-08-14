@@ -211,7 +211,7 @@ export default function CreateQuotationWizardModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="Tạo báo giá mới" subtitle="Quy trình soạn thảo báo giá kinh doanh theo từng bước rõ ràng." size="2xl">
+    <Modal isOpen={isOpen} onClose={handleClose} title="Tạo báo giá mới" subtitle="Quy trình tạo báo giá." size="2xl">
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-slate-50 p-4">
         <div className="flex w-max items-center gap-2">
           {visibleSteps.map((s, index) => (
@@ -298,10 +298,10 @@ export default function CreateQuotationWizardModal({
         {step === 2 && (
           <div>
             <h2 className="text-base font-bold text-slate-900">Bước 2: Chi tiết các hạng mục thiết bị/dịch vụ</h2>
-            <p className="mt-1 text-sm text-slate-500">Chọn thiết bị/dịch vụ có thật trong kho — báo giá bắt buộc gắn với hạng mục có sẵn.</p>
-            <p className="mt-1 text-xs text-slate-400">
+            {/* <p className="mt-1 text-sm text-slate-500">Chọn thiết bị/dịch vụ có thật trong kho — báo giá bắt buộc gắn với hạng mục có sẵn.</p> */}
+            {/* <p className="mt-1 text-xs text-slate-400">
               Đơn giá tự điền theo đơn giá thuê niêm yết trong kho — có thể sửa tay trước khi lưu (báo giá là ảnh chụp giá tại thời điểm lập).
-            </p>
+            </p> */}
 
             <div className="mt-5">
               <QuotationCatalogPicker catalogItems={catalogItems} isLoading={isLoadingCatalog} onPick={addCatalogItem} />
