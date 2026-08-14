@@ -57,12 +57,12 @@ interface NavSection {
 }
 
 const ADMIN_NAV_SECTIONS: NavSection[] = [
-  {
-    title: 'TỔNG QUAN',
-    items: [
-      { label: 'Bảng điều khiển', href: '/admin/dashboard', icon: LayoutGrid }
-  ],
-  },
+  // {
+  //   title: 'TỔNG QUAN',
+  //   items: [
+  //     { label: 'Bảng điều khiển', href: '/admin/dashboard', icon: LayoutGrid }
+  //   ],
+  // },
   {
     title: 'QUẢN LÝ NGƯỜI DÙNG',
     items: [
