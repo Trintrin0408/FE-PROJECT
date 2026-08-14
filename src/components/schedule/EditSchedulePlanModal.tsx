@@ -153,7 +153,10 @@ export default function EditSchedulePlanModal({ isOpen, onClose, plan, eventDate
   };
 
   const addAssigneeRow = () =>
-    setNewAssignees((prev) => [...prev, { key: nextDraftKey(), userId: '', role: existingHasLead ? 'TECHNICAL' : 'LEAD' }]);
+    setNewAssignees((prev) => [
+      ...prev,
+      { key: nextDraftKey(), userId: '', role: existingHasLead || prev.some((a) => a.role === 'LEAD') ? 'TECHNICAL' : 'LEAD' },
+    ]);
   const removeAssigneeRow = (key: string) => setNewAssignees((prev) => prev.filter((a) => a.key !== key));
   const updateAssigneeRow = (key: string, userId: string) =>
     setNewAssignees((prev) => prev.map((a) => (a.key === key ? { ...a, userId } : a)));
