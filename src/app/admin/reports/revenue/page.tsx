@@ -72,7 +72,7 @@ export default function CEORevenueReportPage() {
         <div>
           <h1 className="text-3xl font-black tracking-tight text-slate-900 flex items-center gap-3">
             <FileBarChart2 className="w-8 h-8 text-blue-600" />
-            Báo cáo Tài chính Tổng hợp
+            Báo cáo tài chính tổng hợp
           </h1>
           <p className="mt-2 text-sm font-medium text-slate-500">
             Dữ liệu được tổng hợp theo thời gian thực từ hóa đơn, hợp đồng và dòng tiền thực tế.
@@ -111,7 +111,7 @@ export default function CEORevenueReportPage() {
           {/* Cảnh báo nợ đọng nếu trên 50 triệu */}
           {cf.totalOutstandingDebt > 50000000 && (
             <AlertBanner
-              title="Cảnh báo Nợ đọng quá hạn cao!"
+              title="Cảnh báo nợ đọng quá hạn cao!"
               message={`Hiện có ${formatCurrency(cf.totalOutstandingDebt)} tiền nợ từ các sự kiện đã HOÀN THÀNH nhưng chưa được thanh toán (chưa chốt sổ). Cần đôn đốc bộ phận kế toán thu hồi ngay.`}
               actionText="Xem chi tiết đơn nợ"
               onAction={() => window.location.href = '/admin/orders?status=COMPLETED&payment=UNPAID'}
@@ -129,7 +129,7 @@ export default function CEORevenueReportPage() {
               }`}
             >
               <BarChart3 className="w-5 h-5" />
-              Hiệu quả Kinh doanh
+              Hiệu quả kinh doanh
             </button>
             <button
               onClick={() => setActiveTab('cashflow')}
@@ -140,7 +140,7 @@ export default function CEORevenueReportPage() {
               }`}
             >
               <ArrowRightLeft className="w-5 h-5" />
-              Lưu lượng Dòng tiền
+              Lưu lượng dòng tiền
             </button>
           </div>
 
@@ -149,14 +149,14 @@ export default function CEORevenueReportPage() {
               {/* P&L Top KPIs */}
               <div className="mb-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
                 <KpiTile
-                  label="Tổng Giá trị Hợp đồng"
+                  label="Tổng giá trị hợp đồng"
                   value={formatCurrency(pnl.committed)}
                   sub={`Từ ${pnl.orderCount} sự kiện chốt`}
                   icon={Banknote}
                   tone="blue"
                 />
                 <KpiTile
-                  label="Chi phí NCC Ước tính"
+                  label="Chi phí NCC ước tính"
                   value={formatCurrency(pnl.supplierCost)}
                   sub="Theo các giao dịch thuê NCC"
                   icon={Receipt}
@@ -165,12 +165,12 @@ export default function CEORevenueReportPage() {
                 <KpiTile
                   label="Lãi gộp"
                   value={formatCurrency(pnl.revenueAfterSupplier)}
-                  sub={`Tỷ suất Lãi gộp: ${pnl.committed > 0 ? Math.round((pnl.revenueAfterSupplier / pnl.committed) * 100) : 0}%`}
+                  sub={`Tỷ suất lãi gộp: ${pnl.committed > 0 ? Math.round((pnl.revenueAfterSupplier / pnl.committed) * 100) : 0}%`}
                   icon={Scale}
                   tone="amber"
                 />
                 <KpiTile
-                  label="Tỷ lệ Thu tiền Hợp đồng"
+                  label="Tỷ lệ thu tiền hợp đồng"
                   value={`${Math.round(pnl.collectionRate * 100)}%`}
                   sub={`Đã thu ${formatCurrency(pnl.collected)}`}
                   icon={BadgeCheck}
@@ -186,8 +186,8 @@ export default function CEORevenueReportPage() {
                 <div>
                   <StatusDonut
                     title="Tiến độ thu tiền dự án"
-                    subtitle="So với Tổng Hợp đồng đã chốt"
-                    centerLabel="Tổng Hợp đồng"
+                    subtitle="So với tổng hợp đồng đã chốt"
+                    centerLabel="Tổng hợp đồng"
                     data={pnl.collectionDonut}
                     valueFormat={(v) => formatCurrency(v)}
                   />
@@ -236,7 +236,7 @@ export default function CEORevenueReportPage() {
               
               <div className="mt-6 p-6 rounded-2xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100/50 flex flex-col sm:flex-row justify-between items-center gap-6">
                 <div>
-                  <h3 className="text-xl font-bold text-emerald-900">Quản trị Dòng tiền</h3>
+                  <h3 className="text-xl font-bold text-emerald-900">Quản trị dòng tiền</h3>
                   <p className="mt-1 max-w-2xl text-sm text-emerald-700">Dòng tiền thuần dương là tín hiệu tốt. Bạn có thể theo dõi chi tiết ở các báo cáo khác. Số dư nợ đọng cần thu hồi hiện tại là <strong>{formatCurrency(cf.totalOutstandingDebt)}</strong>.</p>
                 </div>
               </div>

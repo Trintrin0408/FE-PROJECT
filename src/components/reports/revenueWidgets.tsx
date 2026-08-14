@@ -122,7 +122,7 @@ export interface MonthlyMoneyPoint {
 export function MonthlyMoneyChart({ data }: Readonly<{ data: MonthlyMoneyPoint[] }>) {
   const hasData = data.some((d) => d.collected > 0 || d.outstanding > 0);
   return (
-    <ChartCard title="Hiệu quả Doanh thu theo tháng" subtitle="Giá trị hợp đồng chốt (cột = tổng) chia thành Đã thu và Còn phải thu">
+    <ChartCard title="Hiệu quả doanh thu theo tháng" subtitle="Giá trị hợp đồng chốt (cột = tổng) chia thành Đã thu và Còn phải thu">
       {hasData ? (
         <div className="h-80">
           <ResponsiveContainer width="100%" height="100%">
@@ -154,7 +154,7 @@ export interface CashFlowPoint {
 export function MonthlyCashFlowChart({ data }: Readonly<{ data: CashFlowPoint[] }>) {
   const hasData = data.some((d) => d.cashIn > 0 || d.cashOut > 0);
   return (
-    <ChartCard title="Lưu lượng Dòng tiền mặt (Cash-flow)" subtitle="Thống kê tiền thực thu và thực chi theo ngày giao dịch">
+    <ChartCard title="Lưu lượng dòng tiền mặt (Cash-flow)" subtitle="Thống kê tiền thực thu và thực chi theo ngày giao dịch">
       {hasData ? (
         <div className="h-80">
           <ResponsiveContainer width="100%" height="100%">
