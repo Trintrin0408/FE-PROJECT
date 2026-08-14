@@ -52,7 +52,7 @@ const VIEWS: { key: ViewKey; label: string; icon: typeof CalendarDays }[] = [
   { key: 'orders', label: 'Timeline đơn', icon: GanttChartSquare },
   { key: 'staff', label: 'Lịch nhân sự', icon: Users },
   { key: 'utilization', label: 'Tải nhân sự', icon: BarChart3 },
-  { key: 'equipment', label: 'Thiết bị đi/về', icon: Truck },
+  // { key: 'equipment', label: 'Thiết bị đi/về', icon: Truck }, // Tạm ẩn theo yêu cầu
   { key: 'reservations', label: 'Giữ chỗ thiết bị', icon: PackageSearch },
   { key: 'dispatch', label: 'Điều vận ngày', icon: ClipboardList },
 ];
@@ -333,9 +333,9 @@ export default function MasterSchedule({ orderHref }: Props) {
             <button type="button" onClick={() => goResourceDay(dayDetailKey, 'staff')} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50">
               <Users className="h-3.5 w-3.5" /> Lịch nhân sự ngày này
             </button>
-            <button type="button" onClick={() => goResourceDay(dayDetailKey, 'equipment')} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50">
+            {/* <button type="button" onClick={() => goResourceDay(dayDetailKey, 'equipment')} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50">
               <Truck className="h-3.5 w-3.5" /> Thiết bị đi/về ngày này
-            </button>
+            </button> */}
           </div>
         )}
       </Modal>
