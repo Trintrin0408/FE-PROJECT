@@ -205,21 +205,21 @@ export default function CEORevenueReportPage() {
               {/* Cash-flow Top KPIs */}
               <div className="mb-8 grid grid-cols-1 gap-6 sm:grid-cols-3">
                 <KpiTile
-                  label="Dòng tiền VÀO"
+                  label="Dòng tiền vào"
                   value={formatCurrency(cf.totalCashIn)}
                   sub="Tổng Cọc & Quyết toán đã nhận"
                   icon={TrendingUp}
                   tone="green"
                 />
                 <KpiTile
-                  label="Dòng tiền RA"
+                  label="Dòng tiền ra"
                   value={formatCurrency(cf.totalCashOut)}
                   sub="Tiền thanh toán cho NCC"
                   icon={Receipt}
                   tone="red"
                 />
                 <KpiTile
-                  label="Dòng tiền THUẦN"
+                  label="Dòng tiền thuần"
                   value={formatCurrency(cf.netCashFlow)}
                   sub="Tiền vào - Tiền ra trong kỳ"
                   icon={DollarSign}

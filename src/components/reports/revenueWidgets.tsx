@@ -172,10 +172,10 @@ export function MonthlyCashFlowChart({ data }: Readonly<{ data: CashFlowPoint[] 
               <CartesianGrid vertical={false} stroke={GRID} strokeDasharray="3 3" />
               <XAxis dataKey="month" tick={AXIS} axisLine={false} tickLine={false} dy={8} />
               <YAxis tick={AXIS} axisLine={false} tickLine={false} tickFormatter={formatMillions} width={48} dx={-8} />
-              <Tooltip formatter={(v, n) => [formatCurrency(Number(v)), n === 'cashIn' ? 'Dòng tiền VÀO' : 'Dòng tiền RA']} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.1)' }} />
+              <Tooltip formatter={(v, n) => [formatCurrency(Number(v)), n]} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 25px -5px rgb(0 0 0 / 0.1)' }} />
               <Legend iconType="circle" wrapperStyle={{ fontSize: 13, paddingTop: '16px' }} />
-              <Area type="monotone" dataKey="cashIn" name="Dòng tiền VÀO" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorIn)" />
-              <Area type="monotone" dataKey="cashOut" name="Dòng tiền RA" stroke="#ef4444" strokeWidth={3} fillOpacity={1} fill="url(#colorOut)" />
+              <Area type="monotone" dataKey="cashIn" name="Dòng tiền vào" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorIn)" />
+              <Area type="monotone" dataKey="cashOut" name="Dòng tiền ra" stroke="#ef4444" strokeWidth={3} fillOpacity={1} fill="url(#colorOut)" />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -216,6 +216,10 @@ export function StatusDonut({
       {total > 0 ? (
         <>
           <div className="relative h-60">
+            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
+              <span className="text-[17px] font-bold tracking-tight text-slate-900">{centerFmt(total)}</span>
+              <span className="mt-1 text-xs font-medium text-slate-400">{centerLabel}</span>
+            </div>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie data={data} dataKey="value" nameKey="label" innerRadius={64} outerRadius={96} paddingAngle={3} isAnimationActive={true} stroke="none">
@@ -226,10 +230,6 @@ export function StatusDonut({
                 <Tooltip formatter={(v) => [valueFormat(Number(v)), unit]} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
               </PieChart>
             </ResponsiveContainer>
-            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
-              <span className="text-[17px] font-bold tracking-tight text-slate-900">{centerFmt(total)}</span>
-              <span className="mt-1 text-xs font-medium text-slate-400">{centerLabel}</span>
-            </div>
           </div>
           <div className="mt-6 space-y-2.5">
             {data.map((d) => (
