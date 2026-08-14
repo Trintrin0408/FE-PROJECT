@@ -116,22 +116,15 @@ export default function ManagerCustomersPage() {
 
   const columns: TableColumn<Customer>[] = [
     {
-      key: 'customerId',
-      label: 'ID',
-      render: (row) => (
-        <Link href={`/manager/customers/${row.customerId}`} className="font-mono text-xs font-semibold text-blue-600 hover:underline">
-          {row.customerId}
-        </Link>
-      ),
-    },
-    {
       key: 'customerName',
       label: 'Khách hàng',
       render: (row) => (
         <div className="flex items-center gap-2.5">
           <Avatar name={row.customerName} size="sm" />
           <div className="min-w-0">
-            <p className="truncate font-medium text-slate-800">{row.customerName}</p>
+            <Link href={`/manager/customers/${row.customerId}`} className="truncate font-medium text-blue-600 hover:underline block">
+              {row.customerName}
+            </Link>
             <p className="truncate text-xs text-slate-400">{row.address ? row.address.split(',').slice(-2).join(',').trim() : '—'}</p>
           </div>
         </div>
