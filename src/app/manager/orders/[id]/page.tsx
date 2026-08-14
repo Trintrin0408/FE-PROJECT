@@ -1727,7 +1727,7 @@ function ManagerOrderDetailContent() {
                                     : []
                             }
                             title="Bằng chứng thực hiện"
-                            emptyLabel="Chưa có ảnh"
+                            emptyLabel="Chưa có ảnh "
                           />
                         )}
                       </div>
@@ -1735,9 +1735,9 @@ function ManagerOrderDetailContent() {
                   })}
                 </div>
               )}
-              <p className="mt-3 text-[10px] italic text-slate-400">
+              {/* <p className="mt-3 text-[10px] italic text-slate-400">
                 Danh mục loại việc hiện chỉ có "Lắp đặt thiết bị"/"Tháo dỡ thiết bị" — chưa có "Khảo sát hiện trường"/"Vận chuyển thiết bị" (xem docs/more-require.md mục (f)).
-              </p>
+              </p> */}
             </motion.div>
           )}
 
@@ -1751,9 +1751,9 @@ function ManagerOrderDetailContent() {
             >
               <div className="rounded-xl border border-slate-200/80 bg-white p-6 shadow-xs">
                 <h4 className="text-sm font-bold text-slate-950">Hồ sơ báo giá liên kết</h4>
-                <p className="mt-1 text-xs text-slate-400">
+                {/* <p className="mt-1 text-xs text-slate-400">
                   Không còn khái niệm "Hợp đồng" riêng — đơn đặt đã liên kết báo giá chính là hồ sơ vận hành chính thức (xem docs/danhsachhopdong_api.md).
-                </p>
+                </p> */}
 
                 {/*
                   Cố ý gate theo `order.quotationId` (cập nhật đồng bộ ngay khi `load()` xong) thay vì
