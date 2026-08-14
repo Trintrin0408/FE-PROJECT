@@ -929,9 +929,9 @@ function ManagerOrderDetailContent() {
               <Lock className="h-4 w-4" /> Đóng đơn hàng
             </Button>
           )}
-          <Button disabled title="Modal Chỉnh sửa đơn đặt chưa tương thích dữ liệu thật — xem docs/taodondatlichtiecmoi_api.md">
+          {/* <Button disabled title="Modal Chỉnh sửa đơn đặt chưa tương thích dữ liệu thật — xem docs/taodondatlichtiecmoi_api.md">
             Chỉnh sửa đơn đặt
-          </Button>
+          </Button> */}
         </div>
       </div>
 
