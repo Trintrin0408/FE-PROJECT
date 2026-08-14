@@ -417,7 +417,7 @@ export default function DepositDetailView({ canManage, backHref }: Readonly<Depo
 
       <Reveal delay={0.1} className="rounded-2xl border border-slate-200 bg-white p-5">
         <p className="text-sm font-bold text-slate-900">Cổng thanh toán VietQR</p>
-        <p className="mt-1 text-xs text-slate-400">Quét mã bằng app ngân hàng/Mobile Banking để chuyển khoản nhanh, đúng tài khoản và nội dung.</p>
+        {/* <p className="mt-1 text-xs text-slate-400">Quét mã bằng app ngân hàng/Mobile Banking để chuyển khoản nhanh, đúng tài khoản và nội dung.</p> */}
 
         {primaryDeposit ? (
           (() => {

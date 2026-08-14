@@ -446,8 +446,8 @@ export default function AdminQuotationDetailPage() {
                   </div>
                 </div>
                 <div className="mt-4 space-y-1 text-xs text-slate-500">
-                  <p>VP: 120 Điện Biên Phủ, Phường Đa Kao, Quận 1, TP. HCM</p>
-                  <p>Điện thoại: 0944 556 677 | Hòm thư: sales@bnevent.vn</p>
+                  <p>Thanh Xuân, Hà Nội</p>
+                  <p>Điện thoại: 0944 556 677 | Hòm thư: bnevent1984@gmail.com</p>
                 </div>
               </div>
 
