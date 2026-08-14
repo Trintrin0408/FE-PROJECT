@@ -49,10 +49,12 @@ interface EditSchedulePlanModalProps {
   plan: SchedulePlan;
   /** Ngày tổ chức sự kiện (ISO) — dùng để chặn khảo sát/lắp đặt lên lịch sau ngày diễn ra. */
   eventDate?: string;
+  /** Địa chỉ đơn hàng — dùng làm giá trị mặc định khi kế hoạch chưa có địa điểm riêng. */
+  defaultLocation?: string;
   onUpdated: () => void;
 }
 
-export default function EditSchedulePlanModal({ isOpen, onClose, plan, eventDate, onUpdated }: Readonly<EditSchedulePlanModalProps>) {
+export default function EditSchedulePlanModal({ isOpen, onClose, plan, eventDate, defaultLocation, onUpdated }: Readonly<EditSchedulePlanModalProps>) {
   const [staff, setStaff] = useState<AdminUser[]>([]);
 
   const [startTime, setStartTime] = useState('');
@@ -74,7 +76,7 @@ export default function EditSchedulePlanModal({ isOpen, onClose, plan, eventDate
     if (!isOpen) return;
     setStartTime(toLocalInputValue(new Date(plan.startTime)));
     setEndTime(plan.endTime ? toLocalInputValue(new Date(plan.endTime)) : '');
-    setLocation(plan.location ?? '');
+    setLocation(plan.location || defaultLocation || '');
     setLatitude(plan.latitude ?? undefined);
     setLongitude(plan.longitude ?? undefined);
     setNotes(plan.notes ?? '');
@@ -293,9 +295,9 @@ export default function EditSchedulePlanModal({ isOpen, onClose, plan, eventDate
           ) : (
             <p className="text-xs italic text-slate-400">Chưa có nhân sự nào được gán.</p>
           )}
-          <p className="mt-1 text-[11px] italic text-slate-400">
+          {/* <p className="mt-1 text-[11px] italic text-slate-400">
             Chưa hỗ trợ gỡ nhân sự đã gán — backend chưa có endpoint xóa (chỉ có thể thêm mới bên dưới).
-          </p>
+          </p> */}
         </div>
 
         <div>

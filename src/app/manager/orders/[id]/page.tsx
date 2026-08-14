@@ -1967,6 +1967,7 @@ function ManagerOrderDetailContent() {
           isOpen={!!editingPlan}
           plan={editingPlan}
           eventDate={order.eventDate}
+          defaultLocation={order.location}
           onClose={() => setEditingPlan(null)}
           onUpdated={load}
         />

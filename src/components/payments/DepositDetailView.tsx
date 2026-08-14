@@ -362,7 +362,7 @@ export default function DepositDetailView({ canManage, backHref }: Readonly<Depo
                   )}
 
                   <div className="mt-3">
-                    <p className="text-xs font-semibold text-slate-500">Nội dung chuyển khoản (khách tự chuyển khoản thủ công)</p>
+                    <p className="text-xs font-semibold text-slate-500">Nội dung chuyển khoản </p>
                     <div className="mt-1.5 flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
                       <span className="truncate font-mono text-sm uppercase text-slate-700">{transferContent}</span>
                       <button
