@@ -1619,9 +1619,9 @@ function ManagerOrderDetailContent() {
               <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-3">
                 <div>
                   <h4 className="text-sm font-bold text-slate-950">Lịch thi công & đơn vị phụ trách kỹ thuật</h4>
-                  {/* <p className="text-xs text-slate-400">
-                    Trạng thái thi công/ảnh minh chứng do Leader Staff cập nhật qua mobile — web chỉ xác nhận kế hoạch trước khi thi công.
-                  </p> */}
+                  <p className="text-xs text-slate-400">
+                    Trạng thái thi công/ảnh minh chứng từ Leader Staff. 
+                  </p>
                 </div>
                 <Button size="sm" onClick={() => setIsCreatePlanOpen(true)}>
                   <Plus className="h-4 w-4" />
@@ -1726,8 +1726,8 @@ function ManagerOrderDetailContent() {
                                     ? (surveyReport.evidenceIds ?? [])
                                     : []
                             }
-                            title="Bằng chứng thực hiện"
-                            emptyLabel="Chưa có ảnh"
+                            title="Bằng chứng bàn giao"
+                            emptyLabel="Chưa có ảnh minh chứng"
                           />
                         )}
                       </div>
