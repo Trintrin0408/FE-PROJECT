@@ -19,9 +19,9 @@ export default function PaymentAgingPage() {
     <div className="p-6">
       <div>
         <h1 className="text-xl font-semibold text-slate-900">Công nợ &amp; dòng tiền</h1>
-        <p className="mt-1 text-sm text-slate-500">
+        {/* <p className="mt-1 text-sm text-slate-500">
           Đơn đang treo tiền theo mức gấp so với ngày sự kiện — thu cọc trước hạn, quyết toán sau sự kiện đúng lúc.
-        </p>
+        </p> */}
       </div>
 
       {loadError && <div className="mt-4 rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-600">{loadError}</div>}

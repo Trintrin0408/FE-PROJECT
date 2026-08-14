@@ -157,13 +157,13 @@ export function useManagerDashboard(): ManagerDashboardData {
             count: depositsPending,
             href: '/manager/payments/deposits',
           },
-          {
-            type: 'change_request',
-            label: 'Yêu cầu thay đổi hiện trường',
-            description: 'Thêm/bớt/đổi thiết bị tại hiện trường, chờ duyệt',
-            count: changeRequestPending,
-            href: '/manager/field-ops/change-requests',
-          },
+          // {
+          //   type: 'change_request',
+          //   label: 'Yêu cầu thay đổi hiện trường',
+          //   description: 'Thêm/bớt/đổi thiết bị tại hiện trường, chờ duyệt',
+          //   count: changeRequestPending,
+          //   href: '/manager/field-ops/change-requests',
+          // },
           {
             type: 'inventory_return',
             label: 'Thu hồi & hỏng/mất thiết bị',
