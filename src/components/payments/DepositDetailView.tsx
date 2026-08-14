@@ -383,7 +383,7 @@ export default function DepositDetailView({ canManage, backHref }: Readonly<Depo
                     return (
                       <EvidenceBlock
                         evidenceIds={evidenceIdsToUse}
-                        title={hasDepositEvidence ? 'Bằng chứng thanh toán' : 'Ảnh minh chứng (từ báo cáo khảo sát)'}
+                        title={hasDepositEvidence ? 'Bằng chứng thanh toán' : 'Ảnh minh chứng '}
                         emptyLabel="Chưa có ảnh minh chứng thanh toán."
                       />
                     );
