@@ -306,7 +306,7 @@ export default function ConfirmOrderModal({ isOpen, orderCode, eventDate, endDat
         <div className="flex items-center justify-between px-5 py-2">
           <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
             <CalendarClock className="h-4 w-4 text-blue-600" /> Timeline lịch công việc
-            <span className="ml-1 font-normal text-slate-400">· hít 15 phút · kéo cạnh phải để chỉnh thời lượng</span>
+            {/* <span className="ml-1 font-normal text-slate-400">· hít 15 phút · kéo cạnh phải để chỉnh thời lượng</span> */}
           </div>
           <div className="flex items-center gap-2">
             <span className="text-[11px] text-slate-400">Độ giãn</span>
