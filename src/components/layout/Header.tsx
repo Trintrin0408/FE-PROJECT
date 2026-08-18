@@ -7,11 +7,14 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Bell, HelpCircle, UserCircle, KeyRound, LogOut } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { computeApproachingEvents, type ApproachingEvent } from '@/utils/approachingEvents';
+import { toDateInputValue } from '@/utils/formatDate';
 import { orderApiService } from '@/services/order.service';
 import { schedulePlanApiService } from '@/services/schedulePlan.service';
 import { changeRequestApiService } from '@/services/changeRequest.service';
+import { inventoryApiService } from '@/services/inventory.service';
 import type { Order } from '@/types/order';
 import type { ChangeRequest } from '@/types/changeRequest';
+import type { TimelineItem } from '@/types/inventory';
 
 const CHANGE_REQUEST_TYPE_LABEL: Record<ChangeRequest['type'], string> = {
   add: 'Thêm thiết bị',
@@ -33,26 +36,70 @@ export default function Header() {
   const [approachingEvents, setApproachingEvents] = useState<ApproachingEvent[]>([]);
 
   useEffect(() => {
+    if (isAdmin) {
+      setApproachingEvents([]);
+      return;
+    }
     let cancelled = false;
     const withinDays = 7;
-    const today = new Date();
-    const referenceDate = today.toISOString().slice(0, 10);
-    const dateTo = new Date(today.getTime() + withinDays * 86_400_000).toISOString().slice(0, 10);
 
-    Promise.all([
-      // Backend chặn cứng limit tối đa 100 (listOrdersQuerySchema `.max(100)`) — 200 luôn bị 400.
-      orderApiService.getOrders({ limit: 100 }).catch(() => ({ data: [] })),
-      schedulePlanApiService.getSchedulePlans({ dateFrom: referenceDate, dateTo }).catch(() => ({ data: [] })),
-    ]).then(([ordersRes, plansRes]) => {
-      if (cancelled) return;
-      const orders: Order[] = ordersRes.data ?? [];
-      setApproachingEvents(computeApproachingEvents(orders, plansRes.data ?? [], withinDays, referenceDate));
-    });
+    const fetchData = () => {
+      const referenceDate = toDateInputValue(Date.now());
+      const dateTo = toDateInputValue(Date.now() + withinDays * 86_400_000);
+
+      Promise.all([
+        // Backend chặn cứng limit tối đa 100 (listOrdersQuerySchema `.max(100)`) — 200 luôn bị 400.
+        orderApiService.getOrders({ limit: 100 }).catch(() => ({ data: [] })),
+        schedulePlanApiService.getSchedulePlans({ dateFrom: referenceDate, dateTo }).catch(() => ({ data: [] })),
+      ]).then(([ordersRes, plansRes]) => {
+        if (cancelled) return;
+        const orders: Order[] = ordersRes.data ?? [];
+        setApproachingEvents(computeApproachingEvents(orders, plansRes.data ?? [], withinDays, referenceDate));
+      });
+    };
+
+    fetchData();
+    const intervalId = setInterval(fetchData, 5 * 60 * 1000);
 
     return () => {
       cancelled = true;
+      clearInterval(intervalId);
     };
-  }, []);
+  }, [isAdmin]);
+
+  const [overCommittedItems, setOverCommittedItems] = useState<TimelineItem[]>([]);
+
+  useEffect(() => {
+    if (!isAdmin) {
+      setOverCommittedItems([]);
+      return;
+    }
+    let cancelled = false;
+    const withinDays = 7;
+
+    const fetchData = () => {
+      const referenceDate = toDateInputValue(Date.now());
+      const dateTo = toDateInputValue(Date.now() + withinDays * 86_400_000);
+
+      inventoryApiService.getReservationsTimeline({ from: referenceDate, to: dateTo })
+        .then(res => {
+          if (cancelled) return;
+          const items = res.data?.items ?? [];
+          setOverCommittedItems(items.filter(item => item.overCommitted));
+        })
+        .catch(() => {
+          if (!cancelled) setOverCommittedItems([]);
+        });
+    };
+
+    fetchData();
+    const intervalId = setInterval(fetchData, 5 * 60 * 1000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
+    };
+  }, [isAdmin]);
 
   // Yêu cầu thay đổi chờ duyệt (ChangeRequest — UC 2.27) — backend đã có đủ route thật (docs/more-require.md
   // mục (an)): GET /change-requests, PUT /change-requests/:id/approve.
@@ -65,18 +112,24 @@ export default function Header() {
     }
     let cancelled = false;
 
-    changeRequestApiService
-      .getChangeRequests({ status: 'pending' })
-      .then((res) => {
-        if (cancelled) return;
-        setPendingChangeRequests(res.data ?? []);
-      })
-      .catch(() => {
-        if (!cancelled) setPendingChangeRequests([]);
-      });
+    const fetchData = () => {
+      changeRequestApiService
+        .getChangeRequests({ status: 'pending' })
+        .then((res) => {
+          if (cancelled) return;
+          setPendingChangeRequests(res.data ?? []);
+        })
+        .catch(() => {
+          if (!cancelled) setPendingChangeRequests([]);
+        });
+    };
+
+    fetchData();
+    const intervalId = setInterval(fetchData, 5 * 60 * 1000);
 
     return () => {
       cancelled = true;
+      clearInterval(intervalId);
     };
   }, [isAdmin]);
 
@@ -87,7 +140,9 @@ export default function Header() {
       .catch(() => {});
   };
 
-  const totalNotifications = approachingEvents.length + pendingChangeRequests.length;
+  const totalNotifications = isAdmin
+    ? overCommittedItems.length
+    : approachingEvents.length + pendingChangeRequests.length;
 
   const orderDetailPath = (orderId: string) =>
     `${user?.role.roleName === 'Admin' ? '/admin/orders_audit' : '/manager/orders'}/${orderId}`;
@@ -146,103 +201,163 @@ export default function Header() {
                 transition={{ duration: 0.15 }}
                 className="absolute right-0 top-full mt-2 w-80 overflow-hidden rounded-xl bg-white py-1.5 shadow-lg ring-1 ring-slate-100"
               >
-                <div className="flex items-center justify-between px-3.5 py-2.5">
-                  <p className="text-sm font-semibold text-slate-900">Mốc sắp diễn ra</p>
-                  {approachingEvents.length > 0 && (
-                    <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-600">
-                      {approachingEvents.length}
-                    </span>
-                  )}
-                </div>
-                <div className="h-px bg-slate-100" />
-                <div className="max-h-80 overflow-y-auto">
-                  {approachingEvents.length === 0 ? (
-                    <p className="px-3.5 py-6 text-center text-xs text-slate-400">
-                      Không có mốc thời gian nào sắp diễn ra trong 7 ngày tới.
-                    </p>
-                  ) : (
-                    approachingEvents.map((event) => (
-                      <Link
-                        key={`${event.orderId}-${event.label}`}
-                        href={orderDetailPath(event.orderId)}
-                        onClick={() => setIsNotifOpen(false)}
-                        className="flex items-start gap-2.5 px-3.5 py-2.5 text-sm transition-colors duration-150 hover:bg-slate-50"
-                      >
-                        <span
-                          className={`mt-1 h-2 w-2 shrink-0 rounded-full ${event.daysLeft <= 3 ? 'bg-red-500' : 'bg-amber-500'}`}
-                        />
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate font-medium text-slate-800">
-                            {event.customerName} — {event.venue}
-                          </span>
-                          <span
-                            className={`text-xs font-semibold ${event.daysLeft <= 3 ? 'text-red-600' : 'text-amber-600'}`}
-                          >
-                            {event.label} · Còn {event.daysLeft} ngày ({event.orderId})
-                          </span>
-                        </span>
-                      </Link>
-                    ))
-                  )}
-                </div>
-
-                {/* {!isAdmin && (
+                {isAdmin ? (
                   <>
-                    <div className="h-px bg-slate-100" />
                     <div className="flex items-center justify-between px-3.5 py-2.5">
-                      <p className="text-sm font-semibold text-slate-900">Yêu cầu thay đổi chờ duyệt</p>
-                      {pendingChangeRequests.length > 0 && (
-                        <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-600">
-                          {pendingChangeRequests.length}
+                      <p className="text-sm font-semibold text-slate-900">Cảnh báo thiếu hụt kho</p>
+                      {overCommittedItems.length > 0 && (
+                        <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-600">
+                          {overCommittedItems.length}
                         </span>
                       )}
                     </div>
                     <div className="h-px bg-slate-100" />
                     <div className="max-h-80 overflow-y-auto">
-                      {pendingChangeRequests.length === 0 ? (
+                      {overCommittedItems.length === 0 ? (
                         <p className="px-3.5 py-6 text-center text-xs text-slate-400">
-                          Không có yêu cầu thay đổi nào chờ duyệt.
+                          Không có thiết bị nào bị thiếu hụt trong 7 ngày tới.
                         </p>
                       ) : (
-                        pendingChangeRequests.map((cr) => (
-                          <div
-                            key={cr.changeRequestId}
-                            className="flex items-start gap-2 px-3.5 py-2.5 text-sm transition-colors duration-150 hover:bg-slate-50"
-                          >
-                            <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-blue-500" />
+                        <>
+                          {overCommittedItems.slice(0, 10).map((item) => (
                             <Link
-                              href={orderDetailPath(cr.orderId)}
+                              key={item.itemId}
+                              href="/admin/inventory/availability"
                               onClick={() => setIsNotifOpen(false)}
-                              className="min-w-0 flex-1"
+                              className="flex items-start gap-2.5 px-3.5 py-2.5 text-sm transition-colors duration-150 hover:bg-slate-50"
                             >
-                              <span className="block truncate font-medium text-slate-800">{cr.customerName}</span>
-                              <span className="block truncate text-xs text-slate-500">
-                                {CHANGE_REQUEST_TYPE_LABEL[cr.type]}
-                                {cr.items[0] ? ` · ${cr.items[0].itemName} x${cr.items[0].quantity}` : ''}
+                              <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-red-500" />
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate font-medium text-slate-800">
+                                  {item.itemName} ({item.itemCode})
+                                </span>
+                                <span className="text-xs font-semibold text-red-600">
+                                  Thiếu {item.maxConcurrent - item.capacity} cái (Cần {item.maxConcurrent}, Tồn {item.capacity})
+                                </span>
                               </span>
                             </Link>
-                            <div className="mt-0.5 flex shrink-0 gap-1">
-                              <button
-                                type="button"
-                                onClick={() => handleReviewChangeRequest(cr.changeRequestId, 'approved')}
-                                className="rounded-md bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-700 transition-colors duration-150 hover:bg-emerald-100"
-                              >
-                                Duyệt
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleReviewChangeRequest(cr.changeRequestId, 'rejected')}
-                                className="rounded-md bg-rose-50 px-2 py-1 text-[11px] font-bold text-rose-700 transition-colors duration-150 hover:bg-rose-100"
-                              >
-                                Từ chối
-                              </button>
-                            </div>
-                          </div>
-                        ))
+                          ))}
+                          {overCommittedItems.length > 10 && (
+                            <Link
+                              href="/admin/inventory/availability"
+                              onClick={() => setIsNotifOpen(false)}
+                              className="block px-3.5 py-2.5 text-center text-xs font-semibold text-blue-600 hover:bg-blue-50 transition-colors"
+                            >
+                              Xem tất cả (còn {overCommittedItems.length - 10} mục...)
+                            </Link>
+                          )}
+                        </>
                       )}
                     </div>
                   </>
-                )} */}
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between px-3.5 py-2.5">
+                      <p className="text-sm font-semibold text-slate-900">Mốc sắp diễn ra</p>
+                      {approachingEvents.length > 0 && (
+                        <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-600">
+                          {approachingEvents.length}
+                        </span>
+                      )}
+                    </div>
+                    <div className="h-px bg-slate-100" />
+                    <div className="max-h-80 overflow-y-auto">
+                      {approachingEvents.length === 0 ? (
+                        <p className="px-3.5 py-6 text-center text-xs text-slate-400">
+                          Không có mốc thời gian nào sắp diễn ra trong 7 ngày tới.
+                        </p>
+                      ) : (
+                        <>
+                          {approachingEvents.slice(0, 10).map((event) => (
+                            <Link
+                              key={`${event.orderId}-${event.label}`}
+                              href={orderDetailPath(event.orderId)}
+                              onClick={() => setIsNotifOpen(false)}
+                              className="flex items-start gap-2.5 px-3.5 py-2.5 text-sm transition-colors duration-150 hover:bg-slate-50"
+                            >
+                              <span
+                                className={`mt-1 h-2 w-2 shrink-0 rounded-full ${event.daysLeft <= 3 ? 'bg-red-500' : 'bg-amber-500'}`}
+                              />
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate font-medium text-slate-800">
+                                  {event.customerName} — {event.venue}
+                                </span>
+                                <span
+                                  className={`text-xs font-semibold ${event.daysLeft <= 3 ? 'text-red-600' : 'text-amber-600'}`}
+                                >
+                                  {event.label} · Còn {event.daysLeft} ngày ({event.orderId})
+                                </span>
+                              </span>
+                            </Link>
+                          ))}
+                          {approachingEvents.length > 10 && (
+                            <div className="px-3.5 py-2.5 text-center text-xs font-semibold text-slate-500">
+                              Còn {approachingEvents.length - 10} mốc khác...
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+
+                    {/* {!isAdmin && (
+                      <>
+                        <div className="h-px bg-slate-100" />
+                        <div className="flex items-center justify-between px-3.5 py-2.5">
+                          <p className="text-sm font-semibold text-slate-900">Yêu cầu thay đổi chờ duyệt</p>
+                          {pendingChangeRequests.length > 0 && (
+                            <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-600">
+                              {pendingChangeRequests.length}
+                            </span>
+                          )}
+                        </div>
+                        <div className="h-px bg-slate-100" />
+                        <div className="max-h-80 overflow-y-auto">
+                          {pendingChangeRequests.length === 0 ? (
+                            <p className="px-3.5 py-6 text-center text-xs text-slate-400">
+                              Không có yêu cầu thay đổi nào chờ duyệt.
+                            </p>
+                          ) : (
+                            pendingChangeRequests.map((cr) => (
+                              <div
+                                key={cr.changeRequestId}
+                                className="flex items-start gap-2 px-3.5 py-2.5 text-sm transition-colors duration-150 hover:bg-slate-50"
+                              >
+                                <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-blue-500" />
+                                <Link
+                                  href={orderDetailPath(cr.orderId)}
+                                  onClick={() => setIsNotifOpen(false)}
+                                  className="min-w-0 flex-1"
+                                >
+                                  <span className="block truncate font-medium text-slate-800">{cr.customerName}</span>
+                                  <span className="block truncate text-xs text-slate-500">
+                                    {CHANGE_REQUEST_TYPE_LABEL[cr.type]}
+                                    {cr.items[0] ? ` · ${cr.items[0].itemName} x${cr.items[0].quantity}` : ''}
+                                  </span>
+                                </Link>
+                                <div className="mt-0.5 flex shrink-0 gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleReviewChangeRequest(cr.changeRequestId, 'approved')}
+                                    className="rounded-md bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-700 transition-colors duration-150 hover:bg-emerald-100"
+                                  >
+                                    Duyệt
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleReviewChangeRequest(cr.changeRequestId, 'rejected')}
+                                    className="rounded-md bg-rose-50 px-2 py-1 text-[11px] font-bold text-rose-700 transition-colors duration-150 hover:bg-rose-100"
+                                  >
+                                    Từ chối
+                                  </button>
+                                </div>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </>
+                    )} */}
+                  </>
+                )}
               </motion.div>
             )}
           </AnimatePresence>
