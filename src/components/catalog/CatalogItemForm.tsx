@@ -333,12 +333,12 @@ export function CatalogItemForm({
           </div>
         </div>
 
-        {/* C. Cấu hình BOM / Cấu kiện */}
+        {/* C. Danh sách thiết bị */}
         {isCombo && (
           <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm mb-8">
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h3 className="text-[15px] font-bold text-slate-900">C. Cấu hình BOM / Cấu kiện</h3>
+                <h3 className="text-[15px] font-bold text-slate-900">C. Danh sách thiết bị</h3>
                 <p className="text-sm text-slate-500 mt-1">Chỉ có thể chọn thiết bị đơn lẻ đang hoạt động.</p>
               </div>
               <Button type="button" variant="secondary" onClick={() => setIsComponentModalOpen(true)} className="bg-white hover:bg-slate-50 text-slate-700">
