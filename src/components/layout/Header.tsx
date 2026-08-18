@@ -11,10 +11,10 @@ import { toDateInputValue } from '@/utils/formatDate';
 import { orderApiService } from '@/services/order.service';
 import { schedulePlanApiService } from '@/services/schedulePlan.service';
 import { changeRequestApiService } from '@/services/changeRequest.service';
-import { inventoryApiService } from '@/services/inventory.service';
+import { notificationApiService } from '@/services/notification.service';
 import type { Order } from '@/types/order';
 import type { ChangeRequest } from '@/types/changeRequest';
-import type { TimelineItem } from '@/types/inventory';
+import type { Notification } from '@/types/notification';
 
 const CHANGE_REQUEST_TYPE_LABEL: Record<ChangeRequest['type'], string> = {
   add: 'Thêm thiết bị',
@@ -67,39 +67,37 @@ export default function Header() {
     };
   }, [isAdmin]);
 
-  const [overCommittedItems, setOverCommittedItems] = useState<TimelineItem[]>([]);
+  const [adminNotifications, setAdminNotifications] = useState<Notification[]>([]);
 
   useEffect(() => {
     if (!isAdmin) {
-      setOverCommittedItems([]);
+      setAdminNotifications([]);
       return;
     }
     let cancelled = false;
-    const withinDays = 7;
 
     const fetchData = () => {
-      const referenceDate = toDateInputValue(Date.now());
-      const dateTo = toDateInputValue(Date.now() + withinDays * 86_400_000);
-
-      inventoryApiService.getReservationsTimeline({ from: referenceDate, to: dateTo })
+      notificationApiService.getNotifications()
         .then(res => {
           if (cancelled) return;
-          const items = res.data?.items ?? [];
-          setOverCommittedItems(items.filter(item => item.overCommitted));
+          const items = res.data ?? [];
+          setAdminNotifications(items);
         })
         .catch(() => {
-          if (!cancelled) setOverCommittedItems([]);
+          if (!cancelled) setAdminNotifications([]);
         });
     };
 
     fetchData();
-    const intervalId = setInterval(fetchData, 5 * 60 * 1000);
+    const intervalId = setInterval(fetchData, 60 * 1000);
 
     return () => {
       cancelled = true;
       clearInterval(intervalId);
     };
   }, [isAdmin]);
+
+  const unreadAdminNotifications = adminNotifications.filter(n => !n.isRead).length;
 
   // Yêu cầu thay đổi chờ duyệt (ChangeRequest — UC 2.27) — backend đã có đủ route thật (docs/more-require.md
   // mục (an)): GET /change-requests, PUT /change-requests/:id/approve.
@@ -141,7 +139,7 @@ export default function Header() {
   };
 
   const totalNotifications = isAdmin
-    ? overCommittedItems.length
+    ? unreadAdminNotifications
     : approachingEvents.length + pendingChangeRequests.length;
 
   const orderDetailPath = (orderId: string) =>
@@ -204,47 +202,54 @@ export default function Header() {
                 {isAdmin ? (
                   <>
                     <div className="flex items-center justify-between px-3.5 py-2.5">
-                      <p className="text-sm font-semibold text-slate-900">Cảnh báo thiếu hụt kho</p>
-                      {overCommittedItems.length > 0 && (
+                      <p className="text-sm font-semibold text-slate-900">Thông báo kho</p>
+                      {unreadAdminNotifications > 0 && (
                         <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-600">
-                          {overCommittedItems.length}
+                          {unreadAdminNotifications}
                         </span>
                       )}
                     </div>
                     <div className="h-px bg-slate-100" />
                     <div className="max-h-80 overflow-y-auto">
-                      {overCommittedItems.length === 0 ? (
+                      {adminNotifications.length === 0 ? (
                         <p className="px-3.5 py-6 text-center text-xs text-slate-400">
-                          Không có thiết bị nào bị thiếu hụt trong 7 ngày tới.
+                          Không có thông báo nào.
                         </p>
                       ) : (
                         <>
-                          {overCommittedItems.slice(0, 10).map((item) => (
+                          {adminNotifications.slice(0, 10).map((notif) => (
                             <Link
-                              key={item.itemId}
-                              href="/admin/inventory/availability"
-                              onClick={() => setIsNotifOpen(false)}
-                              className="flex items-start gap-2.5 px-3.5 py-2.5 text-sm transition-colors duration-150 hover:bg-slate-50"
+                              key={notif.notificationId}
+                              href="/admin/inventory"
+                              onClick={() => {
+                                setIsNotifOpen(false);
+                                if (!notif.isRead) {
+                                  notificationApiService.readNotification(notif.notificationId).catch(() => {});
+                                  setAdminNotifications(prev => prev.map(n => n.notificationId === notif.notificationId ? { ...n, isRead: true } : n));
+                                }
+                              }}
+                              className={`flex items-start gap-2.5 px-3.5 py-2.5 text-sm transition-colors duration-150 hover:bg-slate-50 ${!notif.isRead ? 'bg-blue-50/50' : ''}`}
                             >
-                              <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-red-500" />
+                              <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${!notif.isRead ? 'bg-blue-500' : 'bg-slate-300'}`} />
                               <span className="min-w-0 flex-1">
-                                <span className="block truncate font-medium text-slate-800">
-                                  {item.itemName} ({item.itemCode})
+                                <span className={`block font-medium ${!notif.isRead ? 'text-slate-900' : 'text-slate-600'}`}>
+                                  {notif.title}
                                 </span>
-                                <span className="text-xs font-semibold text-red-600">
-                                  Thiếu {item.maxConcurrent - item.capacity} cái (Cần {item.maxConcurrent}, Tồn {item.capacity})
+                                {notif.content && (
+                                  <span className="mt-0.5 block text-xs text-slate-500 line-clamp-2">
+                                    {notif.content}
+                                  </span>
+                                )}
+                                <span className="mt-1 block text-[10px] text-slate-400">
+                                  {new Date(notif.createdAt).toLocaleString('vi-VN')}
                                 </span>
                               </span>
                             </Link>
                           ))}
-                          {overCommittedItems.length > 10 && (
-                            <Link
-                              href="/admin/inventory/availability"
-                              onClick={() => setIsNotifOpen(false)}
-                              className="block px-3.5 py-2.5 text-center text-xs font-semibold text-blue-600 hover:bg-blue-50 transition-colors"
-                            >
-                              Xem tất cả (còn {overCommittedItems.length - 10} mục...)
-                            </Link>
+                          {adminNotifications.length > 10 && (
+                            <div className="block px-3.5 py-2.5 text-center text-xs font-semibold text-slate-500">
+                              Xem tất cả (còn {adminNotifications.length - 10} thông báo...)
+                            </div>
                           )}
                         </>
                       )}
