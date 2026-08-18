@@ -140,10 +140,10 @@ export default function OrderTimelineChart({
 
       <div className="mt-4 flex items-start gap-2.5 rounded-xl bg-slate-50 p-3.5">
         <Clock className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
-        <p className="text-[11px] italic leading-relaxed text-slate-500">
+        {/* <p className="text-[11px] italic leading-relaxed text-slate-500">
           Mẹo: Nhấp vào thanh ngang màu sắc của đơn hàng (ví dụ <strong className="font-bold not-italic text-slate-700">{timelineRows[0]?.group.orderCode ?? 'ORD-001'}</strong>) trên bảng
           timeline để hiển thị Drawer chi tiết các công việc, nhân sự phân công và trang thiết bị thực tế (bao gồm ±6 tiếng đệm).
-        </p>
+        </p> */}
       </div>
     </Reveal>
   );

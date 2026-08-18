@@ -55,7 +55,7 @@ export default function StaffUtilization({ lanes, todayKey }: Props) {
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
         <div>
           <h3 className="text-sm font-extrabold tracking-tight text-slate-800">Tải nhân sự theo tuần</h3>
-          <p className="mt-0.5 text-xs text-slate-400">Số việc mỗi nhân sự/tuần — ô đậm = bận, cam = tải nặng (≥{HEAVY}), đỏ = có trùng lịch. Thấy ai rảnh để nhận thêm.</p>
+          {/* <p className="mt-0.5 text-xs text-slate-400">Số việc mỗi nhân sự/tuần — ô đậm = bận, cam = tải nặng (≥{HEAVY}), đỏ = có trùng lịch. Thấy ai rảnh để nhận thêm.</p> */}
         </div>
         <div className="flex items-center gap-1.5">
           <button type="button" onClick={() => setWindowStart((w) => addDaysKey(w, -WEEKS * 7))} className="rounded-lg border border-slate-200 p-1.5 text-slate-600 hover:bg-slate-50" title="Kỳ trước">

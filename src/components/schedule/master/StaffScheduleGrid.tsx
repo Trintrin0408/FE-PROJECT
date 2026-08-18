@@ -80,7 +80,7 @@ export default function StaffScheduleGrid({ selectedDay, lanes, todayKey, onPrev
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
         <div>
           <h3 className="text-sm font-extrabold tracking-tight text-slate-800">Lịch nhân sự — {formatDate(selectedDay)}</h3>
-          <p className="mt-0.5 text-xs text-slate-400">Mỗi hàng là 1 nhân sự; trống trên trục = rảnh. Đỏ = trùng giờ chắc chắn, cam = nghi ngờ. <span className="font-semibold">★</span> = trưởng nhóm (LEAD).</p>
+          {/* <p className="mt-0.5 text-xs text-slate-400">Mỗi hàng là 1 nhân sự; trống trên trục = rảnh. Đỏ = trùng giờ chắc chắn, cam = nghi ngờ. <span className="font-semibold">★</span> = trưởng nhóm (LEAD).</p> */}
         </div>
         <div className="flex items-center gap-1.5">
           <input

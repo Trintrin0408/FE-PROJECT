@@ -170,10 +170,10 @@ export default function Page() {
 
         <Pagination pagination={pagination} onPageChange={setPage} />
 
-        <p className="mt-3 text-[11px] italic text-slate-400">
+        {/* <p className="mt-3 text-[11px] italic text-slate-400">
           Ghi chú: phiếu hoàn kho do Leader Staff ghi nhận tại hiện trường qua ứng dụng di động. Admin chỉ xem, không
           có quyền tạo hay xác nhận (chỉ Manager mới xác nhận được).
-        </p>
+        </p> */}
       </Reveal>
     </div>
   );

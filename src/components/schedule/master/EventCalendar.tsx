@@ -63,7 +63,7 @@ export default function EventCalendar({
           <h3 className="text-sm font-extrabold tracking-tight text-slate-800">
             Lịch sự kiện &amp; mức bận — Tháng {month0 + 1}/{year}
           </h3>
-          <p className="mt-0.5 text-xs text-slate-400">Ô đậm dần = càng nhiều đơn diễn ra cùng ngày · chip = mã đơn (màu theo trạng thái). Nhấp 1 ngày để xem chi tiết.</p>
+          {/* <p className="mt-0.5 text-xs text-slate-400">Ô đậm dần = càng nhiều đơn diễn ra cùng ngày · chip = mã đơn (màu theo trạng thái). Nhấp 1 ngày để xem chi tiết.</p> */}
         </div>
         <div className="flex items-center gap-1.5">
           <button type="button" onClick={onPrevMonth} className="rounded-lg border border-slate-200 p-1.5 text-slate-600 hover:bg-slate-50" title="Tháng trước">
