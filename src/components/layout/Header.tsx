@@ -16,6 +16,28 @@ import type { Order } from '@/types/order';
 import type { ChangeRequest } from '@/types/changeRequest';
 import type { Notification } from '@/types/notification';
 
+const getNotificationLink = (notif: Notification, isAdmin: boolean) => {
+  const base = isAdmin ? '/admin' : '/manager';
+
+  if (notif.notificationType === 'ORDER') {
+    return `${base}/orders_audit/${notif.refId || ''}`;
+  }
+  if (notif.notificationType === 'TASK' || notif.notificationType === 'SCHEDULE') {
+    return `${base}/schedule`;
+  }
+  if (notif.title.includes('Báo cáo thu hồi')) {
+    return isAdmin ? `/admin/inventory/returns` : `/manager/dashboard`; // Manager doesn't have inventory view usually, fallback to dashboard
+  }
+  if (notif.title.includes('Nhật ký biến động kho')) {
+    return isAdmin ? `/admin/inventory/stock-status` : `/manager/dashboard`;
+  }
+  if (notif.title.includes('Số lượng khóa theo đơn')) {
+    return isAdmin ? `/admin/inventory/outbound` : `/manager/dashboard`;
+  }
+
+  return `${base}/dashboard`;
+};
+
 const CHANGE_REQUEST_TYPE_LABEL: Record<ChangeRequest['type'], string> = {
   add: 'Thêm thiết bị',
   remove: 'Bớt thiết bị',
@@ -220,7 +242,7 @@ export default function Header() {
                           {adminNotifications.slice(0, 10).map((notif) => (
                             <Link
                               key={notif.notificationId}
-                              href="/admin/inventory"
+                              href={getNotificationLink(notif, isAdmin)}
                               onClick={() => {
                                 setIsNotifOpen(false);
                                 if (!notif.isRead) {
