@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { AlertTriangle, Check, Loader2, PlusCircle, X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import type { SelectOptionGroup } from '@/components/ui/Select';
 import { AddressAutocompleteInput } from '@/components/ui/AddressAutocompleteInput';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatDate, formatTime } from '@/utils/formatDate';
@@ -435,7 +436,7 @@ export default function PlanFormDrawer({ isOpen, editingGroup, selectableOrders,
               <div className="rounded-xl border border-slate-100 bg-white p-3 text-xs">
                 <span className="block text-[10px] font-semibold uppercase text-slate-400">Đơn đặt (không đổi được khi sửa)</span>
                 <span className="mt-0.5 block font-bold text-slate-800">
-                  {editingGroup.orderCode} — {editingGroup.customerName}
+                  {editingGroup.orderCode} - {editingGroup.customerName}
                 </span>
               </div>
             ) : (
@@ -623,32 +624,31 @@ export default function PlanFormDrawer({ isOpen, editingGroup, selectableOrders,
                             const pickFree = pickable.filter((u) => !rowConflictMap.get(u.userId)?.length);
                             const pickBusy = pickable.filter((u) => (rowConflictMap.get(u.userId)?.length ?? 0) > 0);
                             const pickedConflicts = assigneePickUserId ? rowConflictMap.get(assigneePickUserId) : undefined;
+                            const pickOptions: SelectOptionGroup[] = [
+                              { label: 'Nhân sự rảnh', options: pickFree.map((u) => ({ value: u.userId, label: u.fullName })) },
+                            ];
+                            if (pickBusy.length > 0) {
+                              pickOptions.push({
+                                label: 'Nhân sự đang bận (trùng lịch)',
+                                options: pickBusy.map((u) => ({
+                                  value: u.userId,
+                                  label: `${u.fullName} - Bận ${formatTime(rowConflictMap.get(u.userId)![0].startTime)}`,
+                                })),
+                              });
+                            }
                             return (
                               <div className="space-y-1.5 rounded-lg bg-white p-2">
                                 <div className="flex items-center gap-2">
-                                  <select
-                                    value={assigneePickUserId}
-                                    onChange={(e) => setAssigneePickUserId(e.target.value)}
-                                    className="flex-1 rounded-lg border border-slate-200 p-1.5 text-xs"
-                                  >
-                                    <option value="">Chọn người...</option>
-                                    <optgroup label="Nhân sự rảnh">
-                                      {pickFree.map((u) => (
-                                        <option key={u.userId} value={u.userId}>
-                                          {u.fullName}
-                                        </option>
-                                      ))}
-                                    </optgroup>
-                                    {pickBusy.length > 0 && (
-                                      <optgroup label="Nhân sự đang bận (trùng lịch)">
-                                        {pickBusy.map((u) => (
-                                          <option key={u.userId} value={u.userId}>
-                                            {u.fullName} — Bận {formatTime(rowConflictMap.get(u.userId)![0].startTime)}
-                                          </option>
-                                        ))}
-                                      </optgroup>
-                                    )}
-                                  </select>
+                                  <div className="flex-1">
+                                    <SearchableSelect
+                                      size="sm"
+                                      placeholder="Chọn người..."
+                                      searchPlaceholder="Tìm theo tên nhân sự..."
+                                      value={assigneePickUserId}
+                                      onChange={setAssigneePickUserId}
+                                      options={pickOptions}
+                                    />
+                                  </div>
                                   <div className="flex shrink-0 overflow-hidden rounded-lg border border-slate-200 text-[10px] font-bold">
                                     <button
                                       type="button"
@@ -826,32 +826,31 @@ export default function PlanFormDrawer({ isOpen, editingGroup, selectableOrders,
                               const selectable = staff.filter((u) => u.userId === row.userId || !selectedInItem.has(u.userId));
                               const free = selectable.filter((u) => !itemConflictMap.get(u.userId)?.length);
                               const busy = selectable.filter((u) => (itemConflictMap.get(u.userId)?.length ?? 0) > 0);
+                              const itemPickOptions: SelectOptionGroup[] = [
+                                { label: 'Nhân sự rảnh', options: free.map((u) => ({ value: u.userId, label: u.fullName })) },
+                              ];
+                              if (busy.length > 0) {
+                                itemPickOptions.push({
+                                  label: 'Nhân sự đang bận (trùng lịch)',
+                                  options: busy.map((u) => ({
+                                    value: u.userId,
+                                    label: `${u.fullName} - Bận ${formatTime(itemConflictMap.get(u.userId)![0].startTime)}`,
+                                  })),
+                                });
+                              }
                               return (
                                 <div key={row.key} className="space-y-1">
                                   <div className="flex items-center gap-1.5">
-                                    <select
-                                      value={row.userId}
-                                      onChange={(e) => updateAssigneeUserId(item.localId, row.key, e.target.value)}
-                                      className="flex-1 rounded-lg border border-slate-200 bg-white p-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                    >
-                                      <option value="">Chọn nhân sự...</option>
-                                      <optgroup label="Nhân sự rảnh">
-                                        {free.map((u) => (
-                                          <option key={u.userId} value={u.userId}>
-                                            {u.fullName}
-                                          </option>
-                                        ))}
-                                      </optgroup>
-                                      {busy.length > 0 && (
-                                        <optgroup label="Nhân sự đang bận (trùng lịch)">
-                                          {busy.map((u) => (
-                                            <option key={u.userId} value={u.userId}>
-                                              {u.fullName} — Bận {formatTime(itemConflictMap.get(u.userId)![0].startTime)}
-                                            </option>
-                                          ))}
-                                        </optgroup>
-                                      )}
-                                    </select>
+                                    <div className="flex-1">
+                                      <SearchableSelect
+                                        size="sm"
+                                        placeholder="Chọn nhân sự..."
+                                        searchPlaceholder="Tìm theo tên nhân sự..."
+                                        value={row.userId}
+                                        onChange={(val) => updateAssigneeUserId(item.localId, row.key, val)}
+                                        options={itemPickOptions}
+                                      />
+                                    </div>
                                     <div className="flex shrink-0 overflow-hidden rounded-lg border border-slate-200 text-[10px] font-bold">
                                       <button
                                         type="button"

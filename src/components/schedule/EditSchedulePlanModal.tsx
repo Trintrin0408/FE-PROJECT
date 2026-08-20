@@ -5,7 +5,8 @@ import type { AxiosError } from 'axios';
 import { AlertTriangle, Loader2, Plus, Trash2 } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
-import { Select, SelectOptionGroup } from '@/components/ui/Select';
+import type { SelectOptionGroup } from '@/components/ui/Select';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Input } from '@/components/ui/Input';
 import { AddressAutocompleteInput } from '@/components/ui/AddressAutocompleteInput';
 import { userApiService } from '@/services/user.service';
@@ -144,7 +145,7 @@ export default function EditSchedulePlanModal({ isOpen, onClose, plan, eventDate
           const extra = (conflictMap.get(u.userId)?.length ?? 0) > 1 ? ` +${conflictMap.get(u.userId)!.length - 1} việc khác` : '';
           return {
             value: u.userId,
-            label: `${u.fullName} (${u.username}) — Bận ${timeRange} (${conflict.orderCode ?? conflict.planCode})${extra}`,
+            label: `${u.fullName} (${u.username}) - Bận ${timeRange} (${conflict.orderCode ?? conflict.planCode})${extra}`,
           };
         }),
       });
@@ -199,7 +200,7 @@ export default function EditSchedulePlanModal({ isOpen, onClose, plan, eventDate
             filledNewAssignees.map((a) => schedulePlanApiService.addAssignee(plan.planId, { userId: a.userId, role: a.role })),
           );
         } catch {
-          setError('Đã lưu thay đổi lịch trình nhưng gán thêm nhân sự thất bại một phần — vui lòng mở lại kế hoạch và kiểm tra.');
+          setError('Đã lưu thay đổi lịch trình nhưng gán thêm nhân sự thất bại một phần - vui lòng mở lại kế hoạch và kiểm tra.');
           onUpdated();
           setIsSubmitting(false);
           return;
@@ -332,10 +333,11 @@ export default function EditSchedulePlanModal({ isOpen, onClose, plan, eventDate
                   <div key={row.key} className="space-y-1">
                     <div className="flex items-center gap-2">
                       <div className="flex-1">
-                        <Select
+                        <SearchableSelect
                           placeholder="-- Chọn nhân sự --"
+                          searchPlaceholder="Tìm theo tên hoặc mã nhân sự..."
                           value={row.userId}
-                          onChange={(e) => updateAssigneeRow(row.key, e.target.value)}
+                          onChange={(val) => updateAssigneeRow(row.key, val)}
                           options={optionsForRow(row.userId)}
                         />
                       </div>
@@ -388,7 +390,7 @@ export default function EditSchedulePlanModal({ isOpen, onClose, plan, eventDate
             <div className="mt-2 rounded-lg border border-amber-300 bg-amber-50 p-3">
               <p className="flex items-start gap-1.5 text-xs font-semibold text-amber-800">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                {conflictedNames.length} nhân sự bị trùng/kẹt lịch trong khung giờ này: {conflictedNames.join(', ')} — không thể ở 2 nơi cùng lúc.
+                {conflictedNames.length} nhân sự bị trùng/kẹt lịch trong khung giờ này: {conflictedNames.join(', ')} - không thể ở 2 nơi cùng lúc.
               </p>
               <label className="mt-2 flex cursor-pointer items-center gap-2 text-xs font-medium text-amber-800">
                 <input

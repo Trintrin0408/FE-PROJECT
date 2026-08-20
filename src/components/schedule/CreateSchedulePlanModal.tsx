@@ -6,6 +6,7 @@ import { AlertTriangle, Loader2, Plus, Trash2 } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Select, SelectOptionGroup } from '@/components/ui/Select';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Input } from '@/components/ui/Input';
 import { AddressAutocompleteInput } from '@/components/ui/AddressAutocompleteInput';
 import { workTaskApiService } from '@/services/workTask.service';
@@ -157,7 +158,7 @@ export default function CreateSchedulePlanModal({ isOpen, onClose, orderId, defa
           const extra = (conflictMap.get(u.userId)?.length ?? 0) > 1 ? ` +${conflictMap.get(u.userId)!.length - 1} việc khác` : '';
           return {
             value: u.userId,
-            label: `${u.fullName} (${u.username}) — Bận ${timeRange} (${conflict.orderCode ?? conflict.planCode})${extra}`,
+            label: `${u.fullName} (${u.username}) - Bận ${timeRange} (${conflict.orderCode ?? conflict.planCode})${extra}`,
           };
         }),
       });
@@ -221,7 +222,7 @@ export default function CreateSchedulePlanModal({ isOpen, onClose, orderId, defa
           filledAssignees.map((a) => schedulePlanApiService.addAssignee(planId, { userId: a.userId, role: a.role })),
         );
       } catch {
-        setError('Đã tạo lịch trình nhưng gán nhân sự thất bại một phần — vui lòng mở lại kế hoạch vừa tạo và kiểm tra lại.');
+        setError('Đã tạo lịch trình nhưng gán nhân sự thất bại một phần - vui lòng mở lại kế hoạch vừa tạo và kiểm tra lại.');
         onCreated(createdTaskName);
         setIsSubmitting(false);
         return;
@@ -327,10 +328,11 @@ export default function CreateSchedulePlanModal({ isOpen, onClose, orderId, defa
                 <div key={row.key} className="space-y-1">
                   <div className="flex items-center gap-2">
                     <div className="flex-1">
-                      <Select
+                      <SearchableSelect
                         placeholder="-- Chọn nhân sự --"
+                        searchPlaceholder="Tìm theo tên hoặc mã nhân sự..."
                         value={row.userId}
-                        onChange={(e) => updateAssigneeRow(row.key, e.target.value)}
+                        onChange={(val) => updateAssigneeRow(row.key, val)}
                         options={optionsForRow(row.userId)}
                       />
                     </div>
