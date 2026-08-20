@@ -62,7 +62,7 @@ export default function DaySchedulePage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold text-slate-900">Điều vận theo ngày</h1>
-          <p className="mt-1 text-sm text-slate-500">Toàn cảnh 1 ngày: sự kiện, nhân sự (rảnh/bận), thiết bị đi/về — trên cùng một màn.</p>
+          {/* <p className="mt-1 text-sm text-slate-500">Toàn cảnh 1 ngày: sự kiện, nhân sự (rảnh/bận), thiết bị đi/về — trên cùng một màn.</p> */}
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => setDayKey(addDaysKey(dayKey, -1))} className="rounded-lg border border-slate-200 p-2 text-slate-600 hover:bg-slate-100"><ChevronLeft className="h-4 w-4" /></button>

@@ -154,7 +154,7 @@ export default function ManagerSurveyReportsPage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Khảo sát hiện trường</h1>
-          <p className="mt-1 text-sm text-slate-500">Xem lại báo cáo khảo sát hiện trường do Leader Staff ghi nhận, hoặc tự tạo báo cáo, và xác nhận trước khi lập kế hoạch & báo giá.</p>
+          {/* <p className="mt-1 text-sm text-slate-500">Xem lại báo cáo khảo sát hiện trường do Leader Staff ghi nhận, hoặc tự tạo báo cáo, và xác nhận trước khi lập kế hoạch & báo giá.</p> */}
         </div>
         <Button onClick={() => setIsCreateOpen(true)}>
           <Plus className="h-4 w-4" />

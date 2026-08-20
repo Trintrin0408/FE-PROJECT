@@ -142,10 +142,10 @@ const TABS: { id: DetailTab; label: string; icon: typeof Activity; doc?: string 
 ];
 
 const LIFECYCLE_STEPS: { id: OrderStatus; label: string; desc: string }[] = [
-  { id: 'NEW', label: `1. ${ORDER_STATUS_LABEL.NEW}`, desc: 'Lập đơn & hợp đồng' },
-  { id: 'CONFIRMED', label: `2. ${ORDER_STATUS_LABEL.CONFIRMED}`, desc: 'Xác nhận cọc' },
-  { id: 'IN_PROGRESS', label: `3. ${ORDER_STATUS_LABEL.IN_PROGRESS}`, desc: 'Lên kế hoạch và thực hiện' },
-  { id: 'COMPLETED', label: `4. ${ORDER_STATUS_LABEL.COMPLETED}`, desc: 'Quyết toán & nghiệm thu' },
+  { id: 'NEW', label: ` ${ORDER_STATUS_LABEL.NEW}`, desc: 'Lập đơn & hợp đồng' },
+  { id: 'CONFIRMED', label: ` ${ORDER_STATUS_LABEL.CONFIRMED}`, desc: 'Xác nhận cọc' },
+  { id: 'IN_PROGRESS', label: ` ${ORDER_STATUS_LABEL.IN_PROGRESS}`, desc: 'Lên kế hoạch và thực hiện' },
+  { id: 'COMPLETED', label: ` ${ORDER_STATUS_LABEL.COMPLETED}`, desc: 'Quyết toán & nghiệm thu' },
 ];
 const LIFECYCLE_ORDER: OrderStatus[] = ['NEW', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED'];
 
