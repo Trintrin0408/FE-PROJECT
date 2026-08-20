@@ -147,9 +147,9 @@ export default function ManagerWorkTaskPage() {
           <ClipboardList className="h-6 w-6 text-blue-600" />
           Công việc (Work Task)
         </h1>
-        <p className="mt-1 text-sm text-slate-500">
+        {/* <p className="mt-1 text-sm text-slate-500">
           Toàn bộ công việc kỹ thuật đã giao cho từng Staff, gộp từ mọi kế hoạch điều phối — theo dõi tiến độ và tái phân công khi cần.
-        </p>
+        </p> */}
       </div>
 
       <div className="mt-6">

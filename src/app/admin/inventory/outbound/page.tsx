@@ -213,7 +213,7 @@ export default function AdminWarehouseOutboundPage() {
                     <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">Ngày diễn ra sự kiện</p>
                     <p className="font-mono text-sm font-bold text-slate-700">
                       {formatDate(order.eventDate)}
-                      {order.endDate ? ` — ${formatDate(order.endDate)}` : ''}
+                      {order.endDate ? ` - ${formatDate(order.endDate)}` : ''}
                     </p>
                   </div>
                 </div>
@@ -314,7 +314,7 @@ export default function AdminWarehouseOutboundPage() {
       render: (row) => (
         <span className="font-mono text-slate-500">
           {formatDate(row.eventDate)}
-          {row.endDate ? ` — ${formatDate(row.endDate)}` : ''}
+          {row.endDate ? ` -${formatDate(row.endDate)}` : ''}
         </span>
       ),
     },

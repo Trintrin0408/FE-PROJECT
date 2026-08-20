@@ -329,7 +329,7 @@ export default function PlanFormDrawer({ isOpen, editingGroup, selectableOrders,
     } catch (err) {
       const message = (err as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message ?? 'Có lỗi xảy ra.';
       setSubmitError(
-        `Lưu thất bại ở hoạt động thứ ${done + 1}/${items.length}: ${message}. ${done > 0 ? `${done} hoạt động trước đó đã lưu thành công (không tự động hoàn tác — backend chưa có endpoint batch/transaction).` : ''}`,
+        `Lưu thất bại ở hoạt động thứ ${done + 1}/${items.length}: ${message}. ${done > 0 ? `${done} hoạt động trước đó đã lưu thành công (không tự động hoàn tác - backend chưa có endpoint batch/transaction).` : ''}`,
       );
       onSaved();
     } finally {

@@ -135,9 +135,9 @@ function ManagerChangeRequestsPageContent() {
           <FilePlus2 className="h-6 w-6 text-blue-600" />
           Yêu cầu thay đổi tại hiện trường (Change Request)
         </h1>
-        <p className="mt-1 text-sm text-slate-500">
+        {/* <p className="mt-1 text-sm text-slate-500">
           Thêm/bớt/đổi thiết bị do Leader Staff ghi nhận tại hiện trường — Manager duyệt hoặc từ chối, hệ thống tự tính lại số tiền thay đổi trên hóa đơn.
-        </p>
+        </p> */}
       </div>
 
       <div className="mt-6">

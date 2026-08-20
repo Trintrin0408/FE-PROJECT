@@ -194,7 +194,7 @@ export default function Page() {
         {target && (
           <div className="space-y-3">
             <p className="text-sm text-slate-600">
-              <span className="font-semibold">{target.itemName}</span> — đang hỏng {target.damagedQuantity}, tổng{' '}
+              <span className="font-semibold">{target.itemName}</span> - đang hỏng {target.damagedQuantity}, tổng{' '}
               {target.totalQuantity}.
               {action === 'repair'
                 ? ' Sửa xong sẽ giảm số hỏng, tổng giữ nguyên (hàng dùng lại được).'

@@ -232,9 +232,9 @@ export function InventoryDetailModal({ isOpen, onClose, itemId, selectedDate, on
               <p className="mt-0.5 text-slate-600">{item?.description || 'Không có mô tả.'}</p>
             </div>
           </div>
-          <p className="text-[10px] italic text-slate-400">
+          {/* <p className="text-[10px] italic text-slate-400">
             "Kích thước"/"Chất liệu" là dữ liệu fix cứng — `items` chưa có 2 cột này, xem docs/more-require.md mục (u).
-          </p>
+          </p> */}
 
           <div>
             <h3 className="text-sm font-semibold text-slate-900">Tồn kho hiện tại</h3>
@@ -256,7 +256,7 @@ export function InventoryDetailModal({ isOpen, onClose, itemId, selectedDate, on
                 <p className="mt-1 text-lg font-bold text-amber-700">{row?.quantityDamaged ?? '—'}</p>
               </div>
             </div>
-            <p className="mt-2 text-xs italic text-slate-400">Vị trí kho: {MOCK_LOCATION} (dữ liệu fix cứng — `inventory` chưa có cột `location`)</p>
+            {/* <p className="mt-2 text-xs italic text-slate-400">Vị trí kho: {MOCK_LOCATION} (dữ liệu fix cứng — `inventory` chưa có cột `location`)</p> */}
           </div>
 
           <div>
@@ -271,7 +271,7 @@ export function InventoryDetailModal({ isOpen, onClose, itemId, selectedDate, on
                   <li key={lo.orderId} className="rounded-lg border border-blue-100 bg-blue-50/50 px-3 py-2 text-sm">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <span className="font-semibold text-slate-800">
-                        Đơn {lo.orderCode} — {lo.customerName}
+                        Đơn {lo.orderCode} - {lo.customerName}
                       </span>
                       <Badge variant="info">Giữ {lo.quantityLocked} {row?.unit ?? ''}</Badge>
                     </div>
@@ -288,7 +288,7 @@ export function InventoryDetailModal({ isOpen, onClose, itemId, selectedDate, on
               </ul>
             )}
             <p className="mt-2 text-[10px] italic text-slate-400">
-              Số lượng ở đây lấy trực tiếp theo từng đơn (chưa trừ phần đã có Nhà cung cấp bù) — số &quot;Đã khóa (đơn hàng)&quot; ở trên (từ GET
+              Số lượng ở đây lấy trực tiếp theo từng đơn (chưa trừ phần đã có Nhà cung cấp bù) - số &quot;Đã khóa (đơn hàng)&quot; ở trên (từ GET
               /inventory) mới là số liệu chính xác cuối cùng.
             </p>
           </div>
@@ -314,9 +314,9 @@ export function InventoryDetailModal({ isOpen, onClose, itemId, selectedDate, on
               <Input label="Trong đó có hỏng" type="number" min={0} value={adjustDamaged} onChange={(e) => setAdjustDamaged(e.target.value)} />
               <Input label="Lý do / Ghi chú" value={adjustReason} onChange={(e) => setAdjustReason(e.target.value)} />
             </div>
-            <p className="mt-2 text-[10px] italic text-slate-400">
+            {/* <p className="mt-2 text-[10px] italic text-slate-400">
               Backend hiện yêu cầu "Chênh lệch tổng số" phải khác 0 để ghi nhận được điều chỉnh — chưa hỗ trợ ghi nhận riêng hàng hỏng mà không đổi tổng số lượng, xem docs/more-require.md mục (u).
-            </p>
+            </p> */}
             {saveError && <p className="mt-2 text-sm text-red-600">{saveError}</p>}
             <div className="mt-3 flex justify-end">
               <Button size="sm" onClick={handleAdjustSubmit} disabled={!canSubmit} isLoading={isSaving}>

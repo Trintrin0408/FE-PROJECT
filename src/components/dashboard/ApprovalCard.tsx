@@ -40,9 +40,9 @@ export default function ApprovalCard({ changeRequest, order, onApprove, onReject
           {TYPE_LABEL[changeRequest.type]}
         </span>
       </div>
-      <p className="mt-1 italic text-[10px] text-slate-400" title="Backend không còn API cho ChangeRequest — dữ liệu minh họa">
+      {/* <p className="mt-1 italic text-[10px] text-slate-400" title="Backend không còn API cho ChangeRequest — dữ liệu minh họa">
         (Dữ liệu minh họa — chưa có API)
-      </p>
+      </p> */}
       <p className="mt-2.5 text-sm text-slate-600">
         {addedCount > 0 && <>Thêm {addedCount} thiết bị. </>}
         {removedCount > 0 && <>Bớt {removedCount} thiết bị.</>}

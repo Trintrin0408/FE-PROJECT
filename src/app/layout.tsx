@@ -12,7 +12,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "BNWEMS — Quản lý sự kiện cưới",
+  title: "BNWEMS - Quản lý sự kiện cưới",
   description: "Hệ thống quản lý nội bộ Bình Nguyên Wedding Event Management System",
 };
 

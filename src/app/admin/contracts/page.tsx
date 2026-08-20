@@ -251,7 +251,7 @@ export default function AdminContractsPage() {
           <h1 className="text-2xl font-bold text-slate-900">Hợp đồng</h1>
           <p className="mt-1 text-sm text-slate-500">Danh sách đơn đặt hàng được tạo từ báo giá đã duyệt và dùng để vận hành sự kiện.</p>
         </div>
-        <Button disabled title="Cần nối lại luồng chọn báo giá + tạo đơn theo API thật — xem docs/more-require.md mục (q)/(r)">
+        <Button disabled title="Cần nối lại luồng chọn báo giá + tạo đơn theo API thật - xem docs/more-require.md mục (q)/(r)">
           Tạo đơn từ báo giá
         </Button>
       </div>

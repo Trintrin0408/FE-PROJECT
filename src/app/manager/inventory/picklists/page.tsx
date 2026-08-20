@@ -202,7 +202,7 @@ export default function ManagerPicklistsPage() {
       render: (o) => (
         <>
           {formatDate(o.eventDate)}
-          {o.endDate ? ` — ${formatDate(o.endDate)}` : ''}
+          {o.endDate ? ` - ${formatDate(o.endDate)}` : ''}
         </>
       ),
     },
@@ -258,9 +258,9 @@ export default function ManagerPicklistsPage() {
           <ClipboardList className="h-6 w-6 text-blue-600" />
           Xuất kho và bàn giao
         </h1>
-        <p className="mt-1 text-sm text-slate-500">
+        {/* <p className="mt-1 text-sm text-slate-500">
           Phiếu chuẩn bị xuất kho theo từng đơn đặt đã xác nhận — theo dõi tiến độ chuẩn bị thiết bị và xem bằng chứng bàn giao do Leader Staff gửi lên tại hiện trường.
-        </p>
+        </p> */}
       </div>
 
       {loadError && (

@@ -193,7 +193,7 @@ export default function AdminAvailabilityPage() {
       render: (row) => (
         <span className="font-mono text-slate-600">
           {formatDate(row.eventDate)}
-          {row.endDate ? ` — ${formatDate(row.endDate)}` : ''}
+          {row.endDate ? ` - ${formatDate(row.endDate)}` : ''}
         </span>
       ),
     },

@@ -435,9 +435,9 @@ export default function ManagerQuotationDetailPage() {
         {!isEditingItems && detailPage === 2 ? (
           <div className="mx-auto max-w-4xl overflow-x-auto rounded-xl border border-slate-200 bg-white p-5 shadow-xs">
             <p className="text-xs font-bold uppercase tracking-wider text-slate-900">Danh sách hạng mục cần chuẩn bị</p>
-            <p className="mt-1 text-xs italic text-slate-400">
+            {/* <p className="mt-1 text-xs italic text-slate-400">
               Chưa có API tồn kho/bóc tách vật tư theo hạng mục — Trang này chỉ hiện đúng danh sách hạng mục đã báo giá, không có cột tồn kho.
-            </p>
+            </p> */}
             <table className="mt-3 w-full text-left text-xs">
               <thead className="border-b border-slate-100 bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-600">
                 <tr>
@@ -534,8 +534,8 @@ export default function ManagerQuotationDetailPage() {
                     {generalPolicies.map((policy) => (
                       <p key={policy.policyId}>
                         • {policy.policyName}: <strong className="font-semibold text-slate-700">{policy.policyValue.toLocaleString('vi-VN')}{formatPolicyUnit(policy.unit)}</strong>
-                        {policy.description ? ` — ${policy.description}` : ''}
-                      </p>
+                        {policy.description ? ` - ${policy.description}` : ''}
+                      </p>  
                     ))}
                   </div>
                 )}
@@ -624,7 +624,7 @@ export default function ManagerQuotationDetailPage() {
                       type="button"
                       onClick={startEditingItems}
                       aria-label="Sửa hạng mục"
-                      title={detail.status === 'rejected' ? 'Báo giá đã bị từ chối — backend sẽ không cho lưu thay đổi' : 'Sửa hạng mục'}
+                      title={detail.status === 'rejected' ? 'Báo giá đã bị từ chối - backend sẽ không cho lưu thay đổi' : 'Sửa hạng mục'}
                       className="text-slate-400 hover:text-blue-600"
                     >
                       <Pencil className="h-4 w-4" />
@@ -703,7 +703,7 @@ export default function ManagerQuotationDetailPage() {
             />
           </div>
           <p className="mt-1 text-xs font-bold text-slate-500">
-            {detailPage === 1 ? 'Đang xem: Trang 1/2 — Bản đề xuất báo giá chính thức' : 'Đang xem: Trang 2/2 — Danh sách hạng mục cần chuẩn bị'}
+            {detailPage === 1 ? 'Đang xem: Trang 1/2 - Bản đề xuất báo giá chính thức' : 'Đang xem: Trang 2/2 - Danh sách hạng mục cần chuẩn bị'}
           </p>
         </div>
       )}

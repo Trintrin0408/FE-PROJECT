@@ -126,9 +126,9 @@ export default function ManagerHandoversPage() {
           <HardHat className="h-6 w-6 text-blue-600" />
           Nghiệm thu &amp; bàn giao
         </h1>
-        <p className="mt-1 text-sm text-slate-500">
+        {/* <p className="mt-1 text-sm text-slate-500">
           Hàng đợi biên bản bàn giao thiết bị / nghiệm thu hoàn thành do Leader Staff ghi nhận tại hiện trường — Manager xác nhận trước khi coi là chính thức.
-        </p>
+        </p> */}
       </div>
 
       <div className="mt-6">

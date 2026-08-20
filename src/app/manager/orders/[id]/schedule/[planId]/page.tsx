@@ -256,9 +256,9 @@ function ScheduleplanDetailContent() {
       >
         <div>
           <h4 className="text-sm font-bold text-slate-950">Chấm công</h4>
-          <p className="text-xs text-slate-400">
+          {/* <p className="text-xs text-slate-400">
             Check-in/check-out do nhân sự tự thực hiện qua app mobile — web chỉ hiển thị lại (đọc trực tiếp qua GET /schedule-plans/:planId).
-          </p>
+          </p> */}
         </div>
         <Table
           columns={attendanceColumns}

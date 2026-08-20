@@ -1258,7 +1258,7 @@ function ManagerOrderDetailContent() {
                   Ngày tổ chức chính thức: <strong className="text-slate-800">{formatDate(order.eventDate)}</strong>
                   {order.endDate && (
                     <>
-                      {' '}— Ngày kết thúc: <strong className="text-slate-800">{formatDate(order.endDate)}</strong>
+                      {' '} - Ngày kết thúc: <strong className="text-slate-800">{formatDate(order.endDate)}</strong>
                     </>
                   )}
                 </p>
@@ -1276,9 +1276,9 @@ function ManagerOrderDetailContent() {
                     </label>
                   ))}
                 </div>
-                <p className="mt-2 text-[10px] italic text-slate-400">
+                {/* <p className="mt-2 text-[10px] italic text-slate-400">
                   Checklist chưa có nơi lưu trạng thái cũ — luôn khởi động lại từ đầu khi mở lại trang.
-                </p>
+                </p> */}
                 {displayStatus === 'CONFIRMED' && (
                   <div className="mt-3">
                     <Button size="sm" onClick={handleActivateLiveShow} isLoading={isActivatingLiveShow}>
@@ -1448,7 +1448,7 @@ function ManagerOrderDetailContent() {
                           'Chọn đủ "Từ ngày" và "Đến ngày" để kiểm tra tồn kho.'
                         ) : isStockCheckRangeInvalid ? (
                           <span className="text-amber-600">
-                            "Từ ngày" đang sau "Đến ngày" — hệ thống chỉ kiểm tra đúng ngày <strong>{formatDate(stockCheckFrom)}</strong>.
+                            "Từ ngày" đang sau "Đến ngày" - hệ thống chỉ kiểm tra đúng ngày <strong>{formatDate(stockCheckFrom)}</strong>.
                           </span>
                         ) : stockCheckFrom === stockCheckTo ? (
                           <>
@@ -1461,7 +1461,7 @@ function ManagerOrderDetailContent() {
                           </>
                         )}
                         {isStockCheckRangeClamped && (
-                          <span className="ml-1 text-amber-600">(khoảng quá dài — chỉ kiểm tra {MAX_STOCK_CHECK_DAYS} ngày đầu từ ngày bắt đầu)</span>
+                          <span className="ml-1 text-amber-600">(khoảng quá dài - chỉ kiểm tra {MAX_STOCK_CHECK_DAYS} ngày đầu từ ngày bắt đầu)</span>
                         )}
                       </p>
                       <p className="mt-1 flex items-center gap-1 text-xs text-slate-500">

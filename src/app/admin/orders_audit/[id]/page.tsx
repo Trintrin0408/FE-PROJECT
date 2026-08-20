@@ -321,7 +321,7 @@ export default function AdminOrderDetailPage() {
               </Button>
             </>
           )}
-          <Button disabled title="Modal Chỉnh sửa đơn đặt chưa tương thích dữ liệu thật — xem docs/taodondatlichtiecmoi_api.md">
+          <Button disabled title="Modal Chỉnh sửa đơn đặt chưa tương thích dữ liệu thật - xem docs/taodondatlichtiecmoi_api.md">
             Chỉnh sửa đơn đặt
           </Button>
         </div>
@@ -524,9 +524,9 @@ export default function AdminOrderDetailPage() {
                       </Button>
                     )}
                   </div>
-                  <div className="rounded-lg border border-dashed border-slate-200 p-3 italic text-slate-400">
+                  {/* <div className="rounded-lg border border-dashed border-slate-200 p-3 italic text-slate-400">
                     Khảo sát hiện trường: chưa nối API thật — backend chưa seed danh mục công việc &quot;Khảo sát hiện trường&quot; (xem docs/more-require.md mục (f)).
-                  </div>
+                  </div> */}
                 </div>
               </div>
 
@@ -579,7 +579,7 @@ export default function AdminOrderDetailPage() {
                   Ngày tổ chức chính thức: <strong className="text-slate-800">{formatDate(order.eventDate)}</strong>
                   {order.endDate && (
                     <>
-                      {' '}— Ngày kết thúc: <strong className="text-slate-800">{formatDate(order.endDate)}</strong>
+                      {' '}-  Ngày kết thúc: <strong className="text-slate-800">{formatDate(order.endDate)}</strong>
                     </>
                   )}
                 </p>
@@ -597,9 +597,9 @@ export default function AdminOrderDetailPage() {
                     </label>
                   ))}
                 </div>
-                <p className="mt-2 text-[10px] italic text-slate-400">
+                {/* <p className="mt-2 text-[10px] italic text-slate-400">
                   Checklist chưa có nơi lưu trạng thái cũ — luôn khởi động lại từ đầu khi mở lại trang.
-                </p>
+                </p> */}
                 {order.orderStatus === 'CONFIRMED' && (
                   <div className="mt-3">
                     <Button size="sm" onClick={handleActivateLiveShow} isLoading={isActivatingLiveShow}>

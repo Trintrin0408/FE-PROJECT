@@ -119,7 +119,7 @@ export default function AdminPlanningPage() {
             {approachingUrgentCount > 0 && (
               <>
                 {' '}
-                — <strong>{approachingUrgentCount} khẩn cấp</strong> (còn ≤3 ngày)
+                - <strong>{approachingUrgentCount} khẩn cấp</strong> (còn ≤3 ngày)
               </>
             )}
             {approachingSoonCount > 0 && <>, {approachingSoonCount} sắp tới (4-7 ngày)</>}.
