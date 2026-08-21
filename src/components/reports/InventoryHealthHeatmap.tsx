@@ -62,12 +62,12 @@ export default function InventoryHealthHeatmap({ items }: { items: TimelineItem[
     <div>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="flex items-center gap-2 text-sm font-extrabold text-slate-800">
-          <Boxes className="h-4 w-4 text-blue-600" /> Bản đồ nhiệt tồn kho theo ngày (4 tuần tới)
+          <Boxes className="h-4 w-4 text-blue-600" /> Bản thống kê số lượng tồn kho theo ngày (4 tuần tới)
         </h3>
         <div className="flex items-center gap-3 text-[11px] text-slate-500">
-          <span className="inline-flex items-center gap-1"><span className="h-3 w-3 rounded bg-blue-100" /> Nhẹ</span>
-          <span className="inline-flex items-center gap-1"><span className="h-3 w-3 rounded bg-blue-600" /> Kín</span>
-          <span className="inline-flex items-center gap-1"><span className="h-3 w-3 rounded bg-rose-500" /> Vượt sức chứa</span>
+          <span className="inline-flex items-center gap-1"><span className="h-3 w-3 rounded bg-blue-100" /> Sử dụng ít</span>
+          <span className="inline-flex items-center gap-1"><span className="h-3 w-3 rounded bg-blue-600" /> Sử dụng nhiều</span>
+          <span className="inline-flex items-center gap-1"><span className="h-3 w-3 rounded bg-rose-500" /> Quá tải (Vượt sức chứa)</span>
         </div>
       </div>
 

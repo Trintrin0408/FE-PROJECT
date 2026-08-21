@@ -1,17 +1,14 @@
 'use client';
 
-import Link from 'next/link';
-import { ChevronRight } from 'lucide-react';
 import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts';
 import type { OrderStatusSlice } from '@/types/dashboard';
 
 interface OrderStatusDonutProps {
   data: OrderStatusSlice[];
   total: number;
-  viewDetailHref?: string;
 }
 
-export default function OrderStatusDonut({ data, total, viewDetailHref = '/admin/orders_audit' }: Readonly<OrderStatusDonutProps>) {
+export default function OrderStatusDonut({ data, total }: Readonly<OrderStatusDonutProps>) {
   return (
     <div className="flex h-full flex-col rounded-xl bg-white p-5 shadow-sm">
       <h3 className="text-sm font-semibold text-slate-900">Trạng thái đơn đặt</h3>
@@ -47,14 +44,6 @@ export default function OrderStatusDonut({ data, total, viewDetailHref = '/admin
           </li>
         ))}
       </ul>
-
-      <Link
-        href={viewDetailHref}
-        className="mt-3 flex items-center justify-end gap-1 text-xs font-medium text-blue-600 hover:text-blue-700"
-      >
-        Xem chi tiết
-        <ChevronRight className="h-3 w-3" />
-      </Link>
     </div>
   );
 }

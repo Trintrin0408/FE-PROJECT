@@ -287,10 +287,6 @@ export function InventoryDetailModal({ isOpen, onClose, itemId, selectedDate, on
                 ))}
               </ul>
             )}
-            <p className="mt-2 text-[10px] italic text-slate-400">
-              Số lượng ở đây lấy trực tiếp theo từng đơn (chưa trừ phần đã có Nhà cung cấp bù) - số &quot;Đã khóa (đơn hàng)&quot; ở trên (từ GET
-              /inventory) mới là số liệu chính xác cuối cùng.
-            </p>
           </div>
 
           <div className="rounded-lg border border-slate-200 p-4">
