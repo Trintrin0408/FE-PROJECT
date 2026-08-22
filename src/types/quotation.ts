@@ -79,6 +79,9 @@ export interface QuotationListItem {
   discount: number;
   totalAmount: number;
   status: QuotationListStatus;
+  // 2026-08-21: Backend thêm field này — false nghĩa là báo giá do Leader (role STAFF, app mobile) mới
+  // tạo mà Manager/Admin chưa bấm xem qua trên web; true nếu Manager/Admin tự tạo hoặc đã xem.
+  isManagerViewed: boolean;
   createdAt: string;
 }
 
@@ -100,6 +103,7 @@ export interface GetQuotationsQuery {
   search?: string;
   status?: QuotationListStatus;
   customerId?: string;
+  isManagerViewed?: boolean;
   page?: number;
   limit?: number;
 }
@@ -133,6 +137,8 @@ export interface QuotationDetailApi {
   totalAmount: number;
   status: QuotationListStatus;
   notes: string | null;
+  // 2026-08-21: xem giải thích ở QuotationListItem.isManagerViewed — cùng field, cùng ý nghĩa.
+  isManagerViewed: boolean;
   createdBy: { userId: string; fullName: string; role: string };
   createdAt: string;
   updatedAt: string;

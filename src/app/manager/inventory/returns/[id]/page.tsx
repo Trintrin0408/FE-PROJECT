@@ -195,7 +195,7 @@ export default function ManagerReturnSlipDetailPage() {
         <div className="sm:border-l sm:border-slate-100 sm:pl-6">
           <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Ngày hoàn kho thực tế</p>
           <p className="mt-1 text-lg font-bold text-slate-900">{report.confirmedAt ? formatDate(report.confirmedAt) : '—'}</p>
-          <p className="mt-1 text-sm text-slate-400">{report.confirmedAt ? `(Đã hoàn kho — xác nhận bởi ${report.confirmedBy?.fullName ?? '—'})` : '(Chưa hoàn kho)'}</p>
+          <p className="mt-1 text-sm text-slate-400">{report.confirmedAt ? `(Đã hoàn kho - xác nhận bởi ${report.confirmedBy?.fullName ?? '—'})` : '(Chưa hoàn kho)'}</p>
         </div>
       </Reveal>
 

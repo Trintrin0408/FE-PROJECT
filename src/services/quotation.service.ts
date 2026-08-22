@@ -38,6 +38,12 @@ export const quotationApiService = {
     return response.data;
   },
 
+  /** PUT /api/v1/quotations/{id}/view — đánh dấu Manager/Admin đã xem báo giá (không cần body) */
+  async markQuotationViewed(id: string) {
+    const response = await api.put(`/quotations/${id}/view`);
+    return response.data;
+  },
+
   /** DELETE /api/v1/quotations/{id} — chỉ xoá được khi chưa APPROVED */
   async deleteQuotation(id: string) {
     const response = await api.delete(`/quotations/${id}`);

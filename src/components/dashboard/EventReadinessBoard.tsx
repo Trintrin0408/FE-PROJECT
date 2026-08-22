@@ -65,7 +65,7 @@ export default function EventReadinessBoard({ rows, isLoading }: { rows: Readine
           <h3 className="flex items-center gap-2 text-sm font-extrabold text-slate-900">
             <ShieldCheck className="h-4 w-4 text-blue-600" /> Bảng sẵn sàng vận hành
           </h3>
-          <p className="mt-0.5 text-xs text-slate-500">Sự kiện sắp diễn ra và tình trạng từng khâu chuẩn bị — việc gấp nhất ở trên cùng.</p>
+          <p className="mt-0.5 text-xs text-slate-500">Sự kiện sắp diễn ra và tình trạng từng khâu chuẩn bị - việc gấp nhất ở trên cùng.</p>
         </div>
         <div className="flex items-center gap-3 text-[11px] text-slate-500">
           <span className="inline-flex items-center gap-1"><Check className="h-3.5 w-3.5 text-emerald-500" strokeWidth={3} /> Đã xong</span>

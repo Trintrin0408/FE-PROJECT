@@ -133,7 +133,7 @@ const MANAGER_NAV_SECTIONS: NavSection[] = [
         href: '/manager/orders',
         icon: ShoppingBag,
         children: [
-          { label: 'Danh sách đơn đặt', href: '/manager/orders', icon: ClipboardList, badge: 5, badgeColor: 'red' },
+          { label: 'Danh sách đơn đặt', href: '/manager/orders', icon: ClipboardList , badgeColor: 'red' },
           { label: 'Báo giá', href: '/manager/quotations', icon: FileText },
           { label: 'Đặt cọc', href: '/manager/payments/deposits', icon: CreditCard },
           { label: 'Thanh toán', href: '/manager/payments/settlements', icon: Wallet },

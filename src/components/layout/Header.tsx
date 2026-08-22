@@ -4,17 +4,19 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Bell, HelpCircle, UserCircle, KeyRound, LogOut } from 'lucide-react';
+import { Bell, Calendar, FileText, HelpCircle, UserCircle, KeyRound, LogOut } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { computeApproachingEvents, type ApproachingEvent } from '@/utils/approachingEvents';
-import { toDateInputValue } from '@/utils/formatDate';
+import { formatDate, toDateInputValue } from '@/utils/formatDate';
 import { orderApiService } from '@/services/order.service';
 import { schedulePlanApiService } from '@/services/schedulePlan.service';
 import { changeRequestApiService } from '@/services/changeRequest.service';
 import { notificationApiService } from '@/services/notification.service';
+import { quotationApiService } from '@/services/quotation.service';
 import type { Order } from '@/types/order';
 import type { ChangeRequest } from '@/types/changeRequest';
 import type { Notification } from '@/types/notification';
+import type { QuotationListItem } from '@/types/quotation';
 
 const getNotificationLink = (notif: Notification, isAdmin: boolean) => {
   const base = isAdmin ? '/admin' : '/manager';
@@ -38,6 +40,10 @@ const getNotificationLink = (notif: Notification, isAdmin: boolean) => {
   return `${base}/dashboard`;
 };
 
+// Dropdown "Thông báo" tự cuộn (max-h-80 overflow-y-auto) để xem hết, không cắt bớt kiểu "còn N khác"
+// không bấm được nữa — nới giới hạn fetch đủ rộng để hầu như luôn lấy trọn số báo giá chưa xem thật.
+const QUOTATION_FETCH_LIMIT = 50;
+
 const CHANGE_REQUEST_TYPE_LABEL: Record<ChangeRequest['type'], string> = {
   add: 'Thêm thiết bị',
   remove: 'Bớt thiết bị',
@@ -56,10 +62,18 @@ export default function Header() {
   const basePath = isAdmin ? '/admin' : '/manager';
 
   const [approachingEvents, setApproachingEvents] = useState<ApproachingEvent[]>([]);
+  // Báo giá do Leader (mobile) tạo mà Manager chưa xem — gộp chung feed "Thông báo" ở dropdown chuông
+  // cùng với mốc sắp diễn ra bên dưới. `unviewedQuotationsTotal` lấy từ meta.totalItems (đếm đúng dù
+  // danh sách hiển thị chỉ lấy tối đa `QUOTATION_FETCH_LIMIT` dòng — dropdown tự cuộn để xem hết, không
+  // cắt bớt hiển thị nữa).
+  const [unviewedQuotations, setUnviewedQuotations] = useState<QuotationListItem[]>([]);
+  const [unviewedQuotationsTotal, setUnviewedQuotationsTotal] = useState(0);
 
   useEffect(() => {
     if (isAdmin) {
       setApproachingEvents([]);
+      setUnviewedQuotations([]);
+      setUnviewedQuotationsTotal(0);
       return;
     }
     let cancelled = false;
@@ -73,10 +87,13 @@ export default function Header() {
         // Backend chặn cứng limit tối đa 100 (listOrdersQuerySchema `.max(100)`) — 200 luôn bị 400.
         orderApiService.getOrders({ limit: 100 }).catch(() => ({ data: [] })),
         schedulePlanApiService.getSchedulePlans({ dateFrom: referenceDate, dateTo }).catch(() => ({ data: [] })),
-      ]).then(([ordersRes, plansRes]) => {
+        quotationApiService.getQuotations({ isManagerViewed: false, limit: QUOTATION_FETCH_LIMIT }).catch(() => ({ data: [], meta: undefined })),
+      ]).then(([ordersRes, plansRes, quotationsRes]) => {
         if (cancelled) return;
         const orders: Order[] = ordersRes.data ?? [];
         setApproachingEvents(computeApproachingEvents(orders, plansRes.data ?? [], withinDays, referenceDate));
+        setUnviewedQuotations(quotationsRes.data ?? []);
+        setUnviewedQuotationsTotal(quotationsRes.meta?.totalItems ?? quotationsRes.data?.length ?? 0);
       });
     };
 
@@ -162,10 +179,33 @@ export default function Header() {
 
   const totalNotifications = isAdmin
     ? unreadAdminNotifications
-    : approachingEvents.length + pendingChangeRequests.length;
+    : approachingEvents.length + unviewedQuotationsTotal + pendingChangeRequests.length;
 
   const orderDetailPath = (orderId: string) =>
     `${user?.role.roleName === 'Admin' ? '/admin/orders_audit' : '/manager/orders'}/${orderId}`;
+
+  // Feed "Thông báo" gộp cho Manager: báo giá Leader gửi lên chưa xem + mốc sắp diễn ra, chung 1 danh
+  // sách, phân biệt bằng icon tròn màu + nhãn loại trên tiêu đề dòng (không tách khu vực riêng).
+  const notificationFeedItems = [
+    ...unviewedQuotations.map((q) => ({
+      key: `quotation-${q.quotationId}`,
+      href: `/manager/quotations/${q.quotationId}`,
+      icon: FileText,
+      iconWrapperClassName: 'bg-blue-100 text-blue-600',
+      title: `[Báo giá] ${q.code}`,
+      subtitle: `${q.customerName} · ${formatDate(q.createdAt)}`,
+      subtitleClassName: 'text-slate-500',
+    })),
+    ...approachingEvents.map((event) => ({
+      key: `${event.orderId}-${event.label}`,
+      href: orderDetailPath(event.orderId),
+      icon: Calendar,
+      iconWrapperClassName: event.daysLeft <= 3 ? 'bg-red-100 text-red-600' : 'bg-amber-100 text-amber-600',
+      title: `${event.customerName} - ${event.venue}`,
+      subtitle: `${event.label} · Còn ${event.daysLeft} ngày (${event.orderId})`,
+      subtitleClassName: event.daysLeft <= 3 ? 'text-red-600' : 'text-amber-600',
+    })),
+  ];
 
   useEffect(() => {
     if (!isMenuOpen) return;
@@ -202,11 +242,11 @@ export default function Header() {
             type="button"
             aria-label="Thông báo"
             onClick={() => setIsNotifOpen((open) => !open)}
-            className="relative flex h-10 w-10 items-center justify-center rounded-full text-slate-400 transition-colors duration-150 hover:bg-slate-50 hover:text-slate-600"
+            className="relative flex h-11 w-11 items-center justify-center rounded-full text-slate-400 transition-colors duration-150 hover:bg-slate-50 hover:text-slate-600"
           >
-            <Bell className="h-5 w-5" />
+            <Bell className="h-6 w-6" />
             {totalNotifications > 0 && (
-              <span className="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold leading-none text-white">
+              <span className="absolute right-1 top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[11px] font-bold leading-none text-white">
                 {totalNotifications > 9 ? '9+' : totalNotifications}
               </span>
             )}
@@ -219,22 +259,22 @@ export default function Header() {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: -4, scale: 0.97 }}
                 transition={{ duration: 0.15 }}
-                className="absolute right-0 top-full mt-2 w-80 overflow-hidden rounded-xl bg-white py-1.5 shadow-lg ring-1 ring-slate-100"
+                className="absolute right-0 top-full mt-2 w-96 overflow-hidden rounded-xl bg-white py-2 shadow-lg ring-1 ring-slate-100"
               >
                 {isAdmin ? (
                   <>
-                    <div className="flex items-center justify-between px-3.5 py-2.5">
-                      <p className="text-sm font-semibold text-slate-900">Thông báo kho</p>
+                    <div className="flex items-center justify-between px-4 py-3.5">
+                      <p className="text-lg font-bold text-slate-900">Thông báo kho</p>
                       {unreadAdminNotifications > 0 && (
-                        <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-600">
+                        <span className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-bold text-red-600">
                           {unreadAdminNotifications}
                         </span>
                       )}
                     </div>
                     <div className="h-px bg-slate-100" />
-                    <div className="max-h-80 overflow-y-auto">
+                    <div className="max-h-96 overflow-y-auto">
                       {adminNotifications.length === 0 ? (
-                        <p className="px-3.5 py-6 text-center text-xs text-slate-400">
+                        <p className="px-4 py-8 text-center text-sm text-slate-400">
                           Không có thông báo nào.
                         </p>
                       ) : (
@@ -250,11 +290,15 @@ export default function Header() {
                                   setAdminNotifications(prev => prev.map(n => n.notificationId === notif.notificationId ? { ...n, isRead: true } : n));
                                 }
                               }}
-                              className={`flex items-start gap-2.5 px-3.5 py-2.5 text-sm transition-colors duration-150 hover:bg-slate-50 ${!notif.isRead ? 'bg-blue-50/50' : ''}`}
+                              className={`flex items-start gap-3 px-4 py-3 text-sm transition-colors duration-150 hover:bg-slate-50 ${!notif.isRead ? 'bg-blue-50/50' : ''}`}
                             >
-                              <span className={`mt-1 h-2 w-2 shrink-0 rounded-full ${!notif.isRead ? 'bg-blue-500' : 'bg-slate-300'}`} />
+                              <span
+                                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${!notif.isRead ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-400'}`}
+                              >
+                                <Bell className="h-5 w-5" />
+                              </span>
                               <span className="min-w-0 flex-1">
-                                <span className={`block font-medium ${!notif.isRead ? 'text-slate-900' : 'text-slate-600'}`}>
+                                <span className={`block font-semibold ${!notif.isRead ? 'text-slate-900' : 'text-slate-600'}`}>
                                   {notif.title}
                                 </span>
                                 {notif.content && (
@@ -262,14 +306,14 @@ export default function Header() {
                                     {notif.content}
                                   </span>
                                 )}
-                                <span className="mt-1 block text-[10px] text-slate-400">
+                                <span className="mt-1 block text-xs text-slate-400">
                                   {new Date(notif.createdAt).toLocaleString('vi-VN')}
                                 </span>
                               </span>
                             </Link>
                           ))}
                           {adminNotifications.length > 10 && (
-                            <div className="block px-3.5 py-2.5 text-center text-xs font-semibold text-slate-500">
+                            <div className="block px-4 py-3 text-center text-xs font-semibold text-slate-500">
                               Xem tất cả (còn {adminNotifications.length - 10} thông báo...)
                             </div>
                           )}
@@ -279,50 +323,37 @@ export default function Header() {
                   </>
                 ) : (
                   <>
-                    <div className="flex items-center justify-between px-3.5 py-2.5">
-                      <p className="text-sm font-semibold text-slate-900">Mốc sắp diễn ra</p>
-                      {approachingEvents.length > 0 && (
-                        <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-600">
-                          {approachingEvents.length}
+                    <div className="flex items-center justify-between px-4 py-3.5">
+                      <p className="text-lg font-bold text-slate-900">Thông báo</p>
+                      {notificationFeedItems.length > 0 && (
+                        <span className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-bold text-red-600">
+                          {notificationFeedItems.length}
                         </span>
                       )}
                     </div>
                     <div className="h-px bg-slate-100" />
-                    <div className="max-h-80 overflow-y-auto">
-                      {approachingEvents.length === 0 ? (
-                        <p className="px-3.5 py-6 text-center text-xs text-slate-400">
-                          Không có mốc thời gian nào sắp diễn ra trong 7 ngày tới.
+                    <div className="max-h-96 overflow-y-auto">
+                      {notificationFeedItems.length === 0 ? (
+                        <p className="px-4 py-8 text-center text-sm text-slate-400">
+                          Không có thông báo mới.
                         </p>
                       ) : (
-                        <>
-                          {approachingEvents.slice(0, 10).map((event) => (
-                            <Link
-                              key={`${event.orderId}-${event.label}`}
-                              href={orderDetailPath(event.orderId)}
-                              onClick={() => setIsNotifOpen(false)}
-                              className="flex items-start gap-2.5 px-3.5 py-2.5 text-sm transition-colors duration-150 hover:bg-slate-50"
-                            >
-                              <span
-                                className={`mt-1 h-2 w-2 shrink-0 rounded-full ${event.daysLeft <= 3 ? 'bg-red-500' : 'bg-amber-500'}`}
-                              />
-                              <span className="min-w-0 flex-1">
-                                <span className="block truncate font-medium text-slate-800">
-                                  {event.customerName} — {event.venue}
-                                </span>
-                                <span
-                                  className={`text-xs font-semibold ${event.daysLeft <= 3 ? 'text-red-600' : 'text-amber-600'}`}
-                                >
-                                  {event.label} · Còn {event.daysLeft} ngày ({event.orderId})
-                                </span>
-                              </span>
-                            </Link>
-                          ))}
-                          {approachingEvents.length > 10 && (
-                            <div className="px-3.5 py-2.5 text-center text-xs font-semibold text-slate-500">
-                              Còn {approachingEvents.length - 10} mốc khác...
-                            </div>
-                          )}
-                        </>
+                        notificationFeedItems.map((item) => (
+                          <Link
+                            key={item.key}
+                            href={item.href}
+                            onClick={() => setIsNotifOpen(false)}
+                            className="flex items-start gap-3 px-4 py-3 text-sm transition-colors duration-150 hover:bg-slate-50"
+                          >
+                            <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${item.iconWrapperClassName}`}>
+                              <item.icon className="h-5 w-5" />
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block font-semibold text-slate-900">{item.title}</span>
+                              <span className={`text-xs font-semibold ${item.subtitleClassName}`}>{item.subtitle}</span>
+                            </span>
+                          </Link>
+                        ))
                       )}
                     </div>
 

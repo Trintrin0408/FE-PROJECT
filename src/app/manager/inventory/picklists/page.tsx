@@ -334,7 +334,7 @@ export default function ManagerPicklistsPage() {
       >
         {viewingEvidenceOrder && (() => {
           if (!handoverRow) {
-            return <p className="text-sm text-slate-400">Đơn chưa có kế hoạch/công việc lắp đặt — bàn giao nào được lập.</p>;
+            return <p className="text-sm text-slate-400">Đơn chưa có kế hoạch/công việc lắp đặt - bàn giao nào được lập.</p>;
           }
           const r = handoverRow;
           const lead = r.assignees?.find((a) => a.role === 'LEAD');

@@ -117,7 +117,7 @@ export function BookingFormModal({ isOpen, onClose, coordinatorOptions, editingO
           label="Khách hàng liên kết *"
           value={values.customerId}
           onChange={(e) => handleSelectCustomer(e.target.value)}
-          options={customers.map((c) => ({ value: c.customerId, label: `${c.customerName} — ${c.phone}` }))}
+          options={customers.map((c) => ({ value: c.customerId, label: `${c.customerName} - ${c.phone}` }))}
         />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Input label="Tên liên hệ *" value={values.customerName} onChange={(e) => setValues((v) => ({ ...v, customerName: e.target.value }))} />

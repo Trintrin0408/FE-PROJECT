@@ -11,6 +11,7 @@ interface TableProps<T> {
   columns: TableColumn<T>[];
   rows: T[];
   rowKey: (row: T) => string | number;
+  rowClassName?: (row: T) => string;
   isLoading?: boolean;
   emptyText?: string;
 }
@@ -22,7 +23,7 @@ function renderCellValue<T>(row: T, col: TableColumn<T>): React.ReactNode {
 }
 
 function renderBody<T>(props: Readonly<TableProps<T>>) {
-  const { columns, rows, rowKey, isLoading, emptyText } = props;
+  const { columns, rows, rowKey, rowClassName, isLoading, emptyText } = props;
 
   if (isLoading) {
     return (
@@ -45,7 +46,7 @@ function renderBody<T>(props: Readonly<TableProps<T>>) {
   }
 
   return rows.map((row) => (
-    <tr key={rowKey(row)} className="transition-colors hover:bg-slate-50/70">
+    <tr key={rowKey(row)} className={`transition-colors hover:bg-slate-50/70 ${rowClassName?.(row) ?? ''}`}>
       {columns.map((col) => (
         <td key={col.key} className={`px-5 py-4 text-sm text-slate-700 ${col.className ?? ''}`}>
           {renderCellValue(row, col)}

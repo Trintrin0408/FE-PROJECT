@@ -182,7 +182,7 @@ export default function CreateQuotationModal({
     <Modal
       isOpen={isOpen}
       onClose={resetAndClose}
-      title={isEditMode ? `Sửa báo giá nháp — phiên bản ${editingQuotation?.version}` : 'Tạo báo giá mới'}
+      title={isEditMode ? `Sửa báo giá nháp - phiên bản ${editingQuotation?.version}` : 'Tạo báo giá mới'}
       subtitle={isEditMode ? undefined : 'Thêm hạng mục báo giá cho khách hàng này'}
       size="2xl"
     >

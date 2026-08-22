@@ -468,7 +468,7 @@ function SupplierReturnDetailModal({
               </div>
             </div>
             <p className="mt-1.5 text-[11px] italic text-slate-400">
-              Đền bù NCC tạm tính = (hỏng + mất) × đơn giá thuê của giao dịch — chỉ để tham khảo đối soát, hệ thống không
+              Đền bù NCC tạm tính = (hỏng + mất) × đơn giá thuê của giao dịch - chỉ để tham khảo đối soát, hệ thống không
               lưu con số này.
             </p>
           </div>

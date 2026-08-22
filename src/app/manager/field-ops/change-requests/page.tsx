@@ -236,7 +236,7 @@ function ChangeRequestDetail({ request }: Readonly<{ request: FieldChangeRequest
           </p>
           <p className="text-slate-500">
             Khoảng cách kho → địa điểm: <strong className="text-slate-800">{request.distanceKm} km</strong>
-            {(request.distanceKm ?? 0) > 2 && <span className="text-amber-600"> — phát sinh phụ phí vận chuyển {formatCurrency(FIELD_TRANSPORT_FEE)}</span>}
+            {(request.distanceKm ?? 0) > 2 && <span className="text-amber-600"> - phát sinh phụ phí vận chuyển {formatCurrency(FIELD_TRANSPORT_FEE)}</span>}
           </p>
         </div>
       )}

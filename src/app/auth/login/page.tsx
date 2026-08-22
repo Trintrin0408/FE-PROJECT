@@ -164,7 +164,7 @@ export default function LoginPage() {
               trở lại.
             </h2>
             <p className="mt-5 text-base leading-relaxed text-blue-100/90">
-              Quản lý toàn bộ vòng đời đơn hàng tiệc cưới — từ khảo sát, báo giá đến quyết toán — trên một nền tảng
+              Quản lý toàn bộ vòng đời đơn hàng tiệc cưới - từ khảo sát, báo giá đến quyết toán - trên một nền tảng
               duy nhất.
             </p>
           </div>

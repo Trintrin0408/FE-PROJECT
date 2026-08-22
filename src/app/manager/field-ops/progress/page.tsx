@@ -294,7 +294,7 @@ function LegacyPlanQuickView({ plan, onClose, onEdit }: Readonly<{ plan: Schedul
             <div className="flex flex-wrap gap-2">
               {plan.staffList.map((s) => (
                 <span key={s.name} className="rounded-lg border border-slate-150 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-700">
-                  {s.name} <span className="font-normal text-slate-400">— {s.role}</span>
+                  {s.name} <span className="font-normal text-slate-400">- {s.role}</span>
                 </span>
               ))}
             </div>

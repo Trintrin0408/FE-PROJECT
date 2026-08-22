@@ -350,7 +350,7 @@ function QuotationFormContent() {
                   {items.length === 0 ? (
                     <tr>
                       <td colSpan={8} className="px-4 py-6 text-center text-slate-400">
-                        Chưa có hạng mục nào — chọn nhanh từ kho hoặc thêm dòng nhập tay.
+                        Chưa có hạng mục nào - chọn nhanh từ kho hoặc thêm dòng nhập tay.
                       </td>
                     </tr>
                   ) : (

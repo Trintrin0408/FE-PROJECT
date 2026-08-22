@@ -74,7 +74,7 @@ export default function EditTaskModal({ isOpen, plan, onClose, onUpdated }: Read
     >
       <div className="space-y-4">
         <p className="rounded-lg bg-slate-50 p-3 text-xs text-slate-500">
-          Chỉ chỉnh sửa được thời gian/địa điểm — không đổi được loại công việc hay nhân sự phụ trách sau khi tạo.
+          Chỉ chỉnh sửa được thời gian/địa điểm - không đổi được loại công việc hay nhân sự phụ trách sau khi tạo.
         </p>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Input type="datetime-local" label="Bắt đầu" value={startTime} onChange={(e) => setStartTime(e.target.value)} />

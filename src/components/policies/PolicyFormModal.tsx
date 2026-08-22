@@ -166,7 +166,7 @@ export function PolicyFormModal({ isOpen, onClose, mode, policy, isSubmitting, e
             onChange={(e) => setValues((v) => ({ ...v, policyName: e.target.value }))}
           />
           {mode === 'edit' && (
-            <p className="-mt-2 text-xs italic text-slate-400">Mã, loại và tên chính sách không thể sửa sau khi tạo — chỉ có thể đổi giá trị, đơn vị, mô tả và trạng thái.</p>
+            <p className="-mt-2 text-xs italic text-slate-400">Mã, loại và tên chính sách không thể sửa sau khi tạo - chỉ có thể đổi giá trị, đơn vị, mô tả và trạng thái.</p>
           )}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Input

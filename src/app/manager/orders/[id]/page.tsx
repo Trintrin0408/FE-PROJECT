@@ -1457,7 +1457,7 @@ function ManagerOrderDetailContent() {
                         ) : (
                           <>
                             Đang kiểm tra tồn kho từ ngày <strong className="text-slate-700">{formatDate(stockCheckFrom)}</strong> đến ngày{' '}
-                            <strong className="text-slate-700">{formatDate(stockCheckTo)}</strong> — lấy ngày có số lượng ít hơn cho từng vật tư.
+                            <strong className="text-slate-700">{formatDate(stockCheckTo)}</strong> - lấy ngày có số lượng ít hơn cho từng vật tư.
                           </>
                         )}
                         {isStockCheckRangeClamped && (
@@ -1572,7 +1572,7 @@ function ManagerOrderDetailContent() {
                                         })
                                       }
                                       className="flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-600 ring-1 ring-inset ring-red-200 hover:bg-red-100"
-                                      title="Số lượng cần vượt tồn kho khả dụng — tạo giao dịch thuê từ Nhà cung cấp cho phần thiếu"
+                                      title="Số lượng cần vượt tồn kho khả dụng - tạo giao dịch thuê từ Nhà cung cấp cho phần thiếu"
                                     >
                                       Thiếu {shortfall} · Thuê từ NCC
                                     </button>
@@ -1587,7 +1587,7 @@ function ManagerOrderDetailContent() {
                   <p className="mt-2 text-[10px] text-slate-400">
                     {isStockCheckRangeInvalid || stockCheckFrom === stockCheckTo
                       ? `Số liệu "Tồn kho khả dụng" lấy theo đúng ngày đã chọn ở trên.`
-                      : `Số liệu "Tồn kho khả dụng" là số nhỏ nhất trong khoảng ngày đã chọn ở trên cho từng vật tư — dòng nhỏ dưới số liệu cho biết đó là ngày nào.`}
+                      : `Số liệu "Tồn kho khả dụng" là số nhỏ nhất trong khoảng ngày đã chọn ở trên cho từng vật tư - dòng nhỏ dưới số liệu cho biết đó là ngày nào.`}
                     {' '}Các hạng mục dạng &quot;gói&quot; đã được nổ thành từng vật tư/thiết bị vật lý con (xem docs/thietbikhohang_api.md mục 8).
                   </p>
 

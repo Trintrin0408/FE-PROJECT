@@ -309,7 +309,7 @@ export default function AdminAvailabilityPage() {
       <Modal
         isOpen={resvItem !== null}
         onClose={() => setResvItem(null)}
-        title={`Lịch bận thiết bị${resvItem ? ` — ${resvItem.itemName}` : ''}`}
+        title={`Lịch bận thiết bị${resvItem ? ` - ${resvItem.itemName}` : ''}`}
       >
         {resvLoading ? (
           <p className="py-6 text-center text-sm text-slate-400">Đang tải lịch bận…</p>

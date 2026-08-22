@@ -330,7 +330,7 @@ export default function ManagerPlanningPage() {
             {approachingUrgentCount > 0 && (
               <>
                 {' '}
-                — <strong>{approachingUrgentCount} khẩn cấp</strong> (còn ≤3 ngày)
+                - <strong>{approachingUrgentCount} khẩn cấp</strong> (còn ≤3 ngày)
               </>
             )}
             {approachingSoonCount > 0 && <>, {approachingSoonCount} sắp tới (4-7 ngày)</>}.
@@ -433,7 +433,7 @@ export default function ManagerPlanningPage() {
                               setFocusPlanId(r.planId);
                               setSelectedGroupDetail(g);
                             }}
-                            title={`${r.taskName ?? r.planCode} — Đơn ${g.orderCode} @ ${r.location || g.location}`}
+                            title={`${r.taskName ?? r.planCode} - Đơn ${g.orderCode} @ ${r.location || g.location}`}
                             className={`truncate rounded-md px-1 py-0.5 text-[9px] font-bold leading-tight ${SCHEDULE_STATUS_BADGE[r.status]}`}
                           >
                             {r.planCode}
@@ -515,7 +515,7 @@ export default function ManagerPlanningPage() {
                           {r.taskName ?? g.eventName}
                         </h4>
                         <p className="text-[10px] text-slate-400">
-                          Thuộc đơn <span className="font-mono font-semibold text-slate-500">{g.orderCode}</span> — {g.eventName}
+                          Thuộc đơn <span className="font-mono font-semibold text-slate-500">{g.orderCode}</span> - {g.eventName}
                         </p>
                         <div className="space-y-1.5 text-[10px] text-slate-500">
                           <p className="flex items-center gap-1.5" title={r.location || g.location}>

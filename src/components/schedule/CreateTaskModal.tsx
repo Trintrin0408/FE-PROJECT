@@ -61,7 +61,7 @@ export default function CreateTaskModal({ isOpen, onClose, onCreated }: Readonly
   const customerById = new Map(customers.map((c) => [c.customerId, c]));
   const orderOptions = orders.map((o) => ({
     value: o.orderId,
-    label: `${o.orderCode} — ${customerById.get(o.customerId)?.customerName ?? `KH #${o.customerId}`}`,
+    label: `${o.orderCode} - ${customerById.get(o.customerId)?.customerName ?? `KH #${o.customerId}`}`,
   }));
 
   const handleSubmit = async () => {

@@ -112,7 +112,7 @@ export default function Page() {
       refresh();
     } catch (error) {
       const err = error as { response?: { data?: { message?: string } } };
-      toast.error(err?.response?.data?.message || 'Không thể xóa đơn — chỉ xóa được đơn ở trạng thái Chờ duyệt');
+      toast.error(err?.response?.data?.message || 'Không thể xóa đơn - chỉ xóa được đơn ở trạng thái Chờ duyệt');
     } finally {
       setDeletingId(null);
     }

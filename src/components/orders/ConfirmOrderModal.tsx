@@ -401,7 +401,7 @@ export default function ConfirmOrderModal({ isOpen, orderCode, eventDate, endDat
           </div>
 
           {blocks.length === 0 && !loading && (
-            <p className="mt-2 text-center text-xs text-slate-400">Chưa xếp phần việc nào — kéo thẻ ở trên xuống timeline, hoặc bấm để thêm nhanh.</p>
+            <p className="mt-2 text-center text-xs text-slate-400">Chưa xếp phần việc nào - kéo thẻ ở trên xuống timeline, hoặc bấm để thêm nhanh.</p>
           )}
         </div>
 

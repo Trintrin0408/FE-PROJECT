@@ -88,7 +88,7 @@ export default function CreateOrderFromQuotationPage() {
   if (quotation.status !== 'approved') {
     return (
       <div className="p-6">
-        <p className="text-sm text-amber-600">Báo giá {quotation.code} chưa được duyệt — chỉ có thể sinh đơn đặt từ báo giá đã duyệt.</p>
+        <p className="text-sm text-amber-600">Báo giá {quotation.code} chưa được duyệt - chỉ có thể sinh đơn đặt từ báo giá đã duyệt.</p>
         <Link href={`/admin/quotations/${quotation.quotationId}`} className="mt-2 inline-block text-sm font-medium text-blue-600 hover:underline">
           Quay lại chi tiết báo giá
         </Link>
@@ -174,7 +174,7 @@ export default function CreateOrderFromQuotationPage() {
           <div className="space-y-5 p-6">
             <div className="space-y-1">
               <h4 className="text-sm font-bold text-slate-950">Bước 1: Khách hàng chịu trách nhiệm đơn</h4>
-              <p className="text-xs text-slate-500">Lấy sẵn từ báo giá {quotation.code} — mọi tài chính, thanh toán cọc sẽ gán vào khách hàng này.</p>
+              <p className="text-xs text-slate-500">Lấy sẵn từ báo giá {quotation.code} - mọi tài chính, thanh toán cọc sẽ gán vào khách hàng này.</p>
             </div>
             <div className="space-y-1.5 rounded-lg border border-slate-100 bg-slate-50 p-4 text-xs">
               <p className="font-bold text-blue-900">Chi tiết khách hàng:</p>
@@ -291,7 +291,7 @@ export default function CreateOrderFromQuotationPage() {
           <div className="space-y-5 p-6">
             <div className="space-y-1">
               <h4 className="text-sm font-bold text-slate-950">Bước 4: Danh sách trang thiết bị sự kiện điều phối</h4>
-              <p className="text-xs text-slate-500">Lấy sẵn từ hạng mục báo giá {quotation.code} — chỉnh sửa nguồn kho, đơn giá chốt nếu cần.</p>
+              <p className="text-xs text-slate-500">Lấy sẵn từ hạng mục báo giá {quotation.code} - chỉnh sửa nguồn kho, đơn giá chốt nếu cần.</p>
             </div>
 
             <div className="overflow-hidden rounded-lg border border-slate-200 text-xs">

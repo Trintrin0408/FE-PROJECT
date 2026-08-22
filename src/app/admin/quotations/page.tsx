@@ -43,19 +43,26 @@ export default function AdminQuotationsPage() {
   const [searchInput, setSearchInput] = useState('');
   const search = useDebounce(searchInput, 300);
   const [statusFilter, setStatusFilter] = useState<QuotationListStatus | ''>('');
+  const [onlyUnviewed, setOnlyUnviewed] = useState(false);
   const [page, setPage] = useState(1);
   const limit = 10;
 
   useEffect(() => {
     setPage(1);
-  }, [search, statusFilter]);
+  }, [search, statusFilter, onlyUnviewed]);
 
   useEffect(() => {
     let cancelled = false;
     setIsLoading(true);
     setLoadError(null);
     quotationApiService
-      .getQuotations({ page, limit, search: search.trim() || undefined, status: statusFilter || undefined })
+      .getQuotations({
+        page,
+        limit,
+        search: search.trim() || undefined,
+        status: statusFilter || undefined,
+        isManagerViewed: onlyUnviewed ? false : undefined,
+      })
       .then((res) => {
         if (cancelled) return;
         setRows(res.data ?? []);
@@ -72,11 +79,17 @@ export default function AdminQuotationsPage() {
     return () => {
       cancelled = true;
     };
-  }, [page, search, statusFilter]);
+  }, [page, search, statusFilter, onlyUnviewed]);
 
   const refetch = () => {
     quotationApiService
-      .getQuotations({ page: 1, limit, search: search.trim() || undefined, status: statusFilter || undefined })
+      .getQuotations({
+        page: 1,
+        limit,
+        search: search.trim() || undefined,
+        status: statusFilter || undefined,
+        isManagerViewed: onlyUnviewed ? false : undefined,
+      })
       .then((res) => {
         setPage(1);
         setRows(res.data ?? []);
@@ -103,6 +116,7 @@ export default function AdminQuotationsPage() {
   const handleResetFilters = () => {
     setSearchInput('');
     setStatusFilter('');
+    setOnlyUnviewed(false);
   };
 
   const columns: TableColumn<QuotationListItem>[] = [
@@ -230,6 +244,15 @@ export default function AdminQuotationsPage() {
               ]}
             />
           </div>
+          <label className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600">
+            <input
+              type="checkbox"
+              checked={onlyUnviewed}
+              onChange={(e) => setOnlyUnviewed(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+            />
+            <span>Chỉ hiện báo giá chưa xem</span>
+          </label>
           <Button variant="secondary" className="ml-auto" onClick={handleResetFilters}>
             <RotateCcw className="h-4 w-4" />
             Làm mới bộ lọc
@@ -242,7 +265,12 @@ export default function AdminQuotationsPage() {
           ) : loadError ? (
             <p className="py-10 text-center text-sm text-red-500">{loadError}</p>
           ) : (
-            <Table columns={columns} rows={rows} rowKey={(row) => row.quotationId} />
+            <Table
+              columns={columns}
+              rows={rows}
+              rowKey={(row) => row.quotationId}
+              rowClassName={(row) => (!row.isManagerViewed ? 'bg-blue-50 hover:bg-blue-100/70' : '')}
+            />
           )}
         </div>
 

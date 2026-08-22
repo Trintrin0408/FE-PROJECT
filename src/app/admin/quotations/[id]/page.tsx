@@ -106,7 +106,14 @@ export default function AdminQuotationDetailPage() {
     setLoadError(null);
     quotationApiService
       .getQuotation(id)
-      .then((res) => setDetail(res.data ?? null))
+      .then((res) => {
+        setDetail(res.data ?? null);
+        // Leader (mobile) mới tạo mà Manager/Admin chưa xem — bắn ngầm API đánh dấu đã xem, không chặn
+        // UI, không cần chờ kết quả (badge "Chưa xem" ở danh sách sẽ tự hết khi quay lại).
+        if (res.data && !res.data.isManagerViewed) {
+          quotationApiService.markQuotationViewed(res.data.quotationId).catch(() => {});
+        }
+      })
       .catch(() => setLoadError('Không tải được báo giá. Vui lòng thử lại.'))
       .finally(() => setIsLoading(false));
   };
