@@ -31,10 +31,12 @@ export function EvidenceBlock({
   const [evidences, setEvidences] = useState<Evidence[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
-  const evidenceIdsKey = evidenceIds.join('|');
+  
+  const safeEvidenceIds = Array.isArray(evidenceIds) ? evidenceIds.filter(Boolean) : [];
+  const evidenceIdsKey = safeEvidenceIds.join('|');
 
   useEffect(() => {
-    if (evidenceIds.length === 0) {
+    if (safeEvidenceIds.length === 0) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- reset khi đổi/gỡ evidenceIds, không phải vòng lặp render
       setEvidences([]);
       return;
@@ -42,7 +44,7 @@ export function EvidenceBlock({
     let cancelled = false;
     setIsLoading(true);
     Promise.all(
-      evidenceIds.map((id) =>
+      safeEvidenceIds.map((id) =>
         evidenceApiService
           .getEvidenceById(id)
           .then((res) => (res?.data ?? null) as Evidence | null)
