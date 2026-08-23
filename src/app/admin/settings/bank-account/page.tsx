@@ -3,12 +3,14 @@
 import { useEffect, useState } from 'react';
 import { Landmark, Save, QrCode } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Button } from '@/components/ui/Button';
 import Reveal from '@/components/ui/Reveal';
 import { usePermission } from '@/hooks/usePermission';
 import { settingsApiService } from '@/services/settings.service';
 import { buildSepayQrUrl } from '@/constants/company-bank';
 import { formatDate, formatTime } from '@/utils/formatDate';
+import type { Bank } from '@/types/settings';
 
 // Trang Admin cấu hình TÀI KHOẢN NGÂN HÀNG công ty (GET/PUT /settings/bank-account). Mã QR nhận cọc/
 // quyết toán (SePay) trên web + mobile đều dựng từ cấu hình này — thay cho hardcode cũ ở FE/mobile.
@@ -22,6 +24,7 @@ export default function Page() {
   const [accountName, setAccountName] = useState('');
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [configured, setConfigured] = useState(false);
+  const [banks, setBanks] = useState<Bank[]>([]);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -51,6 +54,28 @@ export default function Page() {
       cancelled = true;
     };
   }, []);
+
+  // Danh sách ngân hàng (proxy banks.json) để Admin CHỌN thay vì gõ tay mã BIN.
+  useEffect(() => {
+    let cancelled = false;
+    settingsApiService
+      .getBanks()
+      .then((list) => {
+        if (!cancelled) setBanks(list);
+      })
+      .catch(() => {
+        if (!cancelled) setBanks([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleSelectBank = (bin: string) => {
+    setBankBin(bin);
+    const b = banks.find((x) => x.bin === bin);
+    if (b) setBankName(b.shortName);
+  };
 
   const canPreview = Boolean(bankBin.trim() && accountNumber.trim());
   const previewUrl = canPreview
@@ -103,20 +128,17 @@ export default function Page() {
         <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
           <Reveal className="lg:col-span-2 rounded-xl border border-slate-200 bg-white p-5 shadow-xs">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Input
-                label="Mã ngân hàng (BIN hoặc short name SePay)"
-                value={bankBin}
-                onChange={(e) => setBankBin(e.target.value)}
-                placeholder="VD: 970436 hoặc Vietcombank"
-                disabled={!canManage}
-              />
-              <Input
-                label="Tên ngân hàng (hiển thị)"
-                value={bankName}
-                onChange={(e) => setBankName(e.target.value)}
-                placeholder="VD: Vietcombank"
-                disabled={!canManage}
-              />
+              <div className="sm:col-span-2">
+                <SearchableSelect
+                  label="Ngân hàng"
+                  value={bankBin}
+                  onChange={handleSelectBank}
+                  options={banks.map((b) => ({ value: b.bin, label: `${b.shortName} — ${b.name}` }))}
+                  placeholder={banks.length === 0 ? 'Đang tải danh sách ngân hàng…' : 'Chọn ngân hàng…'}
+                  searchPlaceholder="Tìm ngân hàng (tên/mã)…"
+                  disabled={!canManage || banks.length === 0}
+                />
+              </div>
               <Input
                 label="Số tài khoản"
                 value={accountNumber}
@@ -134,8 +156,12 @@ export default function Page() {
             </div>
 
             <p className="mt-3 text-xs text-slate-400">
-              Mã ngân hàng dùng cho tham số <span className="font-mono">bank</span> của SePay — có thể nhập BIN (vd 970436)
-              hoặc short name (vd Vietcombank, MBBank) theo danh sách banks.json của VietQR/SePay.
+              Chọn ngân hàng từ danh sách (banks.json của VietQR/SePay) rồi nhập số tài khoản &amp; tên chủ tài khoản.
+              {bankBin ? (
+                <>
+                  {' '}Mã ngân hàng đã chọn: <span className="font-mono font-semibold text-slate-600">{bankName || bankBin}</span> (BIN {bankBin}).
+                </>
+              ) : null}
             </p>
 
             {error && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 ring-1 ring-inset ring-red-600/20">{error}</p>}

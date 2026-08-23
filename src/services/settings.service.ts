@@ -1,5 +1,5 @@
 import api from './api';
-import type { CompanyBankAccount, GetTransactionsQuery, TransactionListResult, UpdateBankAccountPayload } from '@/types/settings';
+import type { Bank, CompanyBankAccount, GetTransactionsQuery, TransactionListResult, UpdateBankAccountPayload } from '@/types/settings';
 
 export const settingsApiService = {
   /** GET /api/v1/settings/bank-account — mọi role đăng nhập đọc được (dựng QR). */
@@ -18,5 +18,11 @@ export const settingsApiService = {
   async getTransactions(params?: GetTransactionsQuery): Promise<TransactionListResult> {
     const response = await api.get('/settings/transactions', { params });
     return (response.data?.data ?? response.data) as TransactionListResult;
+  },
+
+  /** GET /api/v1/settings/banks — danh sách ngân hàng (proxy banks.json) để chọn khi cấu hình. */
+  async getBanks(): Promise<Bank[]> {
+    const response = await api.get('/settings/banks');
+    return (response.data?.data ?? response.data) as Bank[];
   },
 };

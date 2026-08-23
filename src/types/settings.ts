@@ -45,3 +45,11 @@ export interface GetTransactionsQuery {
   dateTo?: string;
   q?: string;
 }
+
+// Ngân hàng (từ banks.json VietQR/SePay, proxy qua BE GET /settings/banks) — để Admin chọn khi cấu hình.
+export interface Bank {
+  bin: string;
+  code: string;
+  shortName: string;
+  name: string;
+}
