@@ -5,6 +5,7 @@ import { AlertCircle } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Textarea } from '@/components/ui/Textarea';
 import type { Supplier } from '@/types/supplier';
 
 export interface SupplierFormValues {
@@ -171,13 +172,10 @@ export function SupplierFormModal({ isOpen, mode, supplier, isSubmitting, submit
           placeholder="VD: 4.5"
         />
         <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-gray-700" htmlFor="supplier-notes">
-            Ghi chú
-          </label>
-          <textarea
+          <Textarea
             id="supplier-notes"
+            label="Ghi chú"
             rows={3}
-            className="block w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
             value={values.notes}
             onChange={(e) => setValues((v) => ({ ...v, notes: e.target.value }))}
           />

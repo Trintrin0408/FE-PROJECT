@@ -105,7 +105,7 @@ export default function CreateProcurementModal({ isOpen, suppliers, orders, onCl
     <Modal isOpen={isOpen} onClose={onClose} title="Khởi tạo đơn mua sắm / Thuê NCC">
       <div className="space-y-4 p-1">
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">
+          <label className="mb-1.5 block text-sm font-medium text-slate-700">
             Nhà cung cấp <span className="text-red-500">*</span>
           </label>
           <Select value={supplierId} onChange={(e) => setSupplierId(e.target.value)} options={supplierOptions} />
@@ -113,7 +113,7 @@ export default function CreateProcurementModal({ isOpen, suppliers, orders, onCl
         </div>
 
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">
+          <label className="mb-1.5 block text-sm font-medium text-slate-700">
             Đơn hàng liên kết <span className="text-red-500">*</span>
           </label>
           <Select value={orderId} onChange={(e) => setOrderId(e.target.value)} options={orderOptions} />
@@ -121,7 +121,7 @@ export default function CreateProcurementModal({ isOpen, suppliers, orders, onCl
         </div>
 
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">Loại giao dịch</label>
+          <label className="mb-1.5 block text-sm font-medium text-slate-700">Loại giao dịch</label>
           <Select value={transactionType} onChange={(e) => setTransactionType(e.target.value as SupplierTransactionType)} options={TRANSACTION_TYPE_OPTIONS} />
         </div>
 

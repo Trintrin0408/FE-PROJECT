@@ -4,6 +4,7 @@ import { FormEvent, useState } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
+import { Textarea } from '@/components/ui/Textarea';
 import type { ItemCategory } from '@/types/catalog';
 
 export interface CategoryFormValues {
@@ -25,9 +26,6 @@ const EMPTY_VALUES: CategoryFormValues = {
   categoryName: '',
   description: '',
 };
-
-const textareaClassName =
-  'block w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500';
 
 export function CategoryFormModal({ isOpen, onClose, mode, category, isSubmitting, errorMessage, onSubmit }: Readonly<CategoryFormModalProps>) {
   const [values, setValues] = useState<CategoryFormValues>(EMPTY_VALUES);
@@ -77,19 +75,14 @@ export function CategoryFormModal({ isOpen, onClose, mode, category, isSubmittin
           value={values.categoryName}
           onChange={(e) => setValues((v) => ({ ...v, categoryName: e.target.value }))}
         />
-        <div className="flex flex-col gap-1">
-          <label htmlFor="category-description" className="text-sm font-medium text-gray-700">
-            Mô tả
-          </label>
-          <textarea
-            id="category-description"
-            rows={3}
-            className={textareaClassName}
-            placeholder="Mô tả ngắn về danh mục này..."
-            value={values.description}
-            onChange={(e) => setValues((v) => ({ ...v, description: e.target.value }))}
-          />
-        </div>
+        <Textarea
+          id="category-description"
+          label="Mô tả"
+          rows={3}
+          placeholder="Mô tả ngắn về danh mục này..."
+          value={values.description}
+          onChange={(e) => setValues((v) => ({ ...v, description: e.target.value }))}
+        />
 
         {errorMessage && (
           <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 ring-1 ring-inset ring-red-600/20">{errorMessage}</p>

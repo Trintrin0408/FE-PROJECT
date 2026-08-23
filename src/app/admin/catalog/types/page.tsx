@@ -1,14 +1,16 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Search, Pencil, Plus, MoreHorizontal } from 'lucide-react';
+import { Pencil, Plus, MoreHorizontal } from 'lucide-react';
 import { catalogApiService } from '@/services/catalog.service';
 import { Table, TableColumn } from '@/components/ui/Table';
 import { Pagination } from '@/components/ui/Pagination';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { FilterBar, FilterRow } from '@/components/ui/FilterBar';
+import { SearchInput } from '@/components/ui/SearchInput';
 import { ItemTypeFormModal, ItemTypeFormValues } from '@/components/catalog/ItemTypeFormModal';
-import Reveal from '@/components/ui/Reveal';
 import { usePagination } from '@/hooks/usePagination';
 import { useDebounce } from '@/hooks/useDebounce';
 import { usePermission } from '@/hooks/usePermission';
@@ -158,36 +160,32 @@ export default function Page() {
 
   return (
     <div className="p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Nhóm thiết bị</h1>
-          <p className="mt-1 text-sm text-slate-500">Quản lý các nhóm thiết bị thuộc từng danh mục lớn</p>
-        </div>
-        {canManage && (
-          <Button onClick={() => setFormModal({ mode: 'create', type: null })} className="bg-blue-600 hover:bg-blue-700 text-white rounded-md flex items-center gap-2 px-4 py-2">
-            <Plus className="h-4 w-4" />
-            Thêm nhóm thiết bị
-          </Button>
-        )}
-      </div>
+      <PageHeader
+        title="Nhóm thiết bị"
+        description="Quản lý các nhóm thiết bị thuộc từng danh mục lớn"
+        actions={
+          canManage && (
+            <Button onClick={() => setFormModal({ mode: 'create', type: null })}>
+              <Plus className="h-4 w-4" />
+              Thêm nhóm thiết bị
+            </Button>
+          )
+        }
+      />
 
-      <Reveal className="mt-6 rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+      <FilterBar>
+        <FilterRow>
           <div className="flex flex-wrap items-center gap-3">
-            <div className="relative w-64">
-              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setPage(1);
-                }}
-                placeholder="Tìm theo mã hoặc tên nhóm..."
-                className="w-full rounded-md border border-slate-200 bg-white py-2 pl-8 pr-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            
+            <SearchInput
+              width="fixed"
+              value={search}
+              onChange={(value) => {
+                setSearch(value);
+                setPage(1);
+              }}
+              placeholder="Tìm theo mã hoặc tên nhóm..."
+            />
+
             <div className="w-56">
               <Select
                 value={categoryFilter}
@@ -202,11 +200,9 @@ export default function Page() {
               />
             </div>
           </div>
-          
-          <div className="text-sm text-slate-500">
-            {pagination.totalItems} nhóm thiết bị
-          </div>
-        </div>
+
+          <div className="text-sm text-slate-500">{pagination.totalItems} nhóm thiết bị</div>
+        </FilterRow>
 
         <div className="mt-4 overflow-x-auto min-h-[300px]">
           {isLoading ? (
@@ -216,11 +212,8 @@ export default function Page() {
           )}
         </div>
 
-        <Pagination 
-          pagination={pagination} 
-          onPageChange={setPage} 
-        />
-      </Reveal>
+        <Pagination pagination={pagination} onPageChange={setPage} />
+      </FilterBar>
 
       <ItemTypeFormModal
         isOpen={!!formModal}

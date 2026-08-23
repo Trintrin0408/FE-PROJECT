@@ -5,6 +5,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
+import { Textarea } from '@/components/ui/Textarea';
 import type { ItemType, ItemCategory } from '@/types/catalog';
 
 export interface ItemTypeFormValues {
@@ -24,9 +25,6 @@ interface ItemTypeFormModalProps {
   errorMessage?: string;
   onSubmit: (values: ItemTypeFormValues) => void;
 }
-
-const textareaClassName =
-  'block w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500';
 
 export function ItemTypeFormModal({
   isOpen,
@@ -91,15 +89,12 @@ export function ItemTypeFormModal({
           value={values.typeName}
           onChange={(e) => setValues((v) => ({ ...v, typeName: e.target.value }))}
         />
-        <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-gray-700">Mô tả</label>
-          <textarea
-            rows={3}
-            className={textareaClassName}
-            value={values.description}
-            onChange={(e) => setValues((v) => ({ ...v, description: e.target.value }))}
-          />
-        </div>
+        <Textarea
+          label="Mô tả"
+          rows={3}
+          value={values.description}
+          onChange={(e) => setValues((v) => ({ ...v, description: e.target.value }))}
+        />
         {errorMessage && (
           <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">
             {errorMessage}

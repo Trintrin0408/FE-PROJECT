@@ -11,6 +11,7 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { Textarea } from '@/components/ui/Textarea';
 import Reveal from '@/components/ui/Reveal';
 import { EvidenceBlock, EvidenceUploadField, uploadPaymentEvidence } from '@/components/payments/EvidenceBlock';
 import { formatCurrency } from '@/utils/formatCurrency';
@@ -301,16 +302,7 @@ export default function SettlementDetailView({ canManage, backHref }: Readonly<S
                 options={PAYMENT_METHOD_OPTIONS}
               />
               <div className="flex flex-col gap-1">
-                <label htmlFor="settlement-notes" className="text-sm font-medium text-gray-700">
-                  Ghi chú
-                </label>
-                <textarea
-                  id="settlement-notes"
-                  rows={3}
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  className="block w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                <Textarea id="settlement-notes" label="Ghi chú" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
               </div>
 
               <div className="flex items-center justify-between rounded-lg bg-slate-50 p-3 text-sm">

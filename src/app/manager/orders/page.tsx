@@ -3,11 +3,15 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Ban, Eye, Search } from 'lucide-react';
+import { Ban, Eye } from 'lucide-react';
 import { Badge, type BadgeVariant, getStatusBadgeVariant } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Pagination } from '@/components/ui/Pagination';
+import { Textarea } from '@/components/ui/Textarea';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { FilterBar } from '@/components/ui/FilterBar';
+import { SearchInput } from '@/components/ui/SearchInput';
 import type { PaginationState } from '@/hooks/usePagination';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatCurrency } from '@/utils/formatCurrency';
@@ -182,13 +186,11 @@ export default function ManagerOrdersPage() {
 
   return (
     <div className="p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Quản lý đơn </h1>
-          <p className="mt-1 text-sm text-slate-500">Giám sát trạng thái đơn hàng sự kiện, kiểm soát thanh toán và điều phối kho.</p>
-        </div>
-        <Button onClick={() => setIsCreateOpen(true)}>Khởi tạo đơn đặt hàng</Button>
-      </div>
+      <PageHeader
+        title="Quản lý đơn"
+        description="Giám sát trạng thái đơn hàng sự kiện, kiểm soát thanh toán và điều phối kho."
+        actions={<Button onClick={() => setIsCreateOpen(true)}>Khởi tạo đơn đặt hàng</Button>}
+      />
 
       <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-6">
         {kpiCards.map((kpi, idx) => (
@@ -206,67 +208,46 @@ export default function ManagerOrdersPage() {
         ))}
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: '-40px' }}
-        transition={{ duration: 0.25 }}
-        className="mt-6 flex flex-col items-center justify-between gap-3 md:flex-row rounded-xl border border-slate-200 bg-white p-4 shadow-xs"
-      >
-        <div className="flex w-full flex-wrap gap-2.5 md:w-auto">
-          <div className="relative w-full sm:w-56">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Mã đơn, sự kiện, khách hàng, SĐT..."
-              className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-xs focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+      <FilterBar className="overflow-hidden">
+        <div className="flex flex-col items-center justify-between gap-3 border-b border-slate-100 pb-4 md:flex-row">
+          <div className="flex w-full flex-wrap gap-2.5 md:w-auto">
+            <SearchInput width="grow" value={searchInput} onChange={setSearchInput} placeholder="Mã đơn, sự kiện, khách hàng, SĐT..." />
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as OrderStatus | 'ALL')}
+              className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-xs text-slate-700 focus:border-blue-500 focus:outline-none"
+            >
+              <option value="ALL">Tất cả trạng thái</option>
+              {(Object.keys(ORDER_STATUS_LABEL) as OrderStatus[]).map((s) => (
+                <option key={s} value={s}>
+                  {ORDER_STATUS_LABEL[s]}
+                </option>
+              ))}
+            </select>
+            <select
+              value={payFilter}
+              onChange={(e) => setPayFilter(e.target.value as OrderPaymentStatus | 'ALL')}
+              className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-xs text-slate-700 focus:border-blue-500 focus:outline-none"
+            >
+              <option value="ALL">Tất cả thanh toán</option>
+              {(Object.keys(ORDER_PAYMENT_STATUS_LABEL) as OrderPaymentStatus[]).map((p) => (
+                <option key={p} value={p}>
+                  {ORDER_PAYMENT_STATUS_LABEL[p]}
+                </option>
+              ))}
+            </select>
           </div>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as OrderStatus | 'ALL')}
-            className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-xs text-slate-700 focus:border-blue-500 focus:outline-none"
+
+          <button
+            type="button"
+            onClick={handleResetFilters}
+            className="shrink-0 text-xs font-semibold text-slate-500 transition hover:text-slate-800"
           >
-            <option value="ALL">Tất cả trạng thái</option>
-            {(Object.keys(ORDER_STATUS_LABEL) as OrderStatus[]).map((s) => (
-              <option key={s} value={s}>
-                {ORDER_STATUS_LABEL[s]}
-              </option>
-            ))}
-          </select>
-          <select
-            value={payFilter}
-            onChange={(e) => setPayFilter(e.target.value as OrderPaymentStatus | 'ALL')}
-            className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-xs text-slate-700 focus:border-blue-500 focus:outline-none"
-          >
-            <option value="ALL">Tất cả thanh toán</option>
-            {(Object.keys(ORDER_PAYMENT_STATUS_LABEL) as OrderPaymentStatus[]).map((p) => (
-              <option key={p} value={p}>
-                {ORDER_PAYMENT_STATUS_LABEL[p]}
-              </option>
-            ))}
-          </select>
+            Đặt lại
+          </button>
         </div>
 
-        <button
-          type="button"
-          onClick={handleResetFilters}
-          className="shrink-0 text-xs font-semibold text-slate-500 transition hover:text-slate-800"
-        >
-          Đặt lại
-        </button>
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: '-40px' }}
-        transition={{ duration: 0.25, delay: 0.05 }}
-        className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white p-4 shadow-xs"
-      >
-        <div className="overflow-x-auto">
+        <div className="mt-4 overflow-x-auto">
           <table className="w-full border-collapse text-left text-sm">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-500">
@@ -360,7 +341,7 @@ export default function ManagerOrdersPage() {
         </div>
 
         <Pagination pagination={paginationState} onPageChange={setPage} />
-      </motion.div>
+      </FilterBar>
 
       <Modal
         isOpen={Boolean(cancelingOrder)}
@@ -379,13 +360,10 @@ export default function ManagerOrdersPage() {
         }
       >
         <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-gray-700" htmlFor="cancel-reason">
-            Lý do hủy (không bắt buộc)
-          </label>
-          <textarea
+          <Textarea
             id="cancel-reason"
+            label="Lý do hủy (không bắt buộc)"
             rows={3}
-            className="block w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
             value={cancelReason}
             onChange={(e) => setCancelReason(e.target.value)}
           />

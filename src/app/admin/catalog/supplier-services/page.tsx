@@ -1,9 +1,8 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { motion } from 'framer-motion';
 import {
-  Archive, CheckCircle2, Download, Eye, Package, Pause, Pencil, Plus, Search, Trash2,
+  Archive, CheckCircle2, Download, Eye, Package, Pause, Pencil, Plus, Trash2,
 } from 'lucide-react';
 import { Table, TableColumn } from '@/components/ui/Table';
 import { Select } from '@/components/ui/Select';
@@ -11,6 +10,9 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { Pagination } from '@/components/ui/Pagination';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { FilterBar, FilterRow } from '@/components/ui/FilterBar';
+import { SearchInput } from '@/components/ui/SearchInput';
 import type { PaginationState } from '@/hooks/usePagination';
 import { useDebounce } from '@/hooks/useDebounce';
 import DashboardStats, { KpiCardItem } from '@/components/reports/DashboardStats';
@@ -192,34 +194,19 @@ export default function SupplierServicesPage() {
 
   return (
     <div className="p-6">
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Dịch vụ NCC</h1>
-        <p className="mt-1 text-sm text-slate-500">Quản lý các dịch vụ, hàng hóa và dịch vụ hỗ trợ từ nhà cung cấp.</p>
-      </div>
+      <PageHeader
+        title="Dịch vụ NCC"
+        description="Quản lý các dịch vụ, hàng hóa và dịch vụ hỗ trợ từ nhà cung cấp."
+      />
 
       <div className="mt-6">
         <DashboardStats items={kpiItems} />
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: '-40px' }}
-        transition={{ duration: 0.25 }}
-        className="mt-6 rounded-xl border border-slate-200 bg-white p-4 shadow-xs"
-      >
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      <FilterBar>
+        <FilterRow>
           <div className="flex flex-wrap items-center gap-3">
-            <div className="relative w-56">
-              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                value={searchInput}
-                onChange={(e) => setSearchInput(e.target.value)}
-                placeholder="Tìm kiếm dịch vụ NCC..."
-                className="w-full rounded-md border border-slate-200 bg-white py-2 pl-8 pr-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
+            <SearchInput width="fixed" value={searchInput} onChange={setSearchInput} placeholder="Tìm kiếm dịch vụ NCC..." />
             <div className="w-44">
               <Select
                 value={categoryFilter}
@@ -259,14 +246,14 @@ export default function SupplierServicesPage() {
               Thêm dịch vụ NCC
             </Button>
           </div>
-        </div>
+        </FilterRow>
 
         <div className="mt-4 overflow-x-auto">
           <Table columns={columns} rows={pageRows} rowKey={(row) => row.id} />
         </div>
 
         <Pagination pagination={paginationState} onPageChange={setPage} />
-      </motion.div>
+      </FilterBar>
 
       <SupplierServiceFormModal
         isOpen={isFormOpen}

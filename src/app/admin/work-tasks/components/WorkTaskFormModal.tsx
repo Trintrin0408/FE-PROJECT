@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Textarea } from '@/components/ui/Textarea';
 import type { WorkTask, CreateWorkTaskBody } from '@/types/workTask';
 
 export interface WorkTaskFormValues extends CreateWorkTaskBody {}
@@ -86,17 +87,14 @@ export const WorkTaskFormModal: React.FC<WorkTaskFormModalProps> = ({
             disabled={isSubmitting}
           />
 
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-slate-700">Mô tả</label>
-            <textarea
-              className="w-full rounded-md border border-slate-300 p-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              rows={3}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Ghi chú thêm về loại công việc này..."
-              disabled={isSubmitting}
-            />
-          </div>
+          <Textarea
+            label="Mô tả"
+            rows={3}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Ghi chú thêm về loại công việc này..."
+            disabled={isSubmitting}
+          />
 
           <div className="flex items-center gap-2">
             <input

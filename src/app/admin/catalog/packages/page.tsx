@@ -1,12 +1,14 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { motion } from 'framer-motion';
-import { Boxes, Eye, Package, Pencil, Plus, Search, Trash2, Wrench } from 'lucide-react';
+import { Boxes, Eye, Package, Pencil, Plus, Trash2, Wrench } from 'lucide-react';
 import { Table, TableColumn } from '@/components/ui/Table';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { FilterBar } from '@/components/ui/FilterBar';
+import { SearchInput } from '@/components/ui/SearchInput';
 import EquipmentDetailModal from '@/components/catalog/EquipmentDetailModal';
 import EquipmentFormModal from '@/components/catalog/EquipmentFormModal';
 import DashboardStats, { KpiCardItem } from '@/components/reports/DashboardStats';
@@ -188,30 +190,24 @@ export default function AdminEquipmentCatalogPage() {
 
   return (
     <div className="p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Gói sản phẩm & dịch vụ</h1>
-          <p className="mt-1 text-sm text-slate-500">Danh mục sản phẩm & thiết bị sự kiện cưới của doanh nghiệp, kèm tồn kho theo từng mặt hàng.</p>
-        </div>
-        {canManage && (
-          <Button onClick={() => setFormModal({ equipment: null })}>
-            <Plus className="h-4 w-4" />
-            Thêm sản phẩm
-          </Button>
-        )}
-      </div>
+      <PageHeader
+        title="Gói sản phẩm & dịch vụ"
+        description="Danh mục sản phẩm & thiết bị sự kiện cưới của doanh nghiệp, kèm tồn kho theo từng mặt hàng."
+        actions={
+          canManage && (
+            <Button onClick={() => setFormModal({ equipment: null })}>
+              <Plus className="h-4 w-4" />
+              Thêm sản phẩm
+            </Button>
+          )
+        }
+      />
 
       <div className="mt-6">
         <DashboardStats items={kpiItems} />
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: '-40px' }}
-        transition={{ duration: 0.25 }}
-        className="mt-6 rounded-xl border border-slate-200 bg-white p-4 shadow-xs"
-      >
+      <FilterBar>
         <div className="flex flex-wrap items-center gap-1.5 border-b border-slate-100 pb-3.5">
           <button
             type="button"
@@ -237,16 +233,13 @@ export default function AdminEquipmentCatalogPage() {
         </div>
 
         <div className="mt-3.5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="relative flex-1 sm:max-w-sm">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Tìm theo mã, tên sản phẩm..."
-              className="w-full rounded-md border border-slate-200 bg-slate-50/50 py-2 pl-8 pr-3 text-sm hover:bg-slate-50 focus:border-blue-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/10"
-            />
-          </div>
+          <SearchInput
+            width="grow"
+            className="sm:max-w-sm"
+            value={searchInput}
+            onChange={setSearchInput}
+            placeholder="Tìm theo mã, tên sản phẩm..."
+          />
           <div className="flex items-center gap-1.5">
             {(['all', 'active', 'inactive'] as const).map((s) => (
               <button
@@ -266,7 +259,7 @@ export default function AdminEquipmentCatalogPage() {
         <div className="mt-4">
           <Table columns={columns} rows={filteredEquipment} rowKey={(row) => row.id} />
         </div>
-      </motion.div>
+      </FilterBar>
 
       <EquipmentDetailModal
         isOpen={Boolean(viewingEquipment)}

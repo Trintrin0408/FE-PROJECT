@@ -66,7 +66,7 @@ export default function PlanDetailDrawer({ group, onClose, onEdit, focusPlanId }
         </div>
 
         <div className="flex-1 space-y-6 overflow-y-auto p-6">
-          <div className="space-y-3 rounded-xl border border-slate-150 bg-slate-50/70 p-4">
+          <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
             <div className="flex items-center justify-between">
               <span className="rounded bg-slate-900 px-2 py-0.5 font-mono text-[10px] font-bold text-white">{group.orderCode}</span>
               <span className="text-[11px] italic text-slate-400" title="Chưa có API: GET /schedule-plans chưa join sẵn orders.created_by cho màn đa đơn — xem docs/more-require.md">
@@ -96,7 +96,7 @@ export default function PlanDetailDrawer({ group, onClose, onEdit, focusPlanId }
                 <div
                   key={row.planId}
                   className={`flex items-start gap-3 rounded-xl border p-3 ${
-                    row.planId === focusPlanId ? 'border-blue-400 bg-blue-50/40 ring-1 ring-blue-200' : 'border-slate-150 bg-white'
+                    row.planId === focusPlanId ? 'border-blue-400 bg-blue-50/40 ring-1 ring-blue-200' : 'border-slate-200 bg-white'
                   }`}
                 >
                   <div className="rounded-lg bg-slate-50 p-2 text-slate-600">
@@ -149,7 +149,7 @@ export default function PlanDetailDrawer({ group, onClose, onEdit, focusPlanId }
             </h4>
             <div className="flex flex-wrap gap-2">
               {staff.map((s) => (
-                <span key={s.userId} className="rounded-lg border border-slate-150 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-700">
+                <span key={s.userId} className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-700">
                   {s.fullName} <span className="font-normal text-slate-400">— {ROLE_LABEL[s.role]}</span>
                 </span>
               ))}
@@ -158,7 +158,7 @@ export default function PlanDetailDrawer({ group, onClose, onEdit, focusPlanId }
           </div>
         </div>
 
-        <div className="flex justify-end gap-2.5 border-t border-slate-150 bg-slate-50 p-5">
+        <div className="flex justify-end gap-2.5 border-t border-slate-200 bg-slate-50 p-5">
           <Button variant="secondary" onClick={onClose}>
             Đóng lại
           </Button>

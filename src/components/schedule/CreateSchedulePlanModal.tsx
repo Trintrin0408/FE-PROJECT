@@ -9,6 +9,7 @@ import { Select, SelectOptionGroup } from '@/components/ui/Select';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Input } from '@/components/ui/Input';
 import { AddressAutocompleteInput } from '@/components/ui/AddressAutocompleteInput';
+import { Textarea } from '@/components/ui/Textarea';
 import { workTaskApiService } from '@/services/workTask.service';
 import { userApiService } from '@/services/user.service';
 import { schedulePlanApiService } from '@/services/schedulePlan.service';
@@ -308,7 +309,7 @@ export default function CreateSchedulePlanModal({ isOpen, onClose, orderId, defa
 
         <div>
           <div className="mb-2 flex items-center justify-between">
-            <span className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
+            <span className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
               Nhân sự phụ trách <span className="text-red-500">*</span>
               {checkingConflicts && (
                 <span className="flex items-center gap-1 text-xs font-normal text-slate-400">
@@ -399,16 +400,13 @@ export default function CreateSchedulePlanModal({ isOpen, onClose, orderId, defa
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor="sp-notes" className="text-sm font-medium text-gray-700">
-            Ghi chú
-          </label>
-          <textarea
+          <Textarea
             id="sp-notes"
+            label="Ghi chú"
             rows={3}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Lưu ý về thiết bị, lối vào, giờ giấc..."
-            className="block w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
 

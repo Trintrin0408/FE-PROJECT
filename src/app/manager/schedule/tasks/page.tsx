@@ -2,13 +2,14 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
-import { Camera, CheckCircle2, ClipboardList, Eye, ListChecks, MapPin, Search, Users } from 'lucide-react';
+import { Camera, CheckCircle2, ClipboardList, Eye, ListChecks, MapPin, Users } from 'lucide-react';
 import { Table, TableColumn } from '@/components/ui/Table';
-import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { FilterBar, FilterRow } from '@/components/ui/FilterBar';
+import { SearchInput } from '@/components/ui/SearchInput';
 import DashboardStats, { KpiCardItem } from '@/components/reports/DashboardStats';
 import {
   FlatWorkTask,
@@ -142,36 +143,19 @@ export default function ManagerWorkTaskPage() {
 
   return (
     <div className="p-6">
-      <div>
-        <h1 className="flex items-center gap-2.5 text-2xl font-bold text-slate-900">
-          <ClipboardList className="h-6 w-6 text-blue-600" />
-          Công việc (Work Task)
-        </h1>
-        {/* <p className="mt-1 text-sm text-slate-500">
-          Toàn bộ công việc kỹ thuật đã giao cho từng Staff, gộp từ mọi kế hoạch điều phối — theo dõi tiến độ và tái phân công khi cần.
-        </p> */}
-      </div>
+      <PageHeader title="Công việc (Work Task)" icon={<ClipboardList className="h-6 w-6 text-blue-600" />} />
 
       <div className="mt-6">
         <DashboardStats items={kpis} />
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: '-40px' }}
-        transition={{ duration: 0.25 }}
-        className="mt-6 rounded-xl border border-slate-200 bg-white p-4 shadow-xs"
-      >
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="min-w-[240px] flex-1">
-            <Input
-              placeholder="Tìm theo tên việc, mã đơn, khách hàng, người phụ trách..."
-              icon={<Search className="h-4 w-4" />}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
+      <FilterBar>
+        <FilterRow>
+          <SearchInput
+            value={search}
+            onChange={setSearch}
+            placeholder="Tìm theo tên việc, mã đơn, khách hàng, người phụ trách..."
+          />
           <div className="w-52">
             <Select
               value={statusFilter}
@@ -186,12 +170,12 @@ export default function ManagerWorkTaskPage() {
               options={[{ value: '', label: 'Tất cả người phụ trách' }, ...assigneeOptions.map((a) => ({ value: a, label: a }))]}
             />
           </div>
-        </div>
+        </FilterRow>
 
         <div className="mt-4 overflow-x-auto">
           <Table columns={columns} rows={filtered} rowKey={(row) => `${row.planId}-${row.id}`} />
         </div>
-      </motion.div>
+      </FilterBar>
 
       <TaskEditModal task={editingTask} onClose={() => setEditingTask(null)} onSave={handleSaveTask} />
     </div>

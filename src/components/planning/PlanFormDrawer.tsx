@@ -430,7 +430,7 @@ export default function PlanFormDrawer({ isOpen, editingGroup, selectableOrders,
         </div>
 
         <div className="flex-1 space-y-6 overflow-y-auto p-6">
-          <div className="space-y-4 rounded-2xl border border-slate-150 bg-slate-50 p-5">
+          <div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-5">
             <h4 className="border-l-2 border-blue-600 pl-2 text-xs font-bold uppercase tracking-wider text-slate-900">Section 1: Đơn đặt</h4>
             {editingGroup ? (
               <div className="rounded-xl border border-slate-100 bg-white p-3 text-xs">
@@ -493,7 +493,7 @@ export default function PlanFormDrawer({ isOpen, editingGroup, selectableOrders,
                   const isEditingRow = editingRowId === row.planId;
                   const busy = rowBusyId === row.planId;
                   return (
-                    <div key={row.planId} className="space-y-2.5 rounded-xl border border-slate-150 bg-slate-50/50 p-3.5 text-xs">
+                    <div key={row.planId} className="space-y-2.5 rounded-xl border border-slate-200 bg-slate-50/50 p-3.5 text-xs">
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-bold text-slate-800">{row.taskName ?? row.taskId}</span>
                         <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${SCHEDULE_STATUS_BADGE[row.status]}`}>
@@ -727,7 +727,7 @@ export default function PlanFormDrawer({ isOpen, editingGroup, selectableOrders,
                       ? 'Vui lòng chọn ít nhất 1 nhân sự phụ trách.'
                       : undefined;
                   return (
-                  <div key={item.localId} className="relative space-y-3 rounded-xl border border-slate-150 bg-slate-50/50 p-4">
+                  <div key={item.localId} className="relative space-y-3 rounded-xl border border-slate-200 bg-slate-50/50 p-4">
                     <button
                       type="button"
                       onClick={() => removeItem(item.localId)}
@@ -905,7 +905,7 @@ export default function PlanFormDrawer({ isOpen, editingGroup, selectableOrders,
           </div>
         </div>
 
-        <div className="space-y-2 border-t border-slate-150 bg-slate-50 p-5">
+        <div className="space-y-2 border-t border-slate-200 bg-slate-50 p-5">
           {submitError && (
             <p className="flex items-start gap-1.5 rounded-lg border border-rose-200 bg-rose-50 p-2.5 text-xs text-rose-700">
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />

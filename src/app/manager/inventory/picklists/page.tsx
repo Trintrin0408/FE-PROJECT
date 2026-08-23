@@ -2,13 +2,14 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
-import { AlertTriangle, Camera, CheckCircle2, ClipboardList, Loader2, PackageCheck, Search } from 'lucide-react';
+import { AlertTriangle, Camera, CheckCircle2, ClipboardList, Loader2, PackageCheck } from 'lucide-react';
 import { Table, TableColumn } from '@/components/ui/Table';
-import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { FilterBar, FilterRow } from '@/components/ui/FilterBar';
+import { SearchInput } from '@/components/ui/SearchInput';
 import { EvidenceBlock } from '@/components/payments/EvidenceBlock';
 import DashboardStats, { KpiCardItem } from '@/components/reports/DashboardStats';
 import { formatDate } from '@/utils/formatDate';
@@ -253,15 +254,7 @@ export default function ManagerPicklistsPage() {
 
   return (
     <div className="p-6">
-      <div>
-        <h1 className="flex items-center gap-2.5 text-2xl font-bold text-slate-900">
-          <ClipboardList className="h-6 w-6 text-blue-600" />
-          Xuất kho và bàn giao
-        </h1>
-        {/* <p className="mt-1 text-sm text-slate-500">
-          Phiếu chuẩn bị xuất kho theo từng đơn đặt đã xác nhận — theo dõi tiến độ chuẩn bị thiết bị và xem bằng chứng bàn giao do Leader Staff gửi lên tại hiện trường.
-        </p> */}
-      </div>
+      <PageHeader title="Xuất kho và bàn giao" icon={<ClipboardList className="h-6 w-6 text-blue-600" />} />
 
       {loadError && (
         <div className="mt-4 flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3.5 text-xs text-rose-700">
@@ -274,22 +267,9 @@ export default function ManagerPicklistsPage() {
         <DashboardStats items={kpis} />
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: '-40px' }}
-        transition={{ duration: 0.25 }}
-        className="mt-6 rounded-xl border border-slate-200 bg-white p-4 shadow-xs"
-      >
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="min-w-[240px] flex-1">
-            <Input
-              placeholder="Tìm theo mã đơn, khách hàng..."
-              icon={<Search className="h-4 w-4" />}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
+      <FilterBar>
+        <FilterRow layout="start">
+          <SearchInput value={search} onChange={setSearch} placeholder="Tìm theo mã đơn, khách hàng..." />
           <div className="w-64">
             <Select
               value={readyFilter}
@@ -301,7 +281,7 @@ export default function ManagerPicklistsPage() {
               ]}
             />
           </div>
-        </div>
+        </FilterRow>
 
         <div className="mt-4 overflow-x-auto">
           <Table columns={columns} rows={filtered} rowKey={(row) => row.orderId} />
@@ -318,7 +298,7 @@ export default function ManagerPicklistsPage() {
             <p className="text-sm text-slate-400">Không có đơn nào cần chuẩn bị xuất kho.</p>
           </div>
         )}
-      </motion.div>
+      </FilterBar>
 
       <Modal
         isOpen={Boolean(viewingEvidenceOrder)}

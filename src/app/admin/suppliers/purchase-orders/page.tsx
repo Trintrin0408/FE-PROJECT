@@ -153,7 +153,7 @@ export default function Page() {
       key: 'transactionType',
       label: 'Loại đơn',
       render: (t) => {
-        const meta = ORDER_TYPE_META[t.transactionType] || { label: t.transactionType, badgeClass: 'bg-gray-100 text-gray-800' };
+        const meta = ORDER_TYPE_META[t.transactionType] || { label: t.transactionType, badgeClass: 'bg-slate-100 text-slate-800' };
         return (
           <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${meta.badgeClass}`}>
             {meta.label}
@@ -167,7 +167,7 @@ export default function Page() {
       key: 'status',
       label: 'Trạng thái',
       render: (t) => {
-        const meta = TRANSACTION_STATUS_META[t.status] || { label: t.status, badgeClass: 'bg-gray-100 text-gray-800' };
+        const meta = TRANSACTION_STATUS_META[t.status] || { label: t.status, badgeClass: 'bg-slate-100 text-slate-800' };
         return (
           <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${meta.badgeClass}`}>
             {meta.label}
@@ -179,7 +179,7 @@ export default function Page() {
       key: 'paymentStatus',
       label: 'Thanh toán',
       render: (t) => {
-        const meta = PAYMENT_STATUS_META[t.paymentStatus || 'UNPAID'] || { label: t.paymentStatus || 'Chưa thanh toán', badgeClass: 'bg-gray-100 text-gray-800' };
+        const meta = PAYMENT_STATUS_META[t.paymentStatus || 'UNPAID'] || { label: t.paymentStatus || 'Chưa thanh toán', badgeClass: 'bg-slate-100 text-slate-800' };
         return (
           <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${meta.badgeClass}`}>
             {meta.label}
@@ -354,7 +354,7 @@ function OrderDetailModal({ transactionId, onClose }: Readonly<{ transactionId: 
 
   const orderTypeMeta = ORDER_TYPE_META[transaction.transactionType] || { label: transaction.transactionType, fullLabel: transaction.transactionType, badgeClass: '' };
   const statusMeta = TRANSACTION_STATUS_META[transaction.status] || { label: transaction.status, badgeClass: '' };
-  const paymentStatusMeta = PAYMENT_STATUS_META[transaction.paymentStatus || 'UNPAID'] || { label: transaction.paymentStatus || 'Chưa thanh toán', badgeClass: 'bg-gray-100 text-gray-800' };
+  const paymentStatusMeta = PAYMENT_STATUS_META[transaction.paymentStatus || 'UNPAID'] || { label: transaction.paymentStatus || 'Chưa thanh toán', badgeClass: 'bg-slate-100 text-slate-800' };
 
   const remainingDebt = transaction.paymentStatus === 'PAID'
     ? 0

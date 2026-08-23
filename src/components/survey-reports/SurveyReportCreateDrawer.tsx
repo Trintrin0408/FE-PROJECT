@@ -217,7 +217,7 @@ export default function SurveyReportCreateDrawer({ onClose, onCreated }: Readonl
           {submitError && <p className="rounded-lg bg-red-50 p-2.5 text-xs font-medium text-red-600">{submitError}</p>}
         </form>
 
-        <div className="flex justify-end gap-2.5 border-t border-slate-150 bg-slate-50 p-5">
+        <div className="flex justify-end gap-2.5 border-t border-slate-200 bg-slate-50 p-5">
           <Button variant="secondary" onClick={onClose} disabled={isSubmitting}>
             Hủy bỏ
           </Button>

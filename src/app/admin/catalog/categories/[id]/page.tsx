@@ -1,16 +1,16 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ArrowLeft, Pencil, Search, Boxes, CheckCircle2, Wrench } from 'lucide-react';
+import { Pencil, Boxes, CheckCircle2, Wrench } from 'lucide-react';
 import { catalogApiService } from '@/services/catalog.service';
 import { inventoryApiService } from '@/services/inventory.service';
 import { Table, TableColumn } from '@/components/ui/Table';
-import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { Badge, getStatusBadgeVariant } from '@/components/ui/Badge';
-import { Breadcrumb } from '@/components/ui/Breadcrumb';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { FilterBar, FilterRow } from '@/components/ui/FilterBar';
+import { SearchInput } from '@/components/ui/SearchInput';
 import { CategoryFormModal, CategoryFormValues } from '@/components/catalog/CategoryFormModal';
 import Reveal from '@/components/ui/Reveal';
 import { usePermission } from '@/hooks/usePermission';
@@ -145,35 +145,24 @@ export default function Page() {
 
   return (
     <div className="p-6">
-      <Breadcrumb
-        items={[
+      <PageHeader
+        breadcrumb={[
           { label: 'Danh mục kho' },
           { label: 'Danh sách danh mục', href: '/admin/catalog/categories' },
           { label: category.categoryName },
         ]}
-        className="mb-3"
+        backHref="/admin/catalog/categories"
+        title={category.categoryName}
+        description="Quản lý và theo dõi thiết bị trong danh mục này."
+        actions={
+          canManage && (
+            <Button onClick={() => setIsEditOpen(true)}>
+              <Pencil className="h-4 w-4" />
+              Sửa danh mục
+            </Button>
+          )
+        }
       />
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Link
-            href="/admin/catalog/categories"
-            aria-label="Quay lại"
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-300 text-slate-500 hover:bg-slate-50"
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-          <div>
-            <h1 className="text-xl font-semibold text-slate-900">{category.categoryName}</h1>
-            <p className="mt-0.5 text-sm text-slate-500">Quản lý và theo dõi thiết bị trong danh mục này.</p>
-          </div>
-        </div>
-        {canManage && (
-          <Button onClick={() => setIsEditOpen(true)}>
-            <Pencil className="h-4 w-4" />
-            Sửa danh mục
-          </Button>
-        )}
-      </div>
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Reveal className="lg:col-span-2 rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
@@ -204,17 +193,15 @@ export default function Page() {
         </Reveal>
       </div>
 
-      <Reveal className="mt-6 rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      <FilterBar>
+        <FilterRow>
           <h3 className="text-sm font-semibold text-slate-900">Danh sách thiết bị</h3>
-          <div className="w-full sm:w-64">
-            <Input placeholder="Tìm thiết bị..." icon={<Search className="h-4 w-4" />} value={search} onChange={(e) => setSearch(e.target.value)} />
-          </div>
-        </div>
+          <SearchInput width="fixed" value={search} onChange={setSearch} placeholder="Tìm thiết bị..." />
+        </FilterRow>
         <div className="mt-4">
           <Table columns={itemColumns} rows={filteredRows} rowKey={(row) => row.itemId} />
         </div>
-      </Reveal>
+      </FilterBar>
 
       <CategoryFormModal
         isOpen={isEditOpen}

@@ -130,9 +130,9 @@ export function AddressAutocompleteInput({
       />
 
       {isDropdownOpen && (isLoading || suggestions.length > 0) && (
-        <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg">
+        <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg">
           {isLoading ? (
-            <p className="flex items-center gap-2 px-3 py-2 text-sm text-gray-500">
+            <p className="flex items-center gap-2 px-3 py-2 text-sm text-slate-500">
               <Loader2 className="h-3.5 w-3.5 animate-spin" /> Đang tìm địa chỉ...
             </p>
           ) : (
@@ -142,10 +142,10 @@ export function AddressAutocompleteInput({
                   <button
                     type="button"
                     onClick={() => handleSelect(s)}
-                    className="flex w-full flex-col items-start px-3 py-2 text-left text-sm hover:bg-gray-50"
+                    className="flex w-full flex-col items-start px-3 py-2 text-left text-sm hover:bg-slate-50"
                   >
-                    <span className="font-medium text-gray-900">{s.mainText}</span>
-                    {s.secondaryText && <span className="text-xs text-gray-500">{s.secondaryText}</span>}
+                    <span className="font-medium text-slate-900">{s.mainText}</span>
+                    {s.secondaryText && <span className="text-xs text-slate-500">{s.secondaryText}</span>}
                   </button>
                 </li>
               ))}

@@ -3,16 +3,17 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import type { AxiosError } from 'axios';
-import { Truck, Search, Eye, Pencil, Lock, LockOpen, MapPin, Phone, Plus, AlertCircle, Loader2 } from 'lucide-react';
+import { Truck, Eye, Pencil, Lock, LockOpen, MapPin, Phone, Plus, AlertCircle, Loader2 } from 'lucide-react';
 import { Table, TableColumn } from '@/components/ui/Table';
-import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
 import { Pagination } from '@/components/ui/Pagination';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { FilterBar, FilterRow } from '@/components/ui/FilterBar';
+import { SearchInput } from '@/components/ui/SearchInput';
 import type { PaginationState } from '@/hooks/usePagination';
 import { useDebounce } from '@/hooks/useDebounce';
 import { SupplierFormModal, type SupplierFormValues } from '@/components/suppliers/SupplierFormModal';
-import Reveal from '@/components/ui/Reveal';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { supplierApiService } from '@/services/supplier.service';
 import type { CreateSupplierPayload, Supplier, SupplierStatus, UpdateSupplierPayload } from '@/types/supplier';
@@ -227,35 +228,31 @@ export default function Page() {
 
   return (
     <div className="p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="flex items-center gap-2.5 text-2xl font-bold text-slate-900">
-            <Truck className="h-6 w-6 text-blue-600" />
-            Danh sách Nhà cung cấp đối tác
-          </h1>
-          <p className="mt-1 text-sm text-slate-500">Quản lý hồ sơ đối tác ngoài, phân loại thế mạnh và theo dõi công nợ, giao dịch lịch sử</p>
-        </div>
-        <Button
-          onClick={() => {
-            setFormError(null);
-            setFormModal({ mode: 'create', supplier: null });
-          }}
-        >
-          <Plus className="h-4 w-4" />
-          Thêm Đối Tác Mới
-        </Button>
-      </div>
+      <PageHeader
+        title="Danh sách Nhà cung cấp đối tác"
+        icon={<Truck className="h-6 w-6 text-blue-600" />}
+        description="Quản lý hồ sơ đối tác ngoài, phân loại thế mạnh và theo dõi công nợ, giao dịch lịch sử"
+        actions={
+          <Button
+            onClick={() => {
+              setFormError(null);
+              setFormModal({ mode: 'create', supplier: null });
+            }}
+          >
+            <Plus className="h-4 w-4" />
+            Thêm Đối Tác Mới
+          </Button>
+        }
+      />
 
-      <Reveal className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="min-w-[280px] flex-1">
-            <Input
-              placeholder="Tìm đối tác theo tên nhà cung cấp hoặc số điện thoại..."
-              icon={<Search className="h-4 w-4" />}
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-            />
-          </div>
+      <FilterBar>
+        <FilterRow layout="start">
+          <SearchInput
+            width="grow"
+            value={searchInput}
+            onChange={setSearchInput}
+            placeholder="Tìm đối tác theo tên nhà cung cấp hoặc số điện thoại..."
+          />
           <div className="w-56">
             <Select
               value={statusFilter}
@@ -267,7 +264,7 @@ export default function Page() {
               ]}
             />
           </div>
-        </div>
+        </FilterRow>
 
         {loadError && (
           <div className="mt-4 flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -288,7 +285,7 @@ export default function Page() {
         </div>
 
         <Pagination pagination={paginationState} onPageChange={setPage} />
-      </Reveal>
+      </FilterBar>
 
       <SupplierFormModal
         isOpen={!!formModal}

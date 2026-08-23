@@ -86,7 +86,7 @@ export function SearchableSelect({
   return (
     <div className="flex flex-col gap-1" ref={containerRef}>
       {label && (
-        <span className="text-sm font-medium text-gray-700">
+        <span className="text-sm font-medium text-slate-700">
           {label}
           {required && <span className="ml-1 text-red-500">*</span>}
         </span>
@@ -106,16 +106,16 @@ export function SearchableSelect({
             setOpen(true);
           }}
           placeholder={searchPlaceholder ?? placeholder}
-          className={`block w-full rounded-lg border border-gray-300 bg-white text-gray-900 shadow-sm placeholder:text-gray-400 transition-colors duration-150 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-gray-50 disabled:text-gray-500 ${sizeClass}`}
+          className={`block w-full rounded-lg border border-slate-300 bg-white text-slate-900 shadow-sm placeholder:text-slate-400 transition-colors duration-150 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500 ${sizeClass}`}
         />
 
         {open && !disabled && (
-          <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg">
+          <div className="absolute z-20 mt-1 w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg">
             <ul className="max-h-56 overflow-y-auto py-1">
               {filteredEntries.map((entry, i) =>
                 entry.group ? (
                   <li key={`group-${i}-${entry.label}`}>
-                    <span className="block px-3 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wide text-gray-400">{entry.label}</span>
+                    <span className="block px-3 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wide text-slate-400">{entry.label}</span>
                     <ul>
                       {entry.options.map((opt) => (
                         <li key={opt.value}>
@@ -123,7 +123,7 @@ export function SearchableSelect({
                             type="button"
                             onClick={() => selectOption(opt)}
                             className={`w-full text-left transition-colors duration-100 hover:bg-blue-50 ${sizeClass} ${
-                              opt.value === value ? 'bg-blue-50 font-semibold text-blue-700' : 'text-gray-700'
+                              opt.value === value ? 'bg-blue-50 font-semibold text-blue-700' : 'text-slate-700'
                             }`}
                           >
                             {opt.label}
@@ -138,7 +138,7 @@ export function SearchableSelect({
                       type="button"
                       onClick={() => selectOption(entry.option)}
                       className={`w-full text-left transition-colors duration-100 hover:bg-blue-50 ${sizeClass} ${
-                        entry.option.value === value ? 'bg-blue-50 font-semibold text-blue-700' : 'text-gray-700'
+                        entry.option.value === value ? 'bg-blue-50 font-semibold text-blue-700' : 'text-slate-700'
                       }`}
                     >
                       {entry.option.label}
@@ -146,7 +146,7 @@ export function SearchableSelect({
                   </li>
                 ),
               )}
-              {totalResults === 0 && <li className="px-3 py-2 text-sm italic text-gray-400">{emptyText}</li>}
+              {totalResults === 0 && <li className="px-3 py-2 text-sm italic text-slate-400">{emptyText}</li>}
             </ul>
           </div>
         )}

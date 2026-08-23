@@ -9,6 +9,7 @@ import type { SelectOptionGroup } from '@/components/ui/Select';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { Input } from '@/components/ui/Input';
 import { AddressAutocompleteInput } from '@/components/ui/AddressAutocompleteInput';
+import { Textarea } from '@/components/ui/Textarea';
 import { userApiService } from '@/services/user.service';
 import { schedulePlanApiService } from '@/services/schedulePlan.service';
 import { useStaffConflictPlans, type StaffConflictDateWindow } from '@/hooks/useStaffConflictPlans';
@@ -237,7 +238,7 @@ export default function EditSchedulePlanModal({ isOpen, onClose, plan, eventDate
     >
       <div className="space-y-4">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-gray-700">Loại việc:</span>
+          <span className="text-sm font-medium text-slate-700">Loại việc:</span>
           <span className="text-sm font-semibold text-slate-900">{plan.taskName ?? '—'}</span>
           <span className={`ml-auto rounded-full px-2.5 py-0.5 text-xs font-bold ${SCHEDULE_STATUS_BADGE[plan.status]}`}>
             {SCHEDULE_STATUS_LABEL[plan.status]}
@@ -284,7 +285,7 @@ export default function EditSchedulePlanModal({ isOpen, onClose, plan, eventDate
         />
 
         <div>
-          <span className="mb-2 block text-sm font-medium text-gray-700">Nhân sự đã gán</span>
+          <span className="mb-2 block text-sm font-medium text-slate-700">Nhân sự đã gán</span>
           {existingAssignees.length > 0 ? (
             <div className="flex flex-wrap gap-1.5">
               {existingAssignees.map((a) => (
@@ -306,7 +307,7 @@ export default function EditSchedulePlanModal({ isOpen, onClose, plan, eventDate
 
         <div>
           <div className="mb-2 flex items-center justify-between">
-            <span className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
+            <span className="flex items-center gap-1.5 text-sm font-medium text-slate-700">
               Thêm nhân sự
               {checkingConflicts && (
                 <span className="flex items-center gap-1 text-xs font-normal text-slate-400">
@@ -406,16 +407,13 @@ export default function EditSchedulePlanModal({ isOpen, onClose, plan, eventDate
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor="esp-notes" className="text-sm font-medium text-gray-700">
-            Ghi chú
-          </label>
-          <textarea
+          <Textarea
             id="esp-notes"
+            label="Ghi chú"
             rows={3}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Lưu ý về thiết bị, lối vào, giờ giấc..."
-            className="block w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
 

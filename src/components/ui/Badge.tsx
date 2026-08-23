@@ -7,7 +7,7 @@ const variantClasses: Record<BadgeVariant, string> = {
   warning: 'bg-yellow-100 text-yellow-700 ring-yellow-600/20',
   error: 'bg-red-100 text-red-700 ring-red-600/20',
   info: 'bg-blue-100 text-blue-700 ring-blue-600/20',
-  neutral: 'bg-gray-100 text-gray-700 ring-gray-500/20',
+  neutral: 'bg-slate-100 text-slate-700 ring-slate-600/20',
 };
 
 interface BadgeProps {

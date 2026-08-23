@@ -8,6 +8,7 @@ import { Badge, type BadgeVariant, getStatusBadgeVariant } from '@/components/ui
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Pagination } from '@/components/ui/Pagination';
+import { Textarea } from '@/components/ui/Textarea';
 import type { PaginationState } from '@/hooks/usePagination';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatCurrency } from '@/utils/formatCurrency';
@@ -366,13 +367,10 @@ export default function AdminOrdersPage() {
         }
       >
         <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-gray-700" htmlFor="cancel-reason">
-            Lý do hủy (không bắt buộc)
-          </label>
-          <textarea
+          <Textarea
             id="cancel-reason"
+            label="Lý do hủy (không bắt buộc)"
             rows={3}
-            className="block w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
             value={cancelReason}
             onChange={(e) => setCancelReason(e.target.value)}
           />

@@ -121,7 +121,7 @@ export default function UpdateSupplierItemModal({
             checked={isActive}
             onChange={(e) => setIsActive(e.target.checked)}
             disabled={isSubmitting}
-            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
           />
           <label htmlFor="isActive" className="text-sm font-medium text-slate-700">
             Đang cung cấp (Active)

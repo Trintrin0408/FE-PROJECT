@@ -5,6 +5,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
+import { Textarea } from '@/components/ui/Textarea';
 import { AdminOrderRow, BookingStatus, PACKAGE_OPTIONS, PAYMENT_STATUS_META, PaymentStatus, VENUE_OPTIONS, nextAdminOrderId } from '@/mocks/db/orders';
 import { getAdminCustomers } from '@/mocks/db/customers';
 
@@ -183,7 +184,7 @@ export function BookingFormModal({ isOpen, onClose, coordinatorOptions, editingO
             options={PAYMENT_STATUS_OPTIONS.map((s) => ({ value: s, label: PAYMENT_STATUS_META[s].label }))}
           />
         </div>
-        <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-gray-700">
+        <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium text-slate-700">
           <input
             type="checkbox"
             checked={Boolean(values.surveyAssignment)}
@@ -195,7 +196,7 @@ export function BookingFormModal({ isOpen, onClose, coordinatorOptions, editingO
                   : undefined,
               }))
             }
-            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
           />
           <span>Đã khảo sát hiện trường trước khi tạo đơn</span>
         </label>
@@ -205,18 +206,13 @@ export function BookingFormModal({ isOpen, onClose, coordinatorOptions, editingO
           onChange={(e) => setValues((v) => ({ ...v, coordinatorName: e.target.value }))}
           options={coordinatorOptions.map((c) => ({ value: c, label: c }))}
         />
-        <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-gray-700" htmlFor="booking-notes">
-            Ghi chú
-          </label>
-          <textarea
-            id="booking-notes"
-            rows={3}
-            className="block w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            value={values.notes}
-            onChange={(e) => setValues((v) => ({ ...v, notes: e.target.value }))}
-          />
-        </div>
+        <Textarea
+          id="booking-notes"
+          label="Ghi chú"
+          rows={3}
+          value={values.notes}
+          onChange={(e) => setValues((v) => ({ ...v, notes: e.target.value }))}
+        />
       </div>
     </Modal>
   );

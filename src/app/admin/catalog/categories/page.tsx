@@ -1,14 +1,15 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Search, Pencil, Plus, MoreHorizontal } from 'lucide-react';
+import { Pencil, Plus, MoreHorizontal } from 'lucide-react';
 import { catalogApiService } from '@/services/catalog.service';
 import { Table, TableColumn } from '@/components/ui/Table';
 import { Pagination } from '@/components/ui/Pagination';
-import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { FilterBar, FilterRow } from '@/components/ui/FilterBar';
+import { SearchInput } from '@/components/ui/SearchInput';
 import { CategoryFormModal, CategoryFormValues } from '@/components/catalog/CategoryFormModal';
-import Reveal from '@/components/ui/Reveal';
 import { usePagination } from '@/hooks/usePagination';
 import { useDebounce } from '@/hooks/useDebounce';
 import { usePermission } from '@/hooks/usePermission';
@@ -138,35 +139,31 @@ export default function Page() {
 
   return (
     <div className="p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Danh mục lớn</h1>
-          <p className="mt-1 text-sm text-slate-500">Quản lý các danh mục cấp cao của thiết bị và phụ kiện</p>
-        </div>
-        {canManage && (
-          <Button onClick={() => setFormModal({ mode: 'create', category: null })} className="bg-blue-600 hover:bg-blue-700 text-white rounded-md flex items-center gap-2 px-4 py-2">
-            <Plus className="h-4 w-4" />
-            Thêm danh mục
-          </Button>
-        )}
-      </div>
+      <PageHeader
+        title="Danh mục lớn"
+        description="Quản lý các danh mục cấp cao của thiết bị và phụ kiện"
+        actions={
+          canManage && (
+            <Button onClick={() => setFormModal({ mode: 'create', category: null })}>
+              <Plus className="h-4 w-4" />
+              Thêm danh mục
+            </Button>
+          )
+        }
+      />
 
-      <Reveal className="mt-6 rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-          <div className="relative w-64">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(1);
-              }}
-              placeholder="Tìm theo mã hoặc tên danh mục..."
-              className="w-full rounded-md border border-slate-200 bg-white py-2 pl-8 pr-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-        </div>
+      <FilterBar>
+        <FilterRow>
+          <SearchInput
+            width="fixed"
+            value={search}
+            onChange={(value) => {
+              setSearch(value);
+              setPage(1);
+            }}
+            placeholder="Tìm theo mã hoặc tên danh mục..."
+          />
+        </FilterRow>
 
         <div className="mt-4 overflow-x-auto min-h-[300px]">
           {isLoading ? (
@@ -177,7 +174,7 @@ export default function Page() {
         </div>
 
         <Pagination pagination={pagination} onPageChange={setPage} />
-      </Reveal>
+      </FilterBar>
 
       <CategoryFormModal
         isOpen={!!formModal}

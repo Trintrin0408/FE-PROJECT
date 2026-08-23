@@ -195,9 +195,9 @@ export default function CreateOrderModal({ isOpen, customers, onClose, onCreated
               autoComplete="off"
             />
             {isCustomerDropdownOpen && (
-              <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg">
+              <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg">
                 {filteredCustomers.length === 0 ? (
-                  <p className="px-3 py-2 text-sm text-gray-500">Không tìm thấy khách hàng</p>
+                  <p className="px-3 py-2 text-sm text-slate-500">Không tìm thấy khách hàng</p>
                 ) : (
                   <ul className="max-h-56 overflow-y-auto">
                     {filteredCustomers.map((c) => (
@@ -205,10 +205,10 @@ export default function CreateOrderModal({ isOpen, customers, onClose, onCreated
                         <button
                           type="button"
                           onClick={() => handleSelectCustomer(c)}
-                          className="flex w-full flex-col items-start px-3 py-2 text-left text-sm hover:bg-gray-50"
+                          className="flex w-full flex-col items-start px-3 py-2 text-left text-sm hover:bg-slate-50"
                         >
-                          <span className="font-medium text-gray-900">{c.customerName}</span>
-                          <span className="text-xs text-gray-500">{c.phone}</span>
+                          <span className="font-medium text-slate-900">{c.customerName}</span>
+                          <span className="text-xs text-slate-500">{c.phone}</span>
                         </button>
                       </li>
                     ))}

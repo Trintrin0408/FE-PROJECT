@@ -3,12 +3,15 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Eye, Plus, RotateCcw, Search } from 'lucide-react';
+import { Eye, Plus, RotateCcw } from 'lucide-react';
 import { Table, TableColumn } from '@/components/ui/Table';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Pagination } from '@/components/ui/Pagination';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { FilterBar, FilterRow } from '@/components/ui/FilterBar';
+import { SearchInput } from '@/components/ui/SearchInput';
 import CreateQuotationWizardModal from '@/components/quotations/CreateQuotationWizardModal';
 import type { PaginationState } from '@/hooks/usePagination';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -188,16 +191,16 @@ export default function ManagerQuotationsPage() {
 
   return (
     <div className="p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Quản lý báo giá</h1>
-          <p className="mt-1 text-sm text-slate-500">Tạo mới, phê duyệt, lưu nháp hoặc từ chối các báo giá sự kiện.</p>
-        </div>
-        <Button onClick={() => setIsCreateOpen(true)}>
-          <Plus className="h-4 w-4" />
-          Tạo báo giá mới
-        </Button>
-      </div>
+      <PageHeader
+        title="Quản lý báo giá"
+        description="Tạo mới, phê duyệt, lưu nháp hoặc từ chối các báo giá sự kiện."
+        actions={
+          <Button onClick={() => setIsCreateOpen(true)}>
+            <Plus className="h-4 w-4" />
+            Tạo báo giá mới
+          </Button>
+        }
+      />
 
       <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
         {kpiItems.map((item, index) => (
@@ -214,24 +217,9 @@ export default function ManagerQuotationsPage() {
         ))}
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: '-40px' }}
-        transition={{ duration: 0.25 }}
-        className="mt-6 rounded-xl border border-slate-200 bg-white p-4 shadow-xs"
-      >
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="relative w-64">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Tìm theo mã báo giá, tên khách..."
-              className="w-full rounded-md border border-slate-200 bg-white py-2 pl-8 pr-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
+      <FilterBar>
+        <FilterRow layout="end">
+          <SearchInput value={searchInput} onChange={setSearchInput} placeholder="Tìm theo mã báo giá, tên khách..." />
           <div className="w-48">
             <Select
               value={statusFilter}
@@ -257,7 +245,7 @@ export default function ManagerQuotationsPage() {
             <RotateCcw className="h-4 w-4" />
             Làm mới bộ lọc
           </Button>
-        </div>
+        </FilterRow>
 
         <div className="mt-4 overflow-x-auto">
           {isLoading ? (
@@ -275,7 +263,7 @@ export default function ManagerQuotationsPage() {
         </div>
 
         <Pagination pagination={paginationState} onPageChange={setPage} />
-      </motion.div>
+      </FilterBar>
 
       <CreateQuotationWizardModal
         isOpen={isCreateOpen}

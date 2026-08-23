@@ -2,11 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle2, Clock, Compass, Eye, FileText, MapPin, Plus, Search, User } from 'lucide-react';
+import { CheckCircle2, Clock, Compass, Eye, FileText, MapPin, Plus, User } from 'lucide-react';
 import { Badge, type BadgeVariant } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Pagination } from '@/components/ui/Pagination';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { FilterBar, FilterRow } from '@/components/ui/FilterBar';
+import { SearchInput } from '@/components/ui/SearchInput';
 import type { PaginationState } from '@/hooks/usePagination';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatDate } from '@/utils/formatDate';
@@ -151,16 +154,15 @@ export default function ManagerSurveyReportsPage() {
 
   return (
     <div className="p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Khảo sát hiện trường</h1>
-          {/* <p className="mt-1 text-sm text-slate-500">Xem lại báo cáo khảo sát hiện trường do Leader Staff ghi nhận, hoặc tự tạo báo cáo, và xác nhận trước khi lập kế hoạch & báo giá.</p> */}
-        </div>
-        <Button onClick={() => setIsCreateOpen(true)}>
-          <Plus className="h-4 w-4" />
-          Tạo báo cáo khảo sát
-        </Button>
-      </div>
+      <PageHeader
+        title="Khảo sát hiện trường"
+        actions={
+          <Button onClick={() => setIsCreateOpen(true)}>
+            <Plus className="h-4 w-4" />
+            Tạo báo cáo khảo sát
+          </Button>
+        }
+      />
 
       <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-4">
         <motion.div
@@ -225,24 +227,9 @@ export default function ManagerSurveyReportsPage() {
         </motion.div>
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: '-40px' }}
-        transition={{ duration: 0.25 }}
-        className="mt-6 rounded-xl border border-slate-200 bg-white p-4 shadow-xs"
-      >
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="relative flex-1 min-w-[220px]">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Tìm mã báo cáo, mã đơn đặt, khách hàng, địa điểm..."
-              className="w-full rounded-md border border-slate-200 bg-white py-2 pl-8 pr-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
+      <FilterBar>
+        <FilterRow>
+          <SearchInput value={searchInput} onChange={setSearchInput} placeholder="Tìm mã báo cáo, mã đơn đặt, khách hàng, địa điểm..." />
           <div className="flex rounded-lg border border-slate-200 bg-slate-50 p-0.5">
             {STATUS_TABS.map((tab) => (
               <button
@@ -257,7 +244,7 @@ export default function ManagerSurveyReportsPage() {
               </button>
             ))}
           </div>
-        </div>
+        </FilterRow>
 
         <div className="mt-4 overflow-x-auto rounded-xl border border-slate-100">
           <table className="w-full min-w-full divide-y divide-slate-100 text-sm">
@@ -337,7 +324,7 @@ export default function ManagerSurveyReportsPage() {
         </div>
 
         <Pagination pagination={paginationState} onPageChange={setPage} />
-      </motion.div>
+      </FilterBar>
 
       <AnimatePresence>
         {selectedReport && (

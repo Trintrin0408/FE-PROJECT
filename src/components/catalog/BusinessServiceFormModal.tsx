@@ -5,6 +5,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
+import { Textarea } from '@/components/ui/Textarea';
 import {
   BUSINESS_SERVICE_CATEGORY_OPTIONS,
   BUSINESS_SERVICE_STATUS_META,
@@ -19,9 +20,6 @@ interface BusinessServiceFormModalProps {
   editingService?: BusinessServicePackage | null;
   onSubmit: (values: Omit<BusinessServicePackage, 'id' | 'updatedAt'>) => void;
 }
-
-const textareaClassName =
-  'block w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500';
 
 const fieldLabelClassName = 'text-[11px] font-semibold uppercase tracking-wide text-slate-500';
 
@@ -153,10 +151,9 @@ export function BusinessServiceFormModal({ isOpen, onClose, editingService, onSu
           <label className={fieldLabelClassName} htmlFor="biz-description">
             Mô tả chi tiết / Nội dung gói dịch vụ
           </label>
-          <textarea
+          <Textarea
             id="biz-description"
             rows={4}
-            className={textareaClassName}
             placeholder="Nhập mô tả chi tiết, quy mô phục vụ, thiết bị đi kèm..."
             value={values.detailDescription}
             onChange={(e) => setValues((v) => ({ ...v, detailDescription: e.target.value }))}

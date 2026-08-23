@@ -256,7 +256,7 @@ export default function SurveyCreateDrawer({ isOpen, onClose, onSubmit }: Readon
                   <div className="max-h-[220px] overflow-auto rounded-lg border border-slate-200 bg-white shadow-xs">
                     <table className="w-full min-w-[320px] border-collapse text-left text-[11px]">
                       <thead>
-                        <tr className="border-b border-slate-150 bg-slate-50 font-semibold text-slate-500">
+                        <tr className="border-b border-slate-200 bg-slate-50 font-semibold text-slate-500">
                           <th className="px-2.5 py-2">Tên thiết bị</th>
                           <th className="w-16 px-2.5 py-2 text-center">SL</th>
                           <th className="px-2.5 py-2">Ghi chú</th>
@@ -379,7 +379,7 @@ export default function SurveyCreateDrawer({ isOpen, onClose, onSubmit }: Readon
                   <div className="max-h-[220px] overflow-auto rounded-lg border border-slate-200 bg-white shadow-xs">
                     <table className="w-full min-w-[320px] border-collapse text-left text-[11px]">
                       <thead>
-                        <tr className="border-b border-slate-150 bg-slate-50 font-semibold text-slate-500">
+                        <tr className="border-b border-slate-200 bg-slate-50 font-semibold text-slate-500">
                           <th className="px-2.5 py-2">Thiết bị báo giá</th>
                           <th className="w-14 px-1 py-2 text-center">SL</th>
                           <th className="w-24 px-2 py-2 text-right">Đơn giá nháp</th>
@@ -492,7 +492,7 @@ export default function SurveyCreateDrawer({ isOpen, onClose, onSubmit }: Readon
           </div>
         </form>
 
-        <div className="flex justify-end gap-2.5 border-t border-slate-150 bg-slate-50 p-5">
+        <div className="flex justify-end gap-2.5 border-t border-slate-200 bg-slate-50 p-5">
           <Button variant="secondary" onClick={handleClose}>
             Hủy bỏ
           </Button>

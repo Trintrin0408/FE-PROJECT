@@ -255,7 +255,7 @@ export default function Page() {
             aria-label="Làm mới"
             title="Làm mới"
             onClick={refetchPolicies}
-            className="rounded-md border border-gray-300 bg-white p-2 text-slate-500 hover:bg-slate-50"
+            className="rounded-md border border-slate-300 bg-white p-2 text-slate-500 hover:bg-slate-50"
           >
             <RotateCw className="h-4 w-4" />
           </button>

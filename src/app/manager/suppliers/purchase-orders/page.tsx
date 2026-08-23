@@ -2,17 +2,19 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { AlertCircle, BookOpen, Calendar, Eye, Loader2, Pencil, Plus, Search, SlidersHorizontal, Trash2, X } from 'lucide-react';
+import { AlertCircle, BookOpen, Calendar, Eye, Loader2, Pencil, Plus, SlidersHorizontal, Trash2, X } from 'lucide-react';
 import { Table, TableColumn } from '@/components/ui/Table';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Avatar } from '@/components/ui/Avatar';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { FilterBar, FilterRow } from '@/components/ui/FilterBar';
+import { SearchInput } from '@/components/ui/SearchInput';
 import PurchaseOrderFormModal from '@/components/suppliers/PurchaseOrderFormModal';
 import SupplierTransactionStatusActions from '@/components/suppliers/SupplierTransactionStatusActions';
 import OrderQuickViewModal from '@/components/orders/OrderQuickViewModal';
-import Reveal from '@/components/ui/Reveal';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { formatDate } from '@/utils/formatDate';
 import { supplierApiService } from '@/services/supplier.service';
@@ -212,31 +214,26 @@ export default function Page() {
 
   return (
     <div className="p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-blue-600">
+      <PageHeader
+        eyebrow={
+          <>
             <BookOpen className="h-3.5 w-3.5" />
             Sổ tay mua sắm &amp; thuê mượn
-          </span>
-          <h1 className="mt-2 text-2xl font-bold text-slate-900">Hợp đồng &amp; Đơn thuê ngoài đối tác</h1>
-          <p className="mt-1 text-sm text-slate-500">Quản lý vòng đời hợp đồng phụ trợ cưới, kiểm toán công nợ phát sinh theo đơn</p>
-        </div>
-        <Button onClick={() => setFormModal({ mode: 'create', transaction: null })}>
-          <Plus className="h-4 w-4" />
-          Tạo đơn thuê mới
-        </Button>
-      </div>
+          </>
+        }
+        title="Hợp đồng &amp; Đơn thuê ngoài đối tác"
+        description="Quản lý vòng đời hợp đồng phụ trợ cưới, kiểm toán công nợ phát sinh theo đơn"
+        actions={
+          <Button onClick={() => setFormModal({ mode: 'create', transaction: null })}>
+            <Plus className="h-4 w-4" />
+            Tạo đơn thuê mới
+          </Button>
+        }
+      />
 
-      <Reveal className="mt-6 rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="min-w-[240px] flex-1">
-            <Input
-              placeholder="Tìm theo mã giao dịch, nhà cung cấp, đơn hàng, nội dung..."
-              icon={<Search className="h-4 w-4" />}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
+      <FilterBar>
+        <FilterRow layout="start">
+          <SearchInput value={search} onChange={setSearch} placeholder="Tìm theo mã giao dịch, nhà cung cấp, đơn hàng, nội dung..." />
           <div className="w-44">
             <Select
               value={statusFilter}
@@ -268,7 +265,7 @@ export default function Page() {
             <SlidersHorizontal className="h-4 w-4" />
             Bộ lọc
           </Button>
-        </div>
+        </FilterRow>
 
         {showAdvancedFilters && (
           <div className="mt-3 flex items-center gap-2 border-t border-slate-100 pt-3">
@@ -302,7 +299,7 @@ export default function Page() {
             <Table columns={columns} rows={filtered} rowKey={(row) => row.transactionId} />
           )}
         </div>
-      </Reveal>
+      </FilterBar>
 
       <TransactionDetailModal
         transaction={detailTransaction}

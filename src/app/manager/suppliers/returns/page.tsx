@@ -2,12 +2,13 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Box, CheckCircle2, Eye, FileText, Loader2, RotateCcw, Search, SlidersHorizontal, X } from 'lucide-react';
+import { Box, CheckCircle2, Eye, FileText, Loader2, RotateCcw, SlidersHorizontal, X } from 'lucide-react';
 import { Table, TableColumn } from '@/components/ui/Table';
-import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
 import { Pagination } from '@/components/ui/Pagination';
+import { FilterBar, FilterRow } from '@/components/ui/FilterBar';
+import { SearchInput } from '@/components/ui/SearchInput';
 import { usePagination } from '@/hooks/usePagination';
 import { usePermission } from '@/hooks/usePermission';
 import Reveal from '@/components/ui/Reveal';
@@ -217,16 +218,9 @@ export default function Page() {
         </div>
       </Reveal>
 
-      <Reveal delay={0.05} className="mt-4 rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="min-w-[220px] flex-1">
-            <Input
-              placeholder="Tìm mã phiếu, mã đơn, tên NCC, mã giao dịch..."
-              icon={<Search className="h-4 w-4" />}
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
+      <FilterBar delay={0.05} spacing="none" className="mt-4">
+        <FilterRow layout="start">
+          <SearchInput value={search} onChange={setSearch} placeholder="Tìm mã phiếu, mã đơn, tên NCC, mã giao dịch..." />
           <div className="w-44">
             <Select
               value={statusFilter}
@@ -249,7 +243,7 @@ export default function Page() {
             <SlidersHorizontal className="h-4 w-4" />
             Bộ lọc
           </Button>
-        </div>
+        </FilterRow>
 
         {showAdvancedFilters && (
           <div className="mt-3 flex items-center gap-3 border-t border-slate-100 pt-3">
@@ -278,7 +272,7 @@ export default function Page() {
           Ghi chú: phiếu trả thiết bị NCC do Leader Staff ghi nhận tại hiện trường qua ứng dụng di động — web chỉ xem và
           xác nhận, không có chức năng tạo phiếu trên web.
         </p> */}
-      </Reveal>
+      </FilterBar>
 
       <SupplierReturnDetailModal
         report={detailReport}

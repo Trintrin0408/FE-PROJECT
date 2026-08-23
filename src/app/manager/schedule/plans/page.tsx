@@ -2,10 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { AlertTriangle, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Clock, Edit, Eye, FileText, Loader2, MapPin, Plus, Search, Trash2, Users } from 'lucide-react';
+import { AlertTriangle, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Clock, Edit, Eye, FileText, Loader2, MapPin, Plus, Trash2, Users } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Pagination } from '@/components/ui/Pagination';
+import { FilterBar } from '@/components/ui/FilterBar';
+import { SearchInput } from '@/components/ui/SearchInput';
 import type { PaginationState } from '@/hooks/usePagination';
 import { useDebounce } from '@/hooks/useDebounce';
 import PlanDetailDrawer from '@/components/planning/PlanDetailDrawer';
@@ -264,7 +266,7 @@ export default function ManagerPlanningPage() {
 
   return (
     <div className="p-6">
-      <div className="flex flex-col gap-4 border-b border-slate-150 pb-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 border-b border-slate-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <div className="rounded-xl bg-blue-50 p-2 text-blue-600">
             <CalendarIcon className="h-5 w-5" />
@@ -344,17 +346,8 @@ export default function ManagerPlanningPage() {
       )}
 
       {activeTab === 'list' && (
-        <Reveal className="mt-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
-          <div className="relative flex-1">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Tìm kiếm mã đơn, khách hàng, tên sự kiện..."
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 py-1.5 pl-9 pr-4 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-100"
-            />
-          </div>
+        <FilterBar className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <SearchInput width="grow" value={searchInput} onChange={setSearchInput} placeholder="Tìm kiếm mã đơn, khách hàng, tên sự kiện..." />
           <div className="flex flex-wrap items-center gap-2">
             <select
               value={statusFilter}
@@ -379,7 +372,7 @@ export default function ManagerPlanningPage() {
               Đặt lại
             </button>
           </div>
-        </Reveal>
+        </FilterBar>
       )}
 
       {activeTab === 'calendar' && (
@@ -502,7 +495,7 @@ export default function ManagerPlanningPage() {
                         setFocusPlanId(r.planId);
                         setSelectedGroupDetail(g);
                       }}
-                      className="group relative flex cursor-pointer flex-col items-start gap-4 rounded-2xl border border-slate-150 p-4 shadow-2xs transition-all hover:border-blue-400 hover:shadow-xs md:flex-row"
+                      className="group relative flex cursor-pointer flex-col items-start gap-4 rounded-2xl border border-slate-200 p-4 shadow-2xs transition-all hover:border-blue-400 hover:shadow-xs md:flex-row"
                     >
                       <div className="flex min-w-[70px] flex-col items-start justify-center border-b border-slate-100 pb-2 md:border-b-0 md:border-r md:pb-0 md:pr-4">
                         <span className="text-xs font-bold text-blue-600">{start}</span>
@@ -561,7 +554,7 @@ export default function ManagerPlanningPage() {
       )}
 
       {activeTab === 'list' && (
-        <Reveal className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
+        <FilterBar className="overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-left">
               <thead>
@@ -665,7 +658,7 @@ export default function ManagerPlanningPage() {
             </table>
           </div>
           <Pagination pagination={paginationState} onPageChange={setPage} />
-        </Reveal>
+        </FilterBar>
       )}
 
       <AnimatePresence>

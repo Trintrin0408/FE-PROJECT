@@ -6,6 +6,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
+import { Textarea } from '@/components/ui/Textarea';
 import type { Customer, CustomerStatus } from '@/types/customer';
 
 export interface CustomerFormValues {
@@ -27,9 +28,6 @@ interface CustomerFormModalProps {
   submitError?: string | null;
   onSubmit: (values: CustomerFormValues) => void;
 }
-
-const textareaClassName =
-  'block w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500';
 
 function emptyValues(): CustomerFormValues {
   return { customerName: '', phone: '', email: '', address: '', notes: '', status: 'active' };
@@ -158,18 +156,13 @@ export function CustomerFormModal({ isOpen, onClose, editingCustomer, isSubmitti
           }}
           error={errors.address}
         />
-        <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-gray-700" htmlFor="customer-notes">
-            Ghi chú cụ thể
-          </label>
-          <textarea
-            id="customer-notes"
-            rows={3}
-            className={textareaClassName}
-            value={values.notes}
-            onChange={(e) => setValues((v) => ({ ...v, notes: e.target.value }))}
-          />
-        </div>
+        <Textarea
+          id="customer-notes"
+          label="Ghi chú cụ thể"
+          rows={3}
+          value={values.notes}
+          onChange={(e) => setValues((v) => ({ ...v, notes: e.target.value }))}
+        />
       </div>
     </Modal>
   );

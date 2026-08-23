@@ -141,7 +141,7 @@ const MANAGER_NAV_SECTIONS: NavSection[] = [
           { label: 'Báo giá', href: '/manager/quotations', icon: FileText },
           { label: 'Đặt cọc', href: '/manager/payments/deposits', icon: CreditCard },
           { label: 'Thanh toán', href: '/manager/payments/settlements', icon: Wallet },
-          { label: 'Công nợ & dòng tiền', href: '/manager/payments/aging', icon: TrendingUp },
+          // { label: 'Công nợ & dòng tiền', href: '/manager/payments/aging', icon: TrendingUp },
           { label: 'Lịch sử giao dịch', href: '/manager/transactions', icon: Wallet },
         ],
       },

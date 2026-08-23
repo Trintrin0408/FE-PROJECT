@@ -92,7 +92,7 @@ export default function AdminPlanningPage() {
 
   return (
     <div className="p-6">
-      <div className="flex flex-col gap-4 border-b border-slate-150 pb-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 border-b border-slate-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
           <div className="rounded-xl bg-blue-50 p-2 text-blue-600">
             <CalendarIcon className="h-5 w-5" />

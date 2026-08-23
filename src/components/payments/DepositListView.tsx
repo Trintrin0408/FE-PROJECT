@@ -2,11 +2,12 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Eye, RotateCcw, Search, User } from 'lucide-react';
+import { Eye, RotateCcw, User } from 'lucide-react';
 import { Table, TableColumn } from '@/components/ui/Table';
-import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Badge, getStatusBadgeVariant } from '@/components/ui/Badge';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { SearchInput } from '@/components/ui/SearchInput';
 import Reveal from '@/components/ui/Reveal';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { orderApiService } from '@/services/order.service';
@@ -181,10 +182,7 @@ export default function DepositListView({ detailBasePath }: Readonly<DepositList
 
   return (
     <div className="p-6">
-      <div>
-        <h1 className="text-xl font-bold text-slate-900">Đặt cọc</h1>
-        <p className="mt-1 text-sm text-slate-500">Theo dõi trạng thái đặt cọc của từng đơn đặt.</p>
-      </div>
+      <PageHeader title="Đặt cọc" description="Theo dõi trạng thái đặt cọc của từng đơn đặt." />
 
       <Reveal className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
         <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
@@ -198,12 +196,7 @@ export default function DepositListView({ detailBasePath }: Readonly<DepositList
         </div>
 
         <div className="grid grid-cols-1 gap-3 p-5 sm:grid-cols-2 lg:grid-cols-3">
-          <Input
-            placeholder="Tìm mã đơn hoặc tên khách hàng..."
-            icon={<Search className="h-4 w-4" />}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+          <SearchInput width="full" value={search} onChange={setSearch} placeholder="Tìm mã đơn hoặc tên khách hàng..." />
           <Select
             value={depositFilter}
             onChange={(e) => setDepositFilter(e.target.value as DepositFilterValue)}

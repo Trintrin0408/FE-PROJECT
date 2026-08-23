@@ -1,12 +1,14 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowDownLeft, ArrowUpRight, RotateCcw, Search } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, RotateCcw } from 'lucide-react';
 import { Table, TableColumn } from '@/components/ui/Table';
-import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
 import { Pagination } from '@/components/ui/Pagination';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { FilterBar, FilterRow } from '@/components/ui/FilterBar';
+import { SearchInput } from '@/components/ui/SearchInput';
 import { usePagination } from '@/hooks/usePagination';
 import { useDebounce } from '@/hooks/useDebounce';
 import Reveal from '@/components/ui/Reveal';
@@ -120,12 +122,10 @@ export default function TransactionHistoryView() {
 
   return (
     <div className="p-6">
-      <div>
-        <h1 className="text-xl font-bold text-slate-900">Lịch sử giao dịch</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Giao dịch ngân hàng của tài khoản công ty đã cấu hình (đồng bộ qua SePay). Chỉ để tra cứu &amp; đối soát thanh toán.
-        </p>
-      </div>
+      <PageHeader
+        title="Lịch sử giao dịch"
+        description="Giao dịch ngân hàng của tài khoản công ty đã cấu hình (đồng bộ qua SePay). Chỉ để tra cứu &amp; đối soát thanh toán."
+      />
 
       {!configured && !isLoading ? (
         <Reveal className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
@@ -133,19 +133,16 @@ export default function TransactionHistoryView() {
           (Cấu hình &gt; Tài khoản ngân hàng) và thiết lập token SePay ở máy chủ để xem lịch sử giao dịch.
         </Reveal>
       ) : (
-        <Reveal className="mt-6 rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="min-w-[220px] flex-1">
-              <Input
-                placeholder="Tìm nội dung, mã tham chiếu..."
-                icon={<Search className="h-4 w-4" />}
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setPage(1);
-                }}
-              />
-            </div>
+        <FilterBar>
+          <FilterRow layout="start">
+            <SearchInput
+              value={search}
+              onChange={(value) => {
+                setSearch(value);
+                setPage(1);
+              }}
+              placeholder="Tìm nội dung, mã tham chiếu..."
+            />
             <div className="w-40">
               <Select
                 value={transferType}
@@ -169,7 +166,7 @@ export default function TransactionHistoryView() {
               <RotateCcw className="h-4 w-4" />
               Làm mới
             </Button>
-          </div>
+          </FilterRow>
 
           {loadError && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 ring-1 ring-inset ring-red-600/20">{loadError}</p>}
 
@@ -179,10 +176,10 @@ export default function TransactionHistoryView() {
 
           <Pagination pagination={pagination} onPageChange={setPage} />
 
-          <p className="mt-3 text-[11px] italic text-slate-400">
+          {/* <p className="mt-3 text-[11px] italic text-slate-400">
             Dữ liệu lấy trực tiếp từ SePay (chỉ đọc). Đối soát cọc/quyết toán bằng mã tham chiếu &amp; nội dung chuyển khoản.
-          </p>
-        </Reveal>
+          </p> */}
+        </FilterBar>
       )}
     </div>
   );

@@ -2,13 +2,14 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Eye, Pencil, Trash2, Plus, Calculator, ImageIcon } from 'lucide-react';
+import { Eye, Pencil, Trash2, Plus, Calculator, ImageIcon } from 'lucide-react';
 import { Table, TableColumn } from '@/components/ui/Table';
 import { Pagination } from '@/components/ui/Pagination';
-import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
-import Reveal from '@/components/ui/Reveal';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { FilterBar, FilterRow } from '@/components/ui/FilterBar';
+import { SearchInput } from '@/components/ui/SearchInput';
 import { catalogApiService } from '@/services/catalog.service';
 import { usePagination } from '@/hooks/usePagination';
 import { usePermission } from '@/hooks/usePermission';
@@ -234,38 +235,23 @@ export default function Page() {
 
   return (
     <div className="p-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Danh sách thiết bị</h1>
-          <p className="mt-1 text-sm text-slate-500">Quản lý thiết bị đơn lẻ và combo cấu kiện</p>
-        </div>
-        {canManage && (
-          <Button onClick={() => router.push('/admin/catalog/create')} className="bg-blue-600 hover:bg-blue-700 text-white rounded-md flex items-center gap-2 px-4 py-2">
-            <Plus className="h-4 w-4" />
-            Thêm thiết bị
-          </Button>
-        )}
-      </div>
+      <PageHeader
+        title="Danh sách thiết bị"
+        description="Quản lý thiết bị đơn lẻ và combo cấu kiện"
+        actions={
+          canManage && (
+            <Button onClick={() => router.push('/admin/catalog/create')}>
+              <Plus className="h-4 w-4" />
+              Thêm thiết bị
+            </Button>
+          )
+        }
+      />
 
-      <Reveal className="mt-6 rounded-xl border border-slate-200 bg-white p-4 shadow-xs flex flex-col gap-4">
-        {/* Filters Row */}
-        <div className="flex flex-wrap items-end gap-3">
-          <div className="min-w-[240px] flex-1">
-            <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-white invisible">Tìm kiếm</label>
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Tìm theo mã hoặc tên thiết bị..."
-                  value={draftSearch}
-                  onChange={(e) => setDraftSearch(e.target.value)}
-                  className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
-            </div>
-          </div>
-          
+      <FilterBar className="flex flex-col gap-4">
+        <FilterRow layout="end">
+          <SearchInput value={draftSearch} onChange={setDraftSearch} placeholder="Tìm theo mã hoặc tên thiết bị..." />
+
           <div className="w-[180px]">
             <Select
               label="Danh mục"
@@ -297,14 +283,14 @@ export default function Page() {
           </div>
 
           <div className="flex gap-2 mb-0.5">
-            <Button type="button" onClick={handleApplyFilters} className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg h-[38px] px-5">
+            <Button type="button" onClick={handleApplyFilters}>
               Áp dụng
             </Button>
-            <Button type="button" variant="secondary" onClick={handleResetFilters} className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg h-[38px] px-5">
+            <Button type="button" variant="secondary" onClick={handleResetFilters}>
               Đặt lại
             </Button>
           </div>
-        </div>
+        </FilterRow>
 
         {/* Table */}
         <div className="overflow-x-auto min-h-[300px]">
@@ -312,15 +298,13 @@ export default function Page() {
         </div>
 
         {/* Pagination */}
-        <Pagination 
-          pagination={pagination} 
-          onPageChange={setPage} 
+        <Pagination
+          pagination={pagination}
+          onPageChange={setPage}
           onLimitChange={(limit) => updatePagination({ limit })}
           itemName="thiết bị"
         />
-      </Reveal>
-
-
+      </FilterBar>
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { Textarea } from '@/components/ui/Textarea';
 import type { BusinessPolicy, PolicyType } from '@/types/policy';
 
 export interface PolicyFormValues {
@@ -45,9 +46,6 @@ const EMPTY_VALUES: PolicyFormValues = {
   description: '',
   isActive: true,
 };
-
-const textareaClassName =
-  'block w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500';
 
 export function PolicyFormModal({ isOpen, onClose, mode, policy, isSubmitting, errorMessage, onSubmit }: Readonly<PolicyFormModalProps>) {
   const [values, setValues] = useState<PolicyFormValues>(EMPTY_VALUES);
@@ -184,26 +182,21 @@ export function PolicyFormModal({ isOpen, onClose, mode, policy, isSubmitting, e
               onChange={(e) => setValues((v) => ({ ...v, unit: e.target.value }))}
             />
           </div>
-          <div className="flex flex-col gap-1">
-            <label htmlFor="policy-description" className="text-sm font-medium text-gray-700">
-              Mô tả
-            </label>
-            <textarea
-              id="policy-description"
-              rows={3}
-              className={textareaClassName}
-              placeholder="Mô tả ngắn gọn nội dung/điều kiện áp dụng của chính sách này..."
-              value={values.description}
-              onChange={(e) => setValues((v) => ({ ...v, description: e.target.value }))}
-            />
-          </div>
+          <Textarea
+            id="policy-description"
+            label="Mô tả"
+            rows={3}
+            placeholder="Mô tả ngắn gọn nội dung/điều kiện áp dụng của chính sách này..."
+            value={values.description}
+            onChange={(e) => setValues((v) => ({ ...v, description: e.target.value }))}
+          />
           {mode === 'edit' && (
-            <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+            <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
               <input
                 type="checkbox"
                 checked={values.isActive}
                 onChange={(e) => setValues((v) => ({ ...v, isActive: e.target.checked }))}
-                className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
               />
               <span>Đang áp dụng</span>
             </label>

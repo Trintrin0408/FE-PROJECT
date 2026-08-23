@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Modal } from '@/components/ui/Modal';
+import { Textarea } from '@/components/ui/Textarea';
 import Reveal from '@/components/ui/Reveal';
 import { parseApiError } from '@/utils/apiError';
 import { EvidenceBlock, EvidenceUploadField, uploadPaymentEvidence } from '@/components/payments/EvidenceBlock';
@@ -329,7 +330,7 @@ export default function DepositDetailView({ canManage, backHref }: Readonly<Depo
             {deposits.map((d) => {
               const transferContent = getDepositTransferContent(d.depositCode, order.orderCode);
               return (
-                <div key={d.depositId} className="rounded-xl border border-slate-150 bg-white p-4 shadow-xs">
+                <div key={d.depositId} className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="font-bold text-slate-900">{d.depositCode}</p>
                     <Badge variant={getStatusBadgeVariant(d.status)}>{DEPOSIT_STATUS_LABEL[d.status]}</Badge>
@@ -499,16 +500,7 @@ export default function DepositDetailView({ canManage, backHref }: Readonly<Depo
           <Input type="number" label="Số tiền cọc (đ)" required min={1} step={100_000} value={amount} onChange={(e) => setAmount(e.target.value)} />
           <Input type="date" label="Hạn thanh toán" min={todayDateInputValue} value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
           <div className="flex flex-col gap-1">
-            <label htmlFor="deposit-notes" className="text-sm font-medium text-gray-700">
-              Ghi chú
-            </label>
-            <textarea
-              id="deposit-notes"
-              rows={3}
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              className="block w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <Textarea id="deposit-notes" label="Ghi chú" rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
           {createError && <p className="text-sm text-red-600">{createError}</p>}
         </div>

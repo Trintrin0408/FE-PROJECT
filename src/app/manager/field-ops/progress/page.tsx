@@ -4,10 +4,12 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Activity as ActivityIcon, Calendar, CheckCircle2, Clock, Edit, MapPin, Search, Truck, Wrench, X } from 'lucide-react';
+import { Activity as ActivityIcon, Calendar, CheckCircle2, Clock, Edit, MapPin, Truck, Wrench, X } from 'lucide-react';
 import { Table, TableColumn } from '@/components/ui/Table';
-import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { FilterBar } from '@/components/ui/FilterBar';
+import { SearchInput } from '@/components/ui/SearchInput';
 import DashboardStats, { KpiCardItem } from '@/components/reports/DashboardStats';
 import { formatDate } from '@/utils/formatDate';
 import { SchedulePlan, TASK_STATUS_META, getAdminSchedulePlans, getPlanStatusInfo } from '@/mocks/db/schedulePlans';
@@ -136,33 +138,23 @@ export default function ManagerFieldProgressPage() {
 
   return (
     <div className="p-6">
-      <div>
-        <h1 className="flex items-center gap-2.5 text-2xl font-bold text-slate-900">
-          <Truck className="h-6 w-6 text-blue-600" />
-          Vận chuyển &amp; thi công
-        </h1>
-        <p className="mt-1 text-sm text-slate-500">Theo dõi tiến độ vận chuyển/lắp đặt, thi công kỹ thuật và thu hồi của từng đơn đang thực hiện.</p>
-      </div>
+      <PageHeader
+        title="Vận chuyển &amp; thi công"
+        icon={<Truck className="h-6 w-6 text-blue-600" />}
+        description="Theo dõi tiến độ vận chuyển/lắp đặt, thi công kỹ thuật và thu hồi của từng đơn đang thực hiện."
+      />
 
       <div className="mt-6">
         <DashboardStats items={kpis} />
       </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: '-40px' }}
-        transition={{ duration: 0.25 }}
-        className="mt-6 rounded-xl border border-slate-200 bg-white p-4 shadow-xs"
-      >
-        <div className="min-w-[240px] max-w-sm">
-          <Input placeholder="Tìm theo mã đơn, khách hàng, tên lễ cưới..." icon={<Search className="h-4 w-4" />} value={search} onChange={(e) => setSearch(e.target.value)} />
-        </div>
+      <FilterBar>
+        <SearchInput width="grow" className="max-w-sm" value={search} onChange={setSearch} placeholder="Tìm theo mã đơn, khách hàng, tên lễ cưới..." />
 
         <div className="mt-4 overflow-x-auto">
           <Table columns={columns} rows={filtered} rowKey={(row) => row.id} />
         </div>
-      </motion.div>
+      </FilterBar>
 
       <AnimatePresence>
         {selectedPlan && (
@@ -209,7 +201,7 @@ function LegacyPlanQuickView({ plan, onClose, onEdit }: Readonly<{ plan: Schedul
         </div>
 
         <div className="flex-1 space-y-6 overflow-y-auto p-6">
-          <div className="space-y-3 rounded-xl border border-slate-150 bg-slate-50/70 p-4">
+          <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/70 p-4">
             <div className="flex items-center justify-between">
               <span className="rounded bg-slate-900 px-2 py-0.5 font-mono text-[10px] font-bold text-white">{plan.orderId}</span>
               <span className="text-[11px] font-medium text-slate-500">Người lập: {plan.manager}</span>
@@ -232,7 +224,7 @@ function LegacyPlanQuickView({ plan, onClose, onEdit }: Readonly<{ plan: Schedul
             <h4 className="border-l-2 border-blue-500 pl-2 text-xs font-bold uppercase tracking-wider text-slate-900">Các hoạt động chính</h4>
             <div className="space-y-2">
               {plan.activities.map((act) => (
-                <div key={act.id} className="flex items-start gap-3 rounded-xl border border-slate-150 bg-white p-3">
+                <div key={act.id} className="flex items-start gap-3 rounded-xl border border-slate-200 bg-white p-3">
                   <div className="rounded-lg bg-slate-50 p-2 text-slate-600">
                     <ActivityIcon className="h-4 w-4 text-blue-500" />
                   </div>
@@ -293,7 +285,7 @@ function LegacyPlanQuickView({ plan, onClose, onEdit }: Readonly<{ plan: Schedul
             </h4>
             <div className="flex flex-wrap gap-2">
               {plan.staffList.map((s) => (
-                <span key={s.name} className="rounded-lg border border-slate-150 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-700">
+                <span key={s.name} className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-semibold text-slate-700">
                   {s.name} <span className="font-normal text-slate-400">- {s.role}</span>
                 </span>
               ))}
@@ -301,7 +293,7 @@ function LegacyPlanQuickView({ plan, onClose, onEdit }: Readonly<{ plan: Schedul
           </div>
         </div>
 
-        <div className="flex justify-end gap-2.5 border-t border-slate-150 bg-slate-50 p-5">
+        <div className="flex justify-end gap-2.5 border-t border-slate-200 bg-slate-50 p-5">
           <Button variant="secondary" onClick={onClose}>
             Đóng lại
           </Button>

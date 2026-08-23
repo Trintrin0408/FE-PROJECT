@@ -197,7 +197,7 @@ export default function UpdateSupplierTransactionModal({
   if (mode === 'view') {
     const orderTypeMeta = ORDER_TYPE_META[transactionType] || { label: transactionType, fullLabel: transactionType, badgeClass: '' };
     const statusMeta = TRANSACTION_STATUS_META[status] || { label: status, badgeClass: '' };
-    const paymentStatusMeta = PAYMENT_STATUS_META[transaction?.paymentStatus || 'UNPAID'] || { label: transaction?.paymentStatus || 'Chưa thanh toán', badgeClass: 'bg-gray-100 text-gray-800' };
+    const paymentStatusMeta = PAYMENT_STATUS_META[transaction?.paymentStatus || 'UNPAID'] || { label: transaction?.paymentStatus || 'Chưa thanh toán', badgeClass: 'bg-slate-100 text-slate-800' };
 
     const remainingDebt = transaction?.paymentStatus === 'PAID'
       ? 0

@@ -5,6 +5,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
+import { Textarea } from '@/components/ui/Textarea';
 import { AdminEquipment, CreateEquipmentInput, EQUIPMENT_CATEGORY_OPTIONS, EquipmentStatus } from '@/mocks/db/catalog';
 
 interface EquipmentFormModalProps {
@@ -108,18 +109,13 @@ export function EquipmentFormModal({ isOpen, onClose, equipment, onSubmit }: Rea
           <Input label="Kích thước" value={values.dimensions} onChange={(e) => setValues((v) => ({ ...v, dimensions: e.target.value }))} />
           <Input label="Chất liệu" value={values.material} onChange={(e) => setValues((v) => ({ ...v, material: e.target.value }))} />
         </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-gray-700" htmlFor="equipment-specs">
-            Mô tả kỹ thuật / thông số
-          </label>
-          <textarea
-            id="equipment-specs"
-            rows={2}
-            className="block w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            value={values.specs}
-            onChange={(e) => setValues((v) => ({ ...v, specs: e.target.value }))}
-          />
-        </div>
+        <Textarea
+          id="equipment-specs"
+          label="Mô tả kỹ thuật / thông số"
+          rows={2}
+          value={values.specs}
+          onChange={(e) => setValues((v) => ({ ...v, specs: e.target.value }))}
+        />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Input label="Vị trí kho" value={values.location} onChange={(e) => setValues((v) => ({ ...v, location: e.target.value }))} />
           {!isEditing && (
@@ -140,12 +136,12 @@ export function EquipmentFormModal({ isOpen, onClose, equipment, onSubmit }: Rea
             ]}
           />
         </div>
-        <label className="flex items-center gap-2 text-sm text-gray-700">
+        <label className="flex items-center gap-2 text-sm text-slate-700">
           <input
             type="checkbox"
             checked={values.installRequired}
             onChange={(e) => setValues((v) => ({ ...v, installRequired: e.target.checked }))}
-            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
           />
           Cần nhân sự lắp đặt/thi công riêng
         </label>

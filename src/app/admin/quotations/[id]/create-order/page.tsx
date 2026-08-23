@@ -8,6 +8,7 @@ import { ArrowLeft, ArrowRight, Check, ChevronRight, Plus, Trash2 } from 'lucide
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { Textarea } from '@/components/ui/Textarea';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { ITEM_CATEGORY_OPTIONS, getAdminQuotationById } from '@/mocks/db/quotations';
 import { AdminOrderLineItem, COORDINATOR_POOL, PACKAGE_OPTIONS, VENUE_OPTIONS, getAdminOrders } from '@/mocks/db/orders';
@@ -262,16 +263,13 @@ export default function CreateOrderFromQuotationPage() {
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label htmlFor="event-notes" className="text-sm font-medium text-gray-700">
-                Mô tả cụ thể / Lưu ý vận chuyển
-              </label>
-              <textarea
+              <Textarea
                 id="event-notes"
+                label="Mô tả cụ thể / Lưu ý vận chuyển"
                 rows={3}
                 placeholder="Kích thước cửa ra vào, giờ thi công, lưu ý nguồn điện của khách sạn..."
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                className="block w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div className="flex justify-between border-t border-slate-100 pt-4">

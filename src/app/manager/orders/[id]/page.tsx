@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
+import { Textarea } from '@/components/ui/Textarea';
 import RecordSettlementModal from '@/components/orders/RecordSettlementModal';
 import RescheduleOrderModal from '@/components/orders/RescheduleOrderModal';
 import ConfirmOrderModal, { PlanToCreate } from '@/components/orders/ConfirmOrderModal';
@@ -1614,7 +1615,7 @@ function ManagerOrderDetailContent() {
                     const canEdit = plan.status !== 'IN_PROGRESS' && plan.status !== 'COMPLETED' && plan.status !== 'CANCELLED';
                     const canCancel = canEdit;
                     return (
-                      <div key={plan.planId} className="rounded-xl border border-slate-150 bg-white p-4 shadow-xs">
+                      <div key={plan.planId} className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs">
                         <div className="flex flex-wrap items-start justify-between gap-2">
                           <div>
                             <p className="font-mono text-[10px] font-bold uppercase tracking-wider text-slate-400">
@@ -1642,7 +1643,7 @@ function ManagerOrderDetailContent() {
                         {plan.assignees && plan.assignees.length > 0 && (
                           <div className="mt-2 flex flex-wrap gap-2">
                             {plan.assignees.map((a) => (
-                              <span key={a.userId} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-50 px-2.5 py-1 text-xs text-slate-700 ring-1 ring-inset ring-slate-150">
+                              <span key={a.userId} className="inline-flex items-center gap-1.5 rounded-lg bg-slate-50 px-2.5 py-1 text-xs text-slate-700 ring-1 ring-inset ring-slate-200">
                                 <Users className="h-3 w-3 text-slate-400" />
                                 {a.fullName} · {ASSIGNEE_ROLE_LABEL[a.role] ?? a.role}
                                 {a.phone && (
@@ -1874,13 +1875,10 @@ function ManagerOrderDetailContent() {
         }
       >
         <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-gray-700" htmlFor="cancel-reason">
-            Lý do hủy (không bắt buộc)
-          </label>
-          <textarea
+          <Textarea
             id="cancel-reason"
+            label="Lý do hủy (không bắt buộc)"
             rows={3}
-            className="block w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
             value={cancelReason}
             onChange={(e) => setCancelReason(e.target.value)}
           />

@@ -64,7 +64,7 @@ export default function SurveyDetailDrawer({ report, onClose, onConfirm }: Reado
         </div>
 
         <div className="flex-1 space-y-6 overflow-y-auto p-6">
-          <div className="grid grid-cols-2 gap-4 rounded-xl border border-slate-150 bg-slate-50/60 p-4 text-xs">
+          <div className="grid grid-cols-2 gap-4 rounded-xl border border-slate-200 bg-slate-50/60 p-4 text-xs">
             <div>
               <span className="block text-[10px] font-bold uppercase text-slate-400">Mã đơn đặt</span>
               <span className="mt-1 block font-mono font-bold text-slate-800">{report.orderCode}</span>
@@ -137,7 +137,7 @@ export default function SurveyDetailDrawer({ report, onClose, onConfirm }: Reado
               <Package className="h-4 w-4 text-blue-600" />
               Đồ đạc / thiết bị đề xuất thuê
             </h4>
-            <div className="rounded-xl border border-slate-150 bg-white p-3.5 text-xs leading-relaxed text-slate-700 shadow-xs">
+            <div className="rounded-xl border border-slate-200 bg-white p-3.5 text-xs leading-relaxed text-slate-700 shadow-xs">
               {report.proposedItems || (
                 <span className="italic text-slate-400">Chưa khai báo trang bị / đồ thuê kèm theo.</span>
               )}
@@ -167,7 +167,7 @@ export default function SurveyDetailDrawer({ report, onClose, onConfirm }: Reado
           </div>
         </div>
 
-        <div className="flex justify-end gap-3 border-t border-slate-150 bg-slate-50 p-5">
+        <div className="flex justify-end gap-3 border-t border-slate-200 bg-slate-50 p-5">
           <Button variant="secondary" onClick={onClose}>
             Đóng lại
           </Button>

@@ -8,6 +8,7 @@ import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { Textarea } from '@/components/ui/Textarea';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { orderApiService } from '@/services/order.service';
 import { catalogApiService } from '@/services/catalog.service';
@@ -367,16 +368,13 @@ export default function CreateOrderFromQuotationModal({ isOpen, onClose, quotati
         </div>
 
         <div className="border-t border-slate-100 pt-5">
-          <label htmlFor="qo-notes" className="text-sm font-medium text-gray-700">
-            Ghi chú
-          </label>
-          <textarea
+          <Textarea
             id="qo-notes"
+            label="Ghi chú"
             rows={3}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Lưu ý vận chuyển, giờ thi công..."
-            className="mt-1 block w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
 

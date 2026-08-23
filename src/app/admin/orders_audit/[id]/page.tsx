@@ -10,6 +10,7 @@ import { Breadcrumb } from '@/components/ui/Breadcrumb';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
+import { Textarea } from '@/components/ui/Textarea';
 import RecordSettlementModal from '@/components/orders/RecordSettlementModal';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { formatDate } from '@/utils/formatDate';
@@ -707,13 +708,10 @@ export default function AdminOrderDetailPage() {
         }
       >
         <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-gray-700" htmlFor="cancel-reason">
-            Lý do hủy (không bắt buộc)
-          </label>
-          <textarea
+          <Textarea
             id="cancel-reason"
+            label="Lý do hủy (không bắt buộc)"
             rows={3}
-            className="block w-full resize-none rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
             value={cancelReason}
             onChange={(e) => setCancelReason(e.target.value)}
           />

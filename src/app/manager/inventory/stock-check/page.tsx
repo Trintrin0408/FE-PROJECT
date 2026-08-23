@@ -2,13 +2,15 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
-import { Search, SlidersHorizontal, Wrench } from 'lucide-react';
+import { SlidersHorizontal, Wrench } from 'lucide-react';
 import { Table, TableColumn } from '@/components/ui/Table';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
 import { Pagination } from '@/components/ui/Pagination';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { FilterBar } from '@/components/ui/FilterBar';
+import { SearchInput } from '@/components/ui/SearchInput';
 import type { PaginationState } from '@/hooks/usePagination';
 import InventoryDetailModal from '@/components/catalog/InventoryDetailModal';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -130,37 +132,24 @@ export default function ManagerStockCheckPage() {
 
   return (
     <div className="p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Tồn kho doanh nghiệp</h1>
-          <p className="mt-1 text-sm text-slate-500">Quản lý số lượng tồn kho sản phẩm và thiết bị trong doanh nghiệp</p>
-        </div>
-        <Link href="/admin/inventory/maintenance">
-          <Button variant="secondary">
-            <Wrench className="h-4 w-4" />
-            Thiết bị đang bảo trì
-          </Button>
-        </Link>
-      </div>
+      <PageHeader
+        title="Tồn kho doanh nghiệp"
+        description="Quản lý số lượng tồn kho sản phẩm và thiết bị trong doanh nghiệp"
+        actions={
+          <Link href="/admin/inventory/maintenance">
+            <Button variant="secondary">
+              <Wrench className="h-4 w-4" />
+              Thiết bị đang bảo trì
+            </Button>
+          </Link>
+        }
+      />
 
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, margin: '-40px' }}
-        transition={{ duration: 0.25 }}
-        className="mt-6 sm:p-6 rounded-xl border border-slate-200 bg-white p-4 shadow-xs"
-      >
+      <FilterBar>
         <h2 className="text-base font-bold text-slate-900">Danh sách tồn kho doanh nghiệp</h2>
 
         <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-center">
-          <div className="min-w-[240px] flex-1">
-            <Input
-              placeholder="Tìm kiếm theo ID, tên sản phẩm..."
-              icon={<Search className="h-4 w-4" />}
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-            />
-          </div>
+          <SearchInput value={searchInput} onChange={setSearchInput} placeholder="Tìm kiếm theo ID, tên sản phẩm..." />
           <div className="w-full md:w-52">
             <Select
               value={categoryFilter}
@@ -189,7 +178,7 @@ export default function ManagerStockCheckPage() {
         </div>
 
         <Pagination pagination={paginationState} onPageChange={setPage} />
-      </motion.div>
+      </FilterBar>
 
       <InventoryDetailModal
         isOpen={Boolean(viewingItemId)}
