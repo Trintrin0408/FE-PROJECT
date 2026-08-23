@@ -140,11 +140,6 @@ export default function ManagerQuotationsPage() {
       ),
     },
     {
-      key: 'version',
-      label: 'Phiên bản',
-      render: (row) => <span className="text-slate-600">{row.version}</span>,
-    },
-    {
       key: 'subtotal',
       label: 'Tổng trước giảm',
       className: 'text-right',
