@@ -379,17 +379,11 @@ export default function DepositDetailView({ canManage, backHref }: Readonly<Depo
                     {copiedId === d.depositId && <p className="mt-1 text-xs text-emerald-600">Đã sao chép!</p>}
                   </div>
 
-                  {(() => {
-                    const hasDepositEvidence = d.evidenceIds && d.evidenceIds.length > 0;
-                    const evidenceIdsToUse = hasDepositEvidence ? d.evidenceIds : (surveyReport?.evidenceIds ?? []);
-                    return (
-                      <EvidenceBlock
-                        evidenceIds={evidenceIdsToUse}
-                        title={hasDepositEvidence ? 'Bằng chứng thanh toán' : 'Ảnh minh chứng '}
-                        emptyLabel="Chưa có ảnh minh chứng thanh toán."
-                      />
-                    );
-                  })()}
+                  <EvidenceBlock
+                    evidenceIds={d.evidenceIds ?? []}
+                    title="Bằng chứng thanh toán"
+                    emptyLabel="Chưa có ảnh minh chứng thanh toán."
+                  />
 
                   {canManage && d.status === 'UNPAID' && (
                     <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-3">
