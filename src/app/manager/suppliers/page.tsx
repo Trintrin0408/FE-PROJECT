@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import type { AxiosError } from 'axios';
-import { Truck, Eye, Pencil, Lock, LockOpen, MapPin, Phone, Plus, AlertCircle, Loader2 } from 'lucide-react';
+import { Truck, Pencil, Lock, LockOpen, MapPin, Phone, Plus, AlertCircle, Loader2 } from 'lucide-react';
 import { Table, TableColumn } from '@/components/ui/Table';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
@@ -54,6 +54,7 @@ function toUpdatePayload(values: SupplierFormValues): UpdateSupplierPayload {
 }
 
 export default function Page() {
+  const router = useRouter();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [meta, setMeta] = useState({ page: 1, limit: 10, totalItems: 0, totalPages: 1 });
   const [isLoading, setIsLoading] = useState(true);
@@ -188,14 +189,6 @@ export default function Page() {
       label: 'Thao Tác',
       render: (s) => (
         <div className="flex items-center gap-1">
-          <Link
-            href={`/manager/suppliers/${s.supplierId}`}
-            aria-label="Xem chi tiết"
-            title="Xem chi tiết"
-            className="inline-flex rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-blue-600"
-          >
-            <Eye className="h-4 w-4" />
-          </Link>
           <button
             type="button"
             aria-label="Chỉnh sửa"
@@ -280,7 +273,12 @@ export default function Page() {
               Đang tải danh sách nhà cung cấp...
             </div>
           ) : (
-            <Table columns={columns} rows={suppliers} rowKey={(row) => row.supplierId} />
+            <Table
+              columns={columns}
+              rows={suppliers}
+              rowKey={(row) => row.supplierId}
+              onRowClick={(row) => router.push(`/manager/suppliers/${row.supplierId}`)}
+            />
           )}
         </div>
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Eye } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { Table, TableColumn } from '@/components/ui/Table';
 import { Select } from '@/components/ui/Select';
 import { Pagination } from '@/components/ui/Pagination';
@@ -29,6 +29,7 @@ const STATUS_META: Record<CollectedEquipmentReportStatus, { label: string; badge
 type StatusFilter = '' | CollectedEquipmentReportStatus;
 
 export default function Page() {
+  const router = useRouter();
   const [reports, setReports] = useState<CollectedEquipmentReport[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -113,22 +114,6 @@ export default function Page() {
         </span>
       ),
     },
-    {
-      key: 'actions',
-      label: 'Thao tác',
-      render: (r) => (
-        <div className="flex items-center gap-1">
-          <Link
-            href={`/manager/inventory/returns/${r.reportId}`}
-            aria-label="Xem chi tiết"
-            title="Xem chi tiết"
-            className="inline-flex rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-blue-600"
-          >
-            <Eye className="h-4 w-4" />
-          </Link>
-        </div>
-      ),
-    },
   ];
 
   return (
@@ -160,7 +145,13 @@ export default function Page() {
         {loadError && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 ring-1 ring-inset ring-red-600/20">{loadError}</p>}
 
         <div className="mt-4">
-          <Table columns={columns} rows={filtered} rowKey={(row) => row.reportId} isLoading={isLoading} />
+          <Table
+            columns={columns}
+            rows={filtered}
+            rowKey={(row) => row.reportId}
+            isLoading={isLoading}
+            onRowClick={(row) => router.push(`/manager/inventory/returns/${row.reportId}`)}
+          />
         </div>
 
         <Pagination pagination={pagination} onPageChange={setPage} />

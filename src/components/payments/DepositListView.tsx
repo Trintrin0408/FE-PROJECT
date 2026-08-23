@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Eye, RotateCcw, User } from 'lucide-react';
 import { Table, TableColumn } from '@/components/ui/Table';
 import { Select } from '@/components/ui/Select';
@@ -41,9 +42,12 @@ interface DepositListRow {
 
 interface DepositListViewProps {
   detailBasePath: string;
+  /** Ẩn cột "Xử lý" (icon mắt) khi đã có thể bấm cả dòng để vào chi tiết. Mặc định vẫn hiện (Admin). */
+  showDetailAction?: boolean;
 }
 
-export default function DepositListView({ detailBasePath }: Readonly<DepositListViewProps>) {
+export default function DepositListView({ detailBasePath, showDetailAction = true }: Readonly<DepositListViewProps>) {
+  const router = useRouter();
   const [rows, setRows] = useState<DepositListRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -162,22 +166,26 @@ export default function DepositListView({ detailBasePath }: Readonly<DepositList
           <Badge variant={getStatusBadgeVariant(r.depositStatus)}>{DEPOSIT_STATUS_LABEL[r.depositStatus]}</Badge>
         ),
     },
-    {
-      key: 'actions',
-      label: 'Xử lý',
-      render: (r) => (
-        <div className="flex items-center gap-1">
-          <Link
-            href={r.detailHref}
-            aria-label="Xem chi tiết"
-            title="Xem chi tiết"
-            className="inline-flex rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-blue-600"
-          >
-            <Eye className="h-4 w-4" />
-          </Link>
-        </div>
-      ),
-    },
+    ...(showDetailAction
+      ? [
+          {
+            key: 'actions',
+            label: 'Xử lý',
+            render: (r: DepositListRow) => (
+              <div className="flex items-center gap-1">
+                <Link
+                  href={r.detailHref}
+                  aria-label="Xem chi tiết"
+                  title="Xem chi tiết"
+                  className="inline-flex rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-blue-600"
+                >
+                  <Eye className="h-4 w-4" />
+                </Link>
+              </div>
+            ),
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -209,7 +217,13 @@ export default function DepositListView({ detailBasePath }: Readonly<DepositList
         </div>
 
         <div className="overflow-x-auto border-t border-slate-100">
-          <Table columns={columns} rows={filtered} rowKey={(row) => row.key} isLoading={isLoading} />
+          <Table
+            columns={columns}
+            rows={filtered}
+            rowKey={(row) => row.key}
+            isLoading={isLoading}
+            onRowClick={(row) => router.push(row.detailHref)}
+          />
         </div>
       </Reveal>
     </div>

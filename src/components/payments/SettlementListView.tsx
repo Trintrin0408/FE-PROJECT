@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Eye, RotateCcw, User } from 'lucide-react';
 import { Table, TableColumn } from '@/components/ui/Table';
 import { Select } from '@/components/ui/Select';
@@ -37,9 +38,12 @@ interface SettlementListRow {
 
 interface SettlementListViewProps {
   detailBasePath: string;
+  /** Ẩn cột "Xử lý" (icon mắt) khi đã có thể bấm cả dòng để vào chi tiết. Mặc định vẫn hiện (Admin). */
+  showDetailAction?: boolean;
 }
 
-export default function SettlementListView({ detailBasePath }: Readonly<SettlementListViewProps>) {
+export default function SettlementListView({ detailBasePath, showDetailAction = true }: Readonly<SettlementListViewProps>) {
+  const router = useRouter();
   const [rows, setRows] = useState<SettlementListRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -150,22 +154,26 @@ export default function SettlementListView({ detailBasePath }: Readonly<Settleme
           <Badge variant="neutral">Chưa lập biên bản</Badge>
         ),
     },
-    {
-      key: 'actions',
-      label: 'Xử lý',
-      render: (r) => (
-        <div className="flex items-center gap-1">
-          <Link
-            href={`${detailBasePath}/${r.orderId}`}
-            aria-label="Xem chi tiết"
-            title="Xem chi tiết"
-            className="inline-flex rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-blue-600"
-          >
-            <Eye className="h-4 w-4" />
-          </Link>
-        </div>
-      ),
-    },
+    ...(showDetailAction
+      ? [
+          {
+            key: 'actions',
+            label: 'Xử lý',
+            render: (r: SettlementListRow) => (
+              <div className="flex items-center gap-1">
+                <Link
+                  href={`${detailBasePath}/${r.orderId}`}
+                  aria-label="Xem chi tiết"
+                  title="Xem chi tiết"
+                  className="inline-flex rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-blue-600"
+                >
+                  <Eye className="h-4 w-4" />
+                </Link>
+              </div>
+            ),
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -197,7 +205,13 @@ export default function SettlementListView({ detailBasePath }: Readonly<Settleme
         </div>
 
         <div className="overflow-x-auto border-t border-slate-100">
-          <Table columns={columns} rows={filtered} rowKey={(row) => row.orderId} isLoading={isLoading} />
+          <Table
+            columns={columns}
+            rows={filtered}
+            rowKey={(row) => row.orderId}
+            isLoading={isLoading}
+            onRowClick={(row) => router.push(`${detailBasePath}/${row.orderId}`)}
+          />
         </div>
       </Reveal>
     </div>

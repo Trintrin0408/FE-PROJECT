@@ -1,12 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
-import { SlidersHorizontal, Wrench } from 'lucide-react';
+import { SlidersHorizontal } from 'lucide-react';
 import { Table, TableColumn } from '@/components/ui/Table';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
-import { Button } from '@/components/ui/Button';
 import { Pagination } from '@/components/ui/Pagination';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { FilterBar } from '@/components/ui/FilterBar';
@@ -135,14 +133,6 @@ export default function ManagerStockCheckPage() {
       <PageHeader
         title="Tồn kho doanh nghiệp"
         description="Quản lý số lượng tồn kho sản phẩm và thiết bị trong doanh nghiệp"
-        actions={
-          <Link href="/admin/inventory/maintenance">
-            <Button variant="secondary">
-              <Wrench className="h-4 w-4" />
-              Thiết bị đang bảo trì
-            </Button>
-          </Link>
-        }
       />
 
       <FilterBar>

@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import type { AxiosError } from 'axios';
-import { AlertCircle, Eye, Loader2, Mail, Pencil, Phone, Plus } from 'lucide-react';
+import { AlertCircle, Loader2, Mail, Pencil, Phone, Plus } from 'lucide-react';
 import { Table, TableColumn } from '@/components/ui/Table';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -34,6 +35,7 @@ const STATUS_TABS: { value: CustomerStatus | 'all'; label: string }[] = [
 const EMPTY_COUNTS = { all: 0, active: 0, inactive: 0 };
 
 export default function ManagerCustomersPage() {
+  const router = useRouter();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [meta, setMeta] = useState<CustomerListMeta>({ page: 1, limit: 10, totalItems: 0, totalPages: 1, counts: EMPTY_COUNTS });
   const [isLoading, setIsLoading] = useState(true);
@@ -178,14 +180,6 @@ export default function ManagerCustomersPage() {
       label: 'Thao tác',
       render: (row) => (
         <div className="flex items-center gap-1">
-          <Link
-            href={`/manager/customers/${row.customerId}`}
-            aria-label="Xem chi tiết"
-            title="Xem chi tiết"
-            className="inline-flex rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-blue-600"
-          >
-            <Eye className="h-4 w-4" />
-          </Link>
           <button
             type="button"
             onClick={() => openEditModal(row)}
@@ -248,7 +242,12 @@ export default function ManagerCustomersPage() {
           ) : (
             <>
               <div className={isLoading ? 'pointer-events-none opacity-50 transition-opacity' : 'transition-opacity'}>
-                <Table columns={columns} rows={customers} rowKey={(row) => row.customerId} />
+                <Table
+                  columns={columns}
+                  rows={customers}
+                  rowKey={(row) => row.customerId}
+                  onRowClick={(row) => router.push(`/manager/customers/${row.customerId}`)}
+                />
               </div>
               {isLoading && (
                 <div className="absolute inset-x-0 top-0 flex justify-center pt-6">

@@ -180,15 +180,6 @@ export default function Page() {
           <div className="flex items-center gap-1">
           <button
             type="button"
-            aria-label="Xem chi tiết"
-            title="Xem chi tiết giao dịch"
-            onClick={() => setDetailTransaction(t)}
-            className="inline-flex rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-blue-600"
-          >
-            <Eye className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
             aria-label="Chỉnh sửa"
             title="Chỉnh sửa đơn"
             onClick={() => setFormModal({ mode: 'edit', transaction: t })}
@@ -296,7 +287,12 @@ export default function Page() {
               Đang tải danh sách...
             </div>
           ) : (
-            <Table columns={columns} rows={filtered} rowKey={(row) => row.transactionId} />
+            <Table
+              columns={columns}
+              rows={filtered}
+              rowKey={(row) => row.transactionId}
+              onRowClick={(row) => setDetailTransaction(row)}
+            />
           )}
         </div>
       </FilterBar>

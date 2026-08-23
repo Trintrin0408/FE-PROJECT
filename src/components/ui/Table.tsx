@@ -34,7 +34,11 @@ interface TableProps<T> {
   flush?: boolean;
   /** Dòng tổng cộng render trong `<tfoot>` — dùng `tableStyles.tfootLabel`/`.tfootValue` cho các ô. */
   footer?: React.ReactNode;
+  /** Click vào bất kỳ đâu trên dòng (trừ link/nút/input có sẵn trong ô) để làm hành động tương đương "Xem chi tiết". */
+  onRowClick?: (row: T) => void;
 }
+
+const INTERACTIVE_SELECTOR = 'a, button, input, select, textarea, label';
 
 function cellClass(base: string, center: string, right: string, align: 'left' | 'center' | 'right' | undefined, extra?: string) {
   const alignClass = align === 'right' ? right : align === 'center' ? center : base;
@@ -49,7 +53,7 @@ function renderCellValue<T>(row: T, col: TableColumn<T>): React.ReactNode {
 }
 
 function renderBody<T>(props: Readonly<TableProps<T>>, s: (typeof TABLE_STYLES)['md']) {
-  const { columns, rows, rowKey, rowClassName, isLoading, emptyText, loadingText, errorText } = props;
+  const { columns, rows, rowKey, rowClassName, isLoading, emptyText, loadingText, errorText, onRowClick } = props;
 
   if (isLoading) {
     return (
@@ -82,7 +86,18 @@ function renderBody<T>(props: Readonly<TableProps<T>>, s: (typeof TABLE_STYLES)[
   }
 
   return rows.map((row) => (
-    <tr key={rowKey(row)} className={`${s.bodyRow} ${rowClassName?.(row) ?? ''}`}>
+    <tr
+      key={rowKey(row)}
+      className={`${s.bodyRow} ${onRowClick ? 'cursor-pointer' : ''} ${rowClassName?.(row) ?? ''}`}
+      onClick={
+        onRowClick
+          ? (e) => {
+              if ((e.target as HTMLElement).closest(INTERACTIVE_SELECTOR)) return;
+              onRowClick(row);
+            }
+          : undefined
+      }
+    >
       {columns.map((col) => (
         <td key={col.key} className={cellClass(s.td, s.tdCenter, s.tdRight, col.align, col.className)}>
           {renderCellValue(row, col)}

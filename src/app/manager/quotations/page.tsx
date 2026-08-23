@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Eye, Plus, RotateCcw } from 'lucide-react';
+import { Plus, RotateCcw } from 'lucide-react';
 import { Table, TableColumn } from '@/components/ui/Table';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
@@ -38,6 +38,7 @@ const emptyMeta: QuotationListMeta = {
 };
 
 export default function ManagerQuotationsPage() {
+  const router = useRouter();
   const [rows, setRows] = useState<QuotationListItem[]>([]);
   const [meta, setMeta] = useState<QuotationListMeta>(emptyMeta);
   const [isLoading, setIsLoading] = useState(true);
@@ -171,22 +172,6 @@ export default function ManagerQuotationsPage() {
       label: 'Ngày tạo',
       render: (row) => <span className="whitespace-nowrap text-sm text-slate-500">{formatDate(row.createdAt)}</span>,
     },
-    {
-      key: 'actions',
-      label: 'Thao tác',
-      render: (row) => (
-        <div className="flex items-center gap-1">
-          <Link
-            href={`/manager/quotations/${row.quotationId}`}
-            aria-label="Xem chi tiết"
-            title="Xem chi tiết"
-            className="inline-flex rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-blue-600"
-          >
-            <Eye className="h-4 w-4" />
-          </Link>
-        </div>
-      ),
-    },
   ];
 
   return (
@@ -258,6 +243,7 @@ export default function ManagerQuotationsPage() {
               rows={rows}
               rowKey={(row) => row.quotationId}
               rowClassName={(row) => (!row.isManagerViewed ? 'bg-blue-50 hover:bg-blue-100/70' : '')}
+              onRowClick={(row) => router.push(`/manager/quotations/${row.quotationId}`)}
             />
           )}
         </div>

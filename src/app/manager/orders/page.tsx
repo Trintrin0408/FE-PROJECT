@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Ban, Eye } from 'lucide-react';
+import { Ban } from 'lucide-react';
 import { Badge, type BadgeVariant, getStatusBadgeVariant } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
@@ -65,6 +66,7 @@ const emptyMeta: OrderListMeta = {
 };
 
 export default function ManagerOrdersPage() {
+  const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
   const [meta, setMeta] = useState<OrderListMeta>(emptyMeta);
   const [isLoading, setIsLoading] = useState(true);
@@ -283,7 +285,14 @@ export default function ManagerOrdersPage() {
                 </tr>
               ) : (
                 orders.map((o) => (
-                  <tr key={o.orderId} className="text-xs transition-all hover:bg-slate-50/50">
+                  <tr
+                    key={o.orderId}
+                    className="cursor-pointer text-xs transition-all hover:bg-slate-50/50"
+                    onClick={(e) => {
+                      if ((e.target as HTMLElement).closest('a, button')) return;
+                      router.push(`/manager/orders/${o.orderId}`);
+                    }}
+                  >
                     <td className="px-5 py-3 font-mono font-bold text-blue-600">
                       <Link href={`/manager/orders/${o.orderId}`} className="hover:underline">
                         {o.orderCode}
@@ -308,14 +317,6 @@ export default function ManagerOrdersPage() {
                     </td>
                     <td className="px-5 py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <Link
-                          href={`/manager/orders/${o.orderId}`}
-                          aria-label="Xem chi tiết"
-                          title="Xem chi tiết"
-                          className="inline-flex rounded-md p-1.5 text-blue-600 hover:bg-blue-50"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Link>
                         {CANCELLABLE_STATUSES.includes(o.orderStatus) && (
                           <button
                             type="button"
