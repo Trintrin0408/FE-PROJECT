@@ -33,7 +33,7 @@ interface OrderTimelineChartProps {
   setTimelineAnchor: (anchor: string | ((prev: string) => string)) => void;
   timelineDays: string[];
   todayStr: string;
-  timelineRows: { group: OrderPlanGroup; range: [string, string] }[];
+  timelineRows: { group: OrderPlanGroup; range: [string, string]; customerColorClass: string }[];
   onSelectGroupDetail: (group: OrderPlanGroup) => void;
 }
 
@@ -101,7 +101,7 @@ export default function OrderTimelineChart({
               <p className="text-xs font-medium text-slate-400">Không có kế hoạch nào trong khoảng thời gian này.</p>
             </div>
           ) : (
-            timelineRows.map(({ group, range }) => {
+            timelineRows.map(({ group, range, customerColorClass }) => {
               const info = getGroupStatusInfo(group.rows);
               const rangeStartStr = toDateStr(new Date(range[0]));
               const rangeEndStr = toDateStr(new Date(range[1]));
@@ -113,6 +113,7 @@ export default function OrderTimelineChart({
                     <span className={`h-2 w-2 shrink-0 rounded-full ${info.dotColorClass}`} />
                     <div className="min-w-0">
                       <p className="truncate text-xs font-bold text-slate-800">{group.orderCode}</p>
+                      <p className="truncate text-[10px] text-slate-500">{group.customerName || '—'}</p>
                       <p className="text-[10px] text-slate-400">
                         {formatDate(rangeStartStr)} - {formatDate(rangeEndStr)}
                       </p>
@@ -124,8 +125,8 @@ export default function OrderTimelineChart({
                       onClick={() => {
                         onSelectGroupDetail(group);
                       }}
-                      title={`${group.eventName} — nhấp để xem chi tiết`}
-                      className={`truncate rounded-full px-2.5 py-1.5 text-center text-[11px] font-bold transition-opacity hover:opacity-80 ${info.badgeClass}`}
+                      title={`${group.customerName} — ${group.eventName} — nhấp để xem chi tiết`}
+                      className={`truncate rounded-full px-2.5 py-1.5 text-center text-[11px] font-bold transition-opacity hover:opacity-80 ${customerColorClass}`}
                       style={{ gridColumn: `${startCol} / ${endCol + 1}` }}
                     >
                       {group.orderCode}

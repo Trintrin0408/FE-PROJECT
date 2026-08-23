@@ -24,6 +24,7 @@ import {
   SCHEDULE_STATUS_BADGE,
   SCHEDULE_STATUS_LABEL,
   distinctAssigneeCount,
+  getCustomerColorClass,
   getEarliestRowLead,
   getGroupMinMaxRange,
   getGroupStatusInfo,
@@ -127,10 +128,14 @@ export default function ManagerPlanningPage() {
     const rangeStart = timelineDays[0];
     const rangeEnd = timelineDays.at(-1) as string;
     return groups
-      .map((g) => ({ group: g, range: lockWindowRange(g) }))
+      .map((g) => {
+        const order = orderByOrderId.get(g.orderId);
+        const customerColorClass = getCustomerColorClass(order?.customerId ?? g.orderId);
+        return { group: g, range: lockWindowRange(g), customerColorClass };
+      })
       .filter(({ range }) => toDateStr(new Date(range[0])) <= rangeEnd && toDateStr(new Date(range[1])) >= rangeStart)
       .sort((a, b) => a.range[0].localeCompare(b.range[0]));
-  }, [groups, timelineDays, lockWindowRange]);
+  }, [groups, timelineDays, lockWindowRange, orderByOrderId]);
 
   const [selectedGroupDetail, setSelectedGroupDetail] = useState<OrderPlanGroup | null>(null);
   // Mã kế hoạch (plan_code) của thẻ công việc cụ thể vừa nhấn — để Drawer chi tiết ưu tiên hiển thị

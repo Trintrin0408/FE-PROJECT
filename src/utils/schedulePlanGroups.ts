@@ -5,6 +5,7 @@
 // 2 trang mirror (admin/coordination/planning, manager/schedule/plans).
 import type { SchedulePlan, ScheduleStatus } from '@/types/schedulePlan';
 import { computeOrderLockWindow } from './inventoryLock';
+import { hashIndex } from './colorHash';
 
 export interface OrderPlanGroup {
   orderId: string;
@@ -66,6 +67,24 @@ export function getGroupStatusInfo(rows: SchedulePlan[]): { label: string; badge
     return { label: 'Đã chốt', badgeClass: 'bg-emerald-50 text-emerald-700', dotColorClass: 'bg-emerald-500' };
   }
   return { label: 'Chuẩn bị', badgeClass: 'bg-amber-50 text-amber-700', dotColorClass: 'bg-amber-500' };
+}
+
+/** Palette màu cố định (theo customerId) cho thanh timeline "Timeline đơn" ở MasterSchedule — mục đích
+ * là để các đơn cùng 1 khách hàng luôn ra cùng 1 màu, khác khách ra màu khác (không liên quan trạng thái
+ * kế hoạch — trạng thái vẫn hiển thị riêng qua chấm tròn dùng getGroupStatusInfo().dotColorClass). */
+const CUSTOMER_COLOR_PALETTE = [
+  'bg-blue-50 text-blue-700',
+  'bg-amber-50 text-amber-700',
+  'bg-emerald-50 text-emerald-700',
+  'bg-violet-50 text-violet-700',
+  'bg-rose-50 text-rose-700',
+  'bg-cyan-50 text-cyan-700',
+  'bg-fuchsia-50 text-fuchsia-700',
+  'bg-lime-50 text-lime-700',
+];
+
+export function getCustomerColorClass(customerKey: string): string {
+  return CUSTOMER_COLOR_PALETTE[hashIndex(customerKey || 'unknown', CUSTOMER_COLOR_PALETTE.length)];
 }
 
 /** Khoảng ngày khóa kho của 1 nhóm — sử dụng computeOrderLockWindow (tính từ order.eventDate/endDate và các schedulePlans SETUP/COLLECT có đệm ±6 tiếng). 

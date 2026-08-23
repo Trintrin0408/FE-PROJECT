@@ -23,7 +23,7 @@ import { orderApiService } from '@/services/order.service';
 import { schedulePlanApiService } from '@/services/schedulePlan.service';
 import { formatDate } from '@/utils/formatDate';
 import { computeOrderLockWindow } from '@/utils/inventoryLock';
-import { OrderPlanGroup, groupPlansByOrder } from '@/utils/schedulePlanGroups';
+import { OrderPlanGroup, getCustomerColorClass, groupPlansByOrder } from '@/utils/schedulePlanGroups';
 import {
   ORDER_STATUS_ORDER,
   ORDER_STATUS_STYLE,
@@ -175,7 +175,8 @@ export default function MasterSchedule({ orderHref, hiddenViews = [] }: Props) {
         const order = orderById.get(g.orderId);
         const w = computeOrderLockWindow({ eventDate: order?.eventDate ?? g.eventDate, endDate: order?.endDate ?? g.endDate }, g.rows);
         const range: [string, string] = [new Date(w.lockFrom).toISOString(), new Date(w.lockUntil ?? w.lockFrom).toISOString()];
-        return { group: g, range };
+        const customerColorClass = getCustomerColorClass(order?.customerId ?? g.orderId);
+        return { group: g, range, customerColorClass };
       })
       .filter(({ range }) => toDateStr(new Date(range[0])) <= rangeEnd && toDateStr(new Date(range[1])) >= rangeStart)
       .sort((a, b) => a.range[0].localeCompare(b.range[0]));

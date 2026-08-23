@@ -11,7 +11,7 @@ import { schedulePlanApiService } from '@/services/schedulePlan.service';
 import { orderApiService } from '@/services/order.service';
 import type { SchedulePlan } from '@/types/schedulePlan';
 import type { Order } from '@/types/order';
-import { OrderPlanGroup, groupPlansByOrder } from '@/utils/schedulePlanGroups';
+import { OrderPlanGroup, getCustomerColorClass, groupPlansByOrder } from '@/utils/schedulePlanGroups';
 
 export default function AdminPlanningPage() {
   const [plans, setPlans] = useState<SchedulePlan[]>([]);
@@ -70,10 +70,14 @@ export default function AdminPlanningPage() {
     const rangeStart = timelineDays[0];
     const rangeEnd = timelineDays.at(-1) as string;
     return groups
-      .map((g) => ({ group: g, range: lockWindowRange(g) }))
+      .map((g) => {
+        const order = orderByOrderId.get(g.orderId);
+        const customerColorClass = getCustomerColorClass(order?.customerId ?? g.orderId);
+        return { group: g, range: lockWindowRange(g), customerColorClass };
+      })
       .filter(({ range }) => toDateStr(new Date(range[0])) <= rangeEnd && toDateStr(new Date(range[1])) >= rangeStart)
       .sort((a, b) => a.range[0].localeCompare(b.range[0]));
-  }, [groups, timelineDays, lockWindowRange]);
+  }, [groups, timelineDays, lockWindowRange, orderByOrderId]);
 
   const [selectedGroupDetail, setSelectedGroupDetail] = useState<OrderPlanGroup | null>(null);
   const [focusPlanId, setFocusPlanId] = useState<string | null>(null);
