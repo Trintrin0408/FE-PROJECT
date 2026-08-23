@@ -334,7 +334,7 @@ export default function SettlementDetailView({ canManage, backHref }: Readonly<S
 
           {isConfirmed && (
             <p className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
-              Đã xác nhận quyết toán — đơn hàng đã chuyển sang trạng thái Hoàn thành.
+              Đã xác nhận quyết toán - đơn hàng đã chuyển sang trạng thái Hoàn thành.
             </p>
           )}
 
