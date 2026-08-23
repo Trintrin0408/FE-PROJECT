@@ -771,39 +771,14 @@ function ManagerOrderDetailContent() {
     try {
       // Cho phép liên kết báo giá ở bất kỳ trạng thái nào (kể cả nháp) miễn chưa gắn đơn khác — Manager
       // chủ động chọn, không giới hạn chỉ báo giá đã duyệt.
+      const res = await orderApiService.updateOrderQuotation(order.orderId, { quotationId: targetQuotationId });
       const quoRes = await quotationApiService.getQuotation(targetQuotationId);
-      await orderApiService.updateOrderQuotation(order.orderId, { quotationId: targetQuotationId });
-
-      // Cộng dồn số lượng từ báo giá vừa liên kết vào danh sách hạng mục hiện có của đơn — tab "Thiết
-      // bị & Kho hàng" phải phản ánh đúng số lượng đã báo giá ngay khi đơn được liên kết báo giá, thay
-      // vì giữ nguyên order.items cũ (độc lập hoàn toàn với báo giá) như trước. Hạng mục đã có sẵn trên
-      // đơn: giữ nguyên đơn giá đã chốt, chỉ cộng thêm số lượng. Hạng mục mới từ báo giá: thêm dòng mới,
-      // đơn giá = lineTotal/quantity (giá thực tế sau chiết khấu đã chốt ở báo giá).
-      const mergedByItemId = new Map<string, CreateOrderItemPayload>();
-      order.items.forEach((it) => {
-        mergedByItemId.set(it.itemId, { itemId: it.itemId, quantity: it.quantity, unitPrice: it.unitPrice, source: it.source, notes: it.notes });
-      });
-      (quoRes.data?.items as QuotationDetailItem[] | undefined ?? []).forEach((qi) => {
-        const existing = mergedByItemId.get(qi.itemId);
-        if (existing) {
-          existing.quantity += qi.quantity;
-        } else {
-          mergedByItemId.set(qi.itemId, {
-            itemId: qi.itemId,
-            quantity: qi.quantity,
-            unitPrice: qi.quantity > 0 ? Math.round(qi.lineTotal / qi.quantity) : qi.price,
-            source: 'INTERNAL',
-          });
-        }
-      });
-      await orderApiService.updateOrderItems(order.orderId, { items: Array.from(mergedByItemId.values()) });
 
       // Cập nhật state cục bộ ngay để hiện báo giá liên kết tức thì trên tab, không chờ load() lại toàn
       // bộ dữ liệu đơn (customer/deposits/settlement/schedule/survey — mất vài giây) mới thấy kết quả.
       // load() ở finally bên dưới vẫn chạy để đồng bộ đầy đủ (số lượng hạng mục, ...) nhưng không còn
-      // chặn việc hiển thị báo giá vừa liên kết.
+      if (res.data) setOrder(res.data);
       if (quoRes.data) setQuotationDetail(quoRes.data);
-      setOrder((prev) => (prev ? { ...prev, quotationId: targetQuotationId } : prev));
       setSelectedLinkQuoteId('');
     } catch {
       setLinkQuoteError('Liên kết báo giá thất bại. Vui lòng thử lại.');
