@@ -1560,12 +1560,12 @@ function ManagerOrderDetailContent() {
                       </tbody>
                     </table>
                   </div>
-                  <p className="mt-2 text-[10px] text-slate-400">
+                  {/* <p className="mt-2 text-[10px] text-slate-400">
                     {isStockCheckRangeInvalid || stockCheckFrom === stockCheckTo
                       ? `Số liệu "Tồn kho khả dụng" lấy theo đúng ngày đã chọn ở trên.`
                       : `Số liệu "Tồn kho khả dụng" là số nhỏ nhất trong khoảng ngày đã chọn ở trên cho từng vật tư - dòng nhỏ dưới số liệu cho biết đó là ngày nào.`}
                     {' '}Các hạng mục dạng &quot;gói&quot; đã được nổ thành từng vật tư/thiết bị vật lý con (xem docs/thietbikhohang_api.md mục 8).
-                  </p>
+                  </p> */}
 
                   <div className="mt-4 flex justify-end">
                     <Button
