@@ -100,8 +100,11 @@ const ADMIN_NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: 'CHÍNH SÁCH NGHIỆP VỤ',
-    items: [{ label: 'Chính sách', href: '/admin/policies', icon: Shield }],
+    title: 'CHÍNH SÁCH & CẤU HÌNH',
+    items: [
+      { label: 'Chính sách', href: '/admin/policies', icon: Shield },
+      { label: 'Tài khoản ngân hàng', href: '/admin/settings/bank-account', icon: Settings },
+    ],
   },
   {
     title: 'CÔNG VIỆC',
@@ -115,6 +118,7 @@ const ADMIN_NAV_SECTIONS: NavSection[] = [
     title: 'BÁO CÁO & KIỂM TOÁN',
     items: [
       { label: 'Báo cáo doanh thu', href: '/admin/reports/revenue', icon: TrendingUp },
+      { label: 'Lịch sử giao dịch', href: '/admin/transactions', icon: Wallet },
       { label: 'Thống kê đơn hàng', href: '/admin/reports/orders', icon: BarChart3 },
       { label: 'Báo cáo tồn kho', href: '/admin/reports/inventory', icon: Boxes },
       // { label: 'Nhật ký hệ thống', href: '/admin/settings/audit-log', icon: History }, // chưa có endpoint audit ở BE
@@ -138,6 +142,7 @@ const MANAGER_NAV_SECTIONS: NavSection[] = [
           { label: 'Đặt cọc', href: '/manager/payments/deposits', icon: CreditCard },
           { label: 'Thanh toán', href: '/manager/payments/settlements', icon: Wallet },
           { label: 'Công nợ & dòng tiền', href: '/manager/payments/aging', icon: TrendingUp },
+          { label: 'Lịch sử giao dịch', href: '/manager/transactions', icon: Wallet },
         ],
       },
       { label: 'Báo cáo khảo sát', href: '/manager/survey', icon: MapPin },

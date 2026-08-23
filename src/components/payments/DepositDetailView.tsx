@@ -22,7 +22,8 @@ import { paymentApiService } from '@/services/payment.service';
 import { surveyApiService } from '@/services/survey.service';
 import { DEPOSIT_STATUS_LABEL, paymentMethodLabel } from '@/constants/deposit-status';
 import { ORDER_PAYMENT_STATUS_LABEL } from '@/constants/order-status';
-import { COMPANY_BANK_ACCOUNT, buildVietQrImageUrl } from '@/constants/company-bank';
+import { buildSepayQrUrl } from '@/constants/company-bank';
+import { useBankAccount } from '@/hooks/useBankAccount';
 import type { Order } from '@/types/order';
 import type { Deposit } from '@/types/payment';
 import type { SurveyReportListItem } from '@/types/survey';
@@ -68,6 +69,7 @@ export default function DepositDetailView({ canManage, backHref }: Readonly<Depo
   const params = useParams<{ id: string }>();
   const orderId = params.id;
 
+  const { account: bankAccount } = useBankAccount();
   const [order, setOrder] = useState<Order | null>(null);
   const [deposits, setDeposits] = useState<Deposit[]>([]);
   const [surveyReport, setSurveyReport] = useState<SurveyReportListItem | null>(null);
@@ -416,29 +418,43 @@ export default function DepositDetailView({ canManage, backHref }: Readonly<Depo
       </Reveal>
 
       <Reveal delay={0.1} className="rounded-2xl border border-slate-200 bg-white p-5">
-        <p className="text-sm font-bold text-slate-900">Cổng thanh toán VietQR</p>
+        <p className="text-sm font-bold text-slate-900">Cổng thanh toán QR (SePay)</p>
         {/* <p className="mt-1 text-xs text-slate-400">Quét mã bằng app ngân hàng/Mobile Banking để chuyển khoản nhanh, đúng tài khoản và nội dung.</p> */}
 
         {primaryDeposit ? (
           (() => {
             const transferContent = getDepositTransferContent(primaryDeposit.depositCode, order.orderCode);
-            const qrImageUrl = buildVietQrImageUrl({ amount: primaryDeposit.amount, addInfo: transferContent });
+            const bankConfigured = Boolean(bankAccount?.configured && bankAccount.bankBin && bankAccount.accountNumber);
+            const qrImageUrl = bankConfigured
+              ? buildSepayQrUrl(
+                  { bankBin: bankAccount!.bankBin!, accountNumber: bankAccount!.accountNumber!, accountName: bankAccount!.accountName },
+                  { amount: primaryDeposit.amount, des: transferContent },
+                )
+              : null;
             return (
               <>
-                <div className="mt-4 flex justify-center">
-                  <div className="w-full max-w-[220px] rounded-xl border border-slate-200 p-3">
-                    {/* eslint-disable-next-line @next/next/no-img-element -- ảnh động từ img.vietqr.io, không phải asset tĩnh trong repo */}
-                    <img src={qrImageUrl} alt={`Mã VietQR chuyển khoản cọc ${primaryDeposit.depositCode}`} className="w-full" />
-                  </div>
-                </div>
+                {bankConfigured && qrImageUrl ? (
+                  <>
+                    <div className="mt-4 flex justify-center">
+                      <div className="w-full max-w-[220px] rounded-xl border border-slate-200 p-3">
+                        {/* eslint-disable-next-line @next/next/no-img-element -- ảnh động từ SePay (qr.sepay.vn), không phải asset tĩnh trong repo */}
+                        <img src={qrImageUrl} alt={`Mã QR chuyển khoản cọc ${primaryDeposit.depositCode}`} className="w-full" />
+                      </div>
+                    </div>
 
-                <div className="mt-3 space-y-1 text-center text-xs text-slate-500">
-                  <p className="font-semibold text-slate-700">{COMPANY_BANK_ACCOUNT.bankName}</p>
-                  <p>
-                    STK: <span className="font-mono font-semibold text-slate-700">{COMPANY_BANK_ACCOUNT.accountNumber}</span>
-                  </p>
-                  <p>{COMPANY_BANK_ACCOUNT.accountName}</p>
-                </div>
+                    <div className="mt-3 space-y-1 text-center text-xs text-slate-500">
+                      <p className="font-semibold text-slate-700">{bankAccount?.bankName}</p>
+                      <p>
+                        STK: <span className="font-mono font-semibold text-slate-700">{bankAccount?.accountNumber}</span>
+                      </p>
+                      <p>{bankAccount?.accountName}</p>
+                    </div>
+                  </>
+                ) : (
+                  <div className="mt-4 rounded-lg bg-amber-50 p-3 text-center text-xs text-amber-700 ring-1 ring-inset ring-amber-600/20">
+                    Chưa cấu hình tài khoản ngân hàng công ty — vui lòng liên hệ Admin cấu hình tại <span className="font-semibold">Cấu hình &gt; Tài khoản ngân hàng</span> để hiển thị mã QR chuyển khoản.
+                  </div>
+                )}
 
                 <div className="mt-4 text-center">
                   <p className="text-xs text-slate-400">Số tiền cần đóng</p>
@@ -451,7 +467,7 @@ export default function DepositDetailView({ canManage, backHref }: Readonly<Depo
                 </div>
 
                 <div className="mt-4 grid grid-cols-2 gap-2">
-                  <Button variant="secondary" onClick={() => handleDownloadQr(qrImageUrl, primaryDeposit.depositCode)}>
+                  <Button variant="secondary" disabled={!bankConfigured} onClick={() => qrImageUrl && handleDownloadQr(qrImageUrl, primaryDeposit.depositCode)}>
                     <Download className="h-4 w-4" />
                     Tải mã QR
                   </Button>

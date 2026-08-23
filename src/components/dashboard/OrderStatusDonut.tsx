@@ -1,14 +1,17 @@
 'use client';
 
+import Link from 'next/link';
 import { Cell, Pie, PieChart, ResponsiveContainer } from 'recharts';
 import type { OrderStatusSlice } from '@/types/dashboard';
 
 interface OrderStatusDonutProps {
   data: OrderStatusSlice[];
   total: number;
+  /** Có thì hiện link "Xem chi tiết" ở cuối card (vd trang danh sách đơn). */
+  viewDetailHref?: string;
 }
 
-export default function OrderStatusDonut({ data, total }: Readonly<OrderStatusDonutProps>) {
+export default function OrderStatusDonut({ data, total, viewDetailHref }: Readonly<OrderStatusDonutProps>) {
   return (
     <div className="flex h-full flex-col rounded-xl bg-white p-5 shadow-sm">
       <h3 className="text-sm font-semibold text-slate-900">Trạng thái đơn đặt</h3>
@@ -44,6 +47,12 @@ export default function OrderStatusDonut({ data, total }: Readonly<OrderStatusDo
           </li>
         ))}
       </ul>
+
+      {viewDetailHref && (
+        <Link href={viewDetailHref} className="mt-3 text-xs font-semibold text-blue-600 hover:underline">
+          Xem chi tiết
+        </Link>
+      )}
     </div>
   );
 }

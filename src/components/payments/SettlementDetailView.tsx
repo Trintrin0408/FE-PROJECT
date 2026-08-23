@@ -20,7 +20,8 @@ import { settlementApiService } from '@/services/settlement.service';
 import { PAYMENT_METHOD_OPTIONS, paymentMethodLabel } from '@/constants/deposit-status';
 import { SETTLEMENT_STATUS_LABEL, SETTLEMENT_STATUS_VARIANT } from '@/constants/settlement-status';
 import { ORDER_PAYMENT_STATUS_LABEL } from '@/constants/order-status';
-import { COMPANY_BANK_ACCOUNT, buildVietQrImageUrl } from '@/constants/company-bank';
+import { buildSepayQrUrl } from '@/constants/company-bank';
+import { useBankAccount } from '@/hooks/useBankAccount';
 import { formatDate } from '@/utils/formatDate';
 import type { Order } from '@/types/order';
 import type { Deposit } from '@/types/payment';
@@ -44,6 +45,7 @@ export default function SettlementDetailView({ canManage, backHref }: Readonly<S
   const params = useParams<{ id: string }>();
   const orderId = params.id;
 
+  const { account: bankAccount } = useBankAccount();
   const [order, setOrder] = useState<Order | null>(null);
   const [deposits, setDeposits] = useState<Deposit[]>([]);
   const [settlement, setSettlement] = useState<Settlement | null>(null);
@@ -117,7 +119,13 @@ export default function SettlementDetailView({ canManage, backHref }: Readonly<S
     order.totalAmount + (Number(additionalFee) || 0) + (Number(compensation) || 0) - depositCollected - (Number(discount) || 0);
   const displayAmount = settlement ? settlement.finalAmount : estimatedFinal;
   const transferContent = `${order.orderCode} QUYET TOAN`;
-  const qrImageUrl = buildVietQrImageUrl({ amount: Math.max(0, displayAmount), addInfo: transferContent });
+  const bankConfigured = Boolean(bankAccount?.configured && bankAccount.bankBin && bankAccount.accountNumber);
+  const qrImageUrl = bankConfigured
+    ? buildSepayQrUrl(
+        { bankBin: bankAccount!.bankBin!, accountNumber: bankAccount!.accountNumber!, accountName: bankAccount!.accountName },
+        { amount: Math.max(0, displayAmount), des: transferContent },
+      )
+    : null;
 
   const handleCopy = () => {
     navigator.clipboard?.writeText(transferContent).catch(() => undefined);
@@ -126,6 +134,7 @@ export default function SettlementDetailView({ canManage, backHref }: Readonly<S
   };
 
   const handleDownloadQr = async () => {
+    if (!qrImageUrl) return;
     try {
       const res = await fetch(qrImageUrl);
       const blob = await res.blob();
@@ -346,23 +355,31 @@ export default function SettlementDetailView({ canManage, backHref }: Readonly<S
         </Reveal>
 
         <Reveal delay={0.1} className="rounded-2xl border border-slate-200 bg-white p-5">
-          <p className="text-sm font-bold text-slate-900">Cổng thanh toán VietQR</p>
+          <p className="text-sm font-bold text-slate-900">Cổng thanh toán QR (SePay)</p>
           <p className="mt-1 text-xs text-slate-400">Quét mã bằng app ngân hàng/Mobile Banking để chuyển khoản nhanh, đúng tài khoản và nội dung.</p>
 
-          <div className="mt-4 flex justify-center">
-            <div className="w-full max-w-[220px] rounded-xl border border-slate-200 p-3">
-              {/* eslint-disable-next-line @next/next/no-img-element -- ảnh động từ img.vietqr.io, không phải asset tĩnh trong repo */}
-              <img src={qrImageUrl} alt={`Mã VietQR chuyển khoản quyết toán ${order.orderCode}`} className="w-full" />
-            </div>
-          </div>
+          {bankConfigured && qrImageUrl ? (
+            <>
+              <div className="mt-4 flex justify-center">
+                <div className="w-full max-w-[220px] rounded-xl border border-slate-200 p-3">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- ảnh động từ SePay (qr.sepay.vn), không phải asset tĩnh trong repo */}
+                  <img src={qrImageUrl} alt={`Mã QR chuyển khoản quyết toán ${order.orderCode}`} className="w-full" />
+                </div>
+              </div>
 
-          <div className="mt-3 space-y-1 text-center text-xs text-slate-500">
-            <p className="font-semibold text-slate-700">{COMPANY_BANK_ACCOUNT.bankName}</p>
-            <p>
-              STK: <span className="font-mono font-semibold text-slate-700">{COMPANY_BANK_ACCOUNT.accountNumber}</span>
-            </p>
-            <p>{COMPANY_BANK_ACCOUNT.accountName}</p>
-          </div>
+              <div className="mt-3 space-y-1 text-center text-xs text-slate-500">
+                <p className="font-semibold text-slate-700">{bankAccount?.bankName}</p>
+                <p>
+                  STK: <span className="font-mono font-semibold text-slate-700">{bankAccount?.accountNumber}</span>
+                </p>
+                <p>{bankAccount?.accountName}</p>
+              </div>
+            </>
+          ) : (
+            <div className="mt-4 rounded-lg bg-amber-50 p-3 text-center text-xs text-amber-700 ring-1 ring-inset ring-amber-600/20">
+              Chưa cấu hình tài khoản ngân hàng công ty — vui lòng liên hệ Admin cấu hình tại <span className="font-semibold">Cấu hình &gt; Tài khoản ngân hàng</span> để hiển thị mã QR chuyển khoản.
+            </div>
+          )}
 
           <div className="mt-4 text-center">
             <p className="text-xs text-slate-400">Số tiền cần đóng</p>
@@ -375,7 +392,7 @@ export default function SettlementDetailView({ canManage, backHref }: Readonly<S
           </div>
 
           <div className="mt-4 grid grid-cols-2 gap-2">
-            <Button variant="secondary" onClick={handleDownloadQr}>
+            <Button variant="secondary" onClick={handleDownloadQr} disabled={!bankConfigured}>
               <Download className="h-4 w-4" />
               Tải mã QR
             </Button>
