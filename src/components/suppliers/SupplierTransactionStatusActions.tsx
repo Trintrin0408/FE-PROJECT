@@ -32,19 +32,20 @@ const CONFIRM_TEXT: Partial<Record<SupplierTransactionStatus, string>> = {
   CANCELLED: 'HỦY đơn thuê/mua này? Thao tác không thể hoàn tác. Đơn đã hủy sẽ được trừ khỏi công nợ nhà cung cấp.',
 };
 
-/** Icon-button vuông 32x32 (bo góc 8px), kiểu ghost — dùng cho "Duyệt"/"Hoàn thành" ở variant="icons". */
+/** Icon-button vuông 32x32 (bo góc 8px), kiểu ghost — dùng cho "Duyệt" ở variant="icons". */
 const ICON_BUTTON_STYLE: Partial<Record<TargetStatus, string>> = {
   APPROVED: 'text-slate-400 hover:bg-blue-50 hover:text-blue-600',
-  COMPLETED: 'text-slate-400 hover:bg-blue-50 hover:text-blue-600',
 };
 
 /**
- * "Đã nhận"/"Hủy đơn" render dạng button compact có chữ (không icon-only) ở variant="icons" — theo
- * yêu cầu thiết kế cụ thể cho 2 hành động này, màu hiện thường trực (không chỉ khi hover).
+ * "Đã nhận"/"Hoàn thành"/"Hủy đơn" render dạng button compact có chữ (không icon-only) ở
+ * variant="icons" — màu hiện thường trực (không chỉ khi hover). "Hoàn thành" dùng xanh lá theo đúng
+ * quy ước màu trạng thái của hệ thống (xanh lá = hoàn thành/thành công).
  */
-const TEXT_BUTTON_STATUSES = new Set<TargetStatus>(['RECEIVED', 'CANCELLED']);
+const TEXT_BUTTON_STATUSES = new Set<TargetStatus>(['RECEIVED', 'COMPLETED', 'CANCELLED']);
 const TEXT_BUTTON_STYLE: Partial<Record<TargetStatus, string>> = {
   RECEIVED: 'border border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100',
+  COMPLETED: 'border border-green-200 bg-green-50 text-green-600 hover:bg-green-100',
   CANCELLED: 'border border-red-200 bg-red-50 text-red-600 hover:bg-red-100',
 };
 
@@ -54,11 +55,12 @@ interface Props {
   size?: 'sm' | 'md';
   className?: string;
   /**
-   * 'icons' = layout gọn dùng ở cột "Thao tác" trên bảng danh sách: "Duyệt"/"Hoàn thành" render
-   * icon-button vuông 32x32 có tooltip (title); "Đã nhận"/"Hủy đơn" render button compact có chữ
-   * (icon + label, cao 32px) — màu xanh/đỏ hiện thường trực. Tối đa 2 hành động cùng lúc (xem
-   * SUPPLIER_TRANSACTION_NEXT_STATUSES) nên không kéo cao row. Mặc định 'buttons' (dàn hàng ngang
-   * đầy đủ label cho mọi hành động, dùng ở modal chi tiết).
+   * 'icons' = layout gọn dùng ở cột "Thao tác" trên bảng danh sách, xếp dọc (trên-dưới) khi có ≥2
+   * hành động: "Duyệt" render icon-button vuông 32x32 có tooltip (title); "Đã nhận"/"Hoàn
+   * thành"/"Hủy đơn" render button compact có chữ (icon + label, cao 32px) — màu xanh/xanh lá/đỏ
+   * hiện thường trực. Tối đa 2 hành động cùng lúc (xem SUPPLIER_TRANSACTION_NEXT_STATUSES) nên
+   * không kéo cao row. Mặc định 'buttons' (dàn hàng ngang đầy đủ label cho mọi hành động, dùng ở
+   * modal chi tiết).
    */
   variant?: 'buttons' | 'icons';
 }
