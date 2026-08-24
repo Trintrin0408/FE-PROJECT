@@ -33,13 +33,19 @@ export const Input: React.FC<InputProps> = ({
     str = str.replace(/^(-?)0+(?=\d)/, '$1'); // Remove leading zeros (05 -> 5)
     
     const parts = str.split('.');
-    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-    return parts.join('.');
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return parts.join(',');
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (isNumber && props.onChange) {
-      let rawValue = e.target.value.replace(/,/g, '');
+      let rawValue = e.target.value;
+      
+      // Allow users to type dot or comma as decimal if they haven't typed thousands separators yet?
+      // No, let's stick to standard VN format: dot is thousands, comma is decimal.
+      rawValue = rawValue.replace(/\./g, ''); // Remove thousands separators
+      rawValue = rawValue.replace(/,/g, '.'); // Convert decimal comma back to dot for JS
+
       rawValue = rawValue.replace(/^(-?)0+(?=\d)/, '$1'); // Remove leading zeros
       
       const newEvent = { ...e } as any;

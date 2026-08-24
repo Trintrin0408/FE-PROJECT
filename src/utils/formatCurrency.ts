@@ -1,5 +1,11 @@
+export function formatNumber(amount: number): string {
+  const formatted = new Intl.NumberFormat('en-US').format(amount);
+  return formatted.replace(/,/g, '.');
+}
+
 export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+  if (amount === 0) return '0 đ';
+  return `${formatNumber(amount)} đ`;
 }
 
 const DIGIT_WORDS = ['', 'một', 'hai', 'ba', 'bốn', 'năm', 'sáu', 'bảy', 'tám', 'chín'];

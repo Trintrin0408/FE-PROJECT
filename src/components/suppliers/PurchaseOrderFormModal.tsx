@@ -13,6 +13,8 @@ import { catalogApiService } from '@/services/catalog.service';
 import type { Order } from '@/types/order';
 import type { Supplier, SupplierItem, SupplierTransaction, TransactionItemInput, CreateSupplierTransactionPayload, UpdateSupplierTransactionPayload } from '@/types/supplier';
 import type { ItemSupplierDetails } from '@/types/catalog';
+import type { CollectedEquipmentReport } from '@/types/collectedEquipmentReport';
+import { inventoryApiService } from '@/services/inventory.service';
 import {
   SUPPLIER_TRANSACTION_TYPE_META,
   type SupplierTransactionType,
@@ -67,6 +69,7 @@ export default function PurchaseOrderFormModal({ isOpen, mode, transaction, pref
   const [matchingSuppliers, setMatchingSuppliers] = useState<ItemSupplierDetails[]>([]);
   const [allSuppliers, setAllSuppliers] = useState<Supplier[]>([]);
   const [supplierItems, setSupplierItems] = useState<SupplierItem[]>([]);
+  const [reports, setReports] = useState<CollectedEquipmentReport[]>([]);
 
   // Reset form — lazy khi mở lại (không phải effect): tránh setState đồng bộ trong effect
   // (react-hooks/set-state-in-effect), cùng pattern đã dùng ở bản mock trước đây của file này.
@@ -205,6 +208,13 @@ export default function PurchaseOrderFormModal({ isOpen, mode, transaction, pref
               unitCost: it.unitCost ?? 0,
             })),
           );
+        }
+        if ((detail as any).transactionType === 'RENTAL') {
+          inventoryApiService.getReturnReports({ transactionId: transaction.transactionId })
+            .then(res => setReports(res.data as CollectedEquipmentReport[]))
+            .catch(() => setReports([]));
+        } else {
+          setReports([]);
         }
       })
       .catch(() => {
@@ -495,6 +505,60 @@ export default function PurchaseOrderFormModal({ isOpen, mode, transaction, pref
             ))
           )}
           {items.length > 0 && <p className="text-right text-xs font-semibold text-slate-600">Tổng theo hạng mục: {formatCurrency(itemsTotal)}</p>}
+          
+          {reports.length > 0 && (
+            <div className="mt-4 border-t border-slate-200 pt-4">
+              <h4 className="mb-2 text-sm font-semibold text-slate-700">Vật tư thu hồi &amp; Phí đền bù</h4>
+              {reports.map((report) => {
+                let reportPenalty = 0;
+                return (
+                  <div key={report.reportId} className="mb-3 rounded border border-slate-200 bg-slate-50 p-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="text-xs font-semibold text-slate-600">Biên bản: {report.reportId.slice(0, 8)}...</span>
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${report.status === 'CONFIRMED' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                        {report.status === 'CONFIRMED' ? 'Đã xác nhận' : 'Chờ xác nhận'}
+                      </span>
+                    </div>
+                    <table className="w-full text-xs text-left">
+                      <thead>
+                        <tr className="border-b border-slate-200 text-slate-500">
+                          <th className="pb-1 font-medium">Hạng mục</th>
+                          <th className="pb-1 text-right font-medium">Hỏng/Mất</th>
+                          <th className="pb-1 text-right font-medium">Phí</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {report.items.map((item, idx) => {
+                          const penaltyQty = item.damagedQuantity + item.lostQuantity;
+                          if (penaltyQty === 0) return null;
+                          const supplierItem = supplierItems.find(si => si.itemId === item.itemId);
+                          const purchasePrice = supplierItem?.purchasePrice ?? 0;
+                          const linePenalty = purchasePrice * penaltyQty;
+                          reportPenalty += linePenalty;
+                          return (
+                            <tr key={idx} className="border-b border-slate-100">
+                              <td className="py-1 text-slate-700">{item.itemName}</td>
+                              <td className="py-1 text-right font-medium text-red-600">{penaltyQty}</td>
+                              <td className="py-1 text-right text-slate-700">{formatCurrency(linePenalty)}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                    {reportPenalty > 0 ? (
+                      <div className="mt-2 text-right text-xs font-semibold text-red-600">
+                        Cộng thêm phí đền bù: {formatCurrency(reportPenalty)}
+                      </div>
+                    ) : (
+                      <div className="mt-2 text-right text-xs text-slate-500">
+                        Không phát sinh phí đền bù
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         <Input
