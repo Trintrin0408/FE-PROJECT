@@ -32,14 +32,27 @@ const CONFIRM_TEXT: Partial<Record<SupplierTransactionStatus, string>> = {
   CANCELLED: 'HỦY đơn thuê/mua này? Thao tác không thể hoàn tác. Đơn đã hủy sẽ được trừ khỏi công nợ nhà cung cấp.',
 };
 
+/** Ghost icon-button 32x32 — cùng kiểu với nút Sửa/Xóa ở cột "Thao tác" của bảng danh sách. */
+const ICON_BUTTON_HOVER: Record<'primary' | 'danger', string> = {
+  primary: 'hover:bg-blue-50 hover:text-blue-600',
+  danger: 'hover:bg-red-50 hover:text-red-600',
+};
+
 interface Props {
   transaction: SupplierTransaction;
   onDone: () => void; // gọi sau khi chuyển trạng thái thành công (để refetch)
   size?: 'sm' | 'md';
   className?: string;
+  /**
+   * 'icons' render mỗi hành động thành 1 icon-button 32x32 có tooltip (title) thay vì nút full-text
+   * — dùng ở cột "Thao tác" trên bảng danh sách để nhiều hành động cùng lúc (tối đa 2, xem
+   * SUPPLIER_TRANSACTION_NEXT_STATUSES) không kéo cao row. Mặc định 'buttons' (dàn hàng ngang có
+   * label, dùng ở modal chi tiết).
+   */
+  variant?: 'buttons' | 'icons';
 }
 
-export default function SupplierTransactionStatusActions({ transaction, onDone, size = 'sm', className = '' }: Readonly<Props>) {
+export default function SupplierTransactionStatusActions({ transaction, onDone, size = 'sm', className = '', variant = 'buttons' }: Readonly<Props>) {
   const [pendingTarget, setPendingTarget] = useState<TargetStatus | null>(null); // đang chờ xác nhận
   const [submitting, setSubmitting] = useState<TargetStatus | null>(null);
 
@@ -68,26 +81,55 @@ export default function SupplierTransactionStatusActions({ transaction, onDone, 
 
   return (
     <>
-      <div className={`flex flex-wrap items-center gap-2 ${className}`}>
-        {nexts.map((target) => {
-          const meta = ACTION_META[target];
-          const Icon = meta.icon;
-          return (
-            <Button
-              key={target}
-              type="button"
-              size={size}
-              variant={meta.variant}
-              isLoading={submitting === target}
-              disabled={submitting !== null}
-              onClick={() => handleClick(target)}
-            >
-              <Icon className="h-4 w-4" />
-              {meta.label}
-            </Button>
-          );
-        })}
-      </div>
+      {variant === 'icons' ? (
+        <div className={`flex items-center gap-1 ${className}`}>
+          {nexts.map((target) => {
+            const meta = ACTION_META[target];
+            const Icon = meta.icon;
+            return (
+              <button
+                key={target}
+                type="button"
+                aria-label={meta.label}
+                title={meta.label}
+                disabled={submitting !== null}
+                onClick={() => handleClick(target)}
+                className={`inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-400 disabled:cursor-not-allowed disabled:opacity-50 ${ICON_BUTTON_HOVER[meta.variant]}`}
+              >
+                {submitting === target ? (
+                  <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                  </svg>
+                ) : (
+                  <Icon className="h-4 w-4" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <div className={`flex flex-wrap items-center gap-2 ${className}`}>
+          {nexts.map((target) => {
+            const meta = ACTION_META[target];
+            const Icon = meta.icon;
+            return (
+              <Button
+                key={target}
+                type="button"
+                size={size}
+                variant={meta.variant}
+                isLoading={submitting === target}
+                disabled={submitting !== null}
+                onClick={() => handleClick(target)}
+              >
+                <Icon className="h-4 w-4" />
+                {meta.label}
+              </Button>
+            );
+          })}
+        </div>
+      )}
 
       {pendingTarget && (
         <Modal

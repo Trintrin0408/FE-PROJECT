@@ -125,10 +125,13 @@ export default function Page() {
     {
       key: 'supplier',
       label: 'Nhà cung cấp',
+      className: 'w-[200px] min-w-[180px] max-w-[220px]',
       render: (t) => (
         <Link href={`/manager/suppliers/${t.supplierId}`} className="flex items-center gap-2.5 hover:opacity-80">
-          <Avatar name={t.supplierName} size="sm" />
-          <span className="font-semibold text-slate-800">{t.supplierName}</span>
+          <Avatar name={t.supplierName} size="sm" className="mt-0.5" />
+          <span className="line-clamp-2 font-semibold text-slate-800" title={t.supplierName}>
+            {t.supplierName}
+          </span>
         </Link>
       ),
     },
@@ -153,8 +156,18 @@ export default function Page() {
         ),
     },
     { key: 'createdAt', label: 'Ngày tạo', render: (t) => formatDate(t.createdAt) },
-    { key: 'estimatedCost', label: 'Tổng tiền', render: (t) => <span className="font-bold text-slate-900">{formatCurrency(t.estimatedCost)}</span> },
-    { key: 'depositAmount', label: 'Đặt cọc', render: (t) => formatCurrency(t.depositAmount) },
+    {
+      key: 'estimatedCost',
+      label: 'Tổng tiền',
+      align: 'right',
+      render: (t) => <span className="whitespace-nowrap font-bold text-slate-900">{formatCurrency(t.estimatedCost)}</span>,
+    },
+    {
+      key: 'depositAmount',
+      label: 'Đặt cọc',
+      align: 'right',
+      render: (t) => <span className="whitespace-nowrap">{formatCurrency(t.depositAmount)}</span>,
+    },
     {
       key: 'paymentStatus',
       label: 'Thanh toán',
@@ -174,16 +187,19 @@ export default function Page() {
     {
       key: 'actions',
       label: 'Thao tác',
+      align: 'right',
       render: (t) => (
-        <div className="flex items-center gap-2">
-          <SupplierTransactionStatusActions transaction={t} onDone={refresh} />
-          <div className="flex items-center gap-1">
+        <div className="flex items-center justify-end gap-1">
+          {/* Duyệt/Đã nhận/Hoàn thành/Hủy đơn — nguồn hành động duy nhất vẫn là
+              SupplierTransactionStatusActions (xem component đó), chỉ đổi cách hiển thị sang icon
+              32x32 để không kéo cao row (tối đa 2 hành động cùng lúc theo SUPPLIER_TRANSACTION_NEXT_STATUSES). */}
+          <SupplierTransactionStatusActions transaction={t} onDone={refresh} variant="icons" />
           <button
             type="button"
             aria-label="Chỉnh sửa"
             title="Chỉnh sửa đơn"
             onClick={() => setFormModal({ mode: 'edit', transaction: t })}
-            className="inline-flex rounded-md p-1.5 text-slate-400 hover:bg-amber-50 hover:text-amber-600"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-400 hover:bg-amber-50 hover:text-amber-600"
           >
             <Pencil className="h-4 w-4" />
           </button>
@@ -193,11 +209,10 @@ export default function Page() {
             title={t.status === 'PENDING' ? 'Xóa đơn hàng' : 'Chỉ được xóa đơn ở trạng thái Chờ duyệt'}
             disabled={t.status !== 'PENDING' || deletingId === t.transactionId}
             onClick={() => handleDeleteTransaction(t)}
-            className="inline-flex rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:text-slate-200 disabled:hover:bg-transparent"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:text-slate-200 disabled:hover:bg-transparent"
           >
             <Trash2 className="h-4 w-4" />
           </button>
-          </div>
         </div>
       ),
     },
@@ -292,6 +307,7 @@ export default function Page() {
               rows={filtered}
               rowKey={(row) => row.transactionId}
               onRowClick={(row) => setDetailTransaction(row)}
+              density="compact"
             />
           )}
         </div>

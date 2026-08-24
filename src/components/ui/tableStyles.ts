@@ -38,8 +38,12 @@
  * ```
  */
 
-/** `md` = mật độ chuẩn của trang danh sách. `sm` = bảng lồng trong modal/card hẹp. */
-export type TableDensity = 'md' | 'sm';
+/**
+ * `md` = mật độ chuẩn của trang danh sách. `sm` = bảng lồng trong modal/card hẹp.
+ * `compact` = bảng ERP/SaaS gọn (row ~72-88px, header không uppercase nặng) — dùng khi trang cần
+ * scan nhiều dữ liệu mà không phá layout các trang khác đang dùng `md`/`sm`.
+ */
+export type TableDensity = 'md' | 'sm' | 'compact';
 
 export interface TableStyleTokens {
   /** Bọc ngoài `<table>` khi bảng đứng độc lập — tự có viền, bo góc và cuộn ngang. */
@@ -125,6 +129,27 @@ export const TABLE_STYLES: Record<TableDensity, TableStyleTokens> = {
     tfootLabel: 'px-3 py-2.5 text-right text-[11px] font-bold uppercase tracking-wide text-slate-500',
     tfootValue: 'px-3 py-2.5 text-right text-sm font-bold text-slate-900',
     stateCell: 'px-3 py-6 text-center text-slate-400',
+    cellControl:
+      'w-full rounded-md border border-slate-300 bg-white px-2 py-1 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-500',
+    stickyFirstCol: 'sticky left-0 z-10 bg-white',
+  },
+  compact: {
+    wrapper: 'overflow-x-auto rounded-2xl border border-slate-200',
+    wrapperInner: 'overflow-x-auto',
+    table: 'min-w-full divide-y divide-slate-100 text-sm',
+    thead: 'bg-slate-50/80',
+    th: 'px-4 py-3 text-left text-xs font-semibold text-slate-500',
+    thCenter: 'px-4 py-3 text-center text-xs font-semibold text-slate-500',
+    thRight: 'px-4 py-3 text-right text-xs font-semibold text-slate-500',
+    tbody: 'divide-y divide-slate-100 bg-white',
+    bodyRow: 'transition-colors hover:bg-slate-50/70',
+    td: `px-4 py-4 align-middle ${BODY_CELL_BASE}`,
+    tdCenter: `px-4 py-4 text-center align-middle ${BODY_CELL_BASE}`,
+    tdRight: `px-4 py-4 text-right align-middle ${BODY_CELL_BASE}`,
+    tfoot: 'border-t border-slate-200 bg-slate-50',
+    tfootLabel: 'px-4 py-3 text-right text-xs font-semibold text-slate-500',
+    tfootValue: 'px-4 py-3 text-right text-sm font-bold text-slate-900',
+    stateCell: 'px-4 py-8 text-center text-slate-400',
     cellControl:
       'w-full rounded-md border border-slate-300 bg-white px-2 py-1 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-500',
     stickyFirstCol: 'sticky left-0 z-10 bg-white',
