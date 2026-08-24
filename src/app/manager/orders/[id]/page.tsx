@@ -14,6 +14,7 @@ import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
 import RecordSettlementModal from '@/components/orders/RecordSettlementModal';
 import RescheduleOrderModal from '@/components/orders/RescheduleOrderModal';
+import EditOrderModal from '@/components/orders/EditOrderModal';
 import ConfirmOrderModal, { PlanToCreate } from '@/components/orders/ConfirmOrderModal';
 import CreateSchedulePlanModal from '@/components/schedule/CreateSchedulePlanModal';
 import OrderTabs from '@/components/orders/OrderTabs';
@@ -57,9 +58,10 @@ import type { CollectedEquipmentReport } from '@/types/collectedEquipmentReport'
 // `/manager/orders` đã nối trước đó). Dropdown đổi trạng thái + nút "Hủy đơn hàng" gọi
 // `orderApiService.updateOrderStatus` thật (mục 6).
 //
-// Nút "Chỉnh sửa đơn đặt" tạm khóa vì `BookingFormModal` vẫn theo shape mock cũ, chưa tương thích
-// `OrderDetail` thật (cùng vấn đề đã ghi ở docs/taodondatlichtiecmoi_api.md — modal khác, đã nối
-// riêng ở màn danh sách).
+// Cập nhật 2026-08-25 — nút "Chỉnh sửa đơn đặt" dùng `EditOrderModal.tsx` (nội dung theo
+// `CreateOrderModal.tsx`), đã nối API thật `PATCH /orders/:orderId` (`orderApiService.updateOrderInfo`,
+// backend mới bổ sung — xem docs/more-require.md mục (bc)) để sửa
+// eventName/eventType/guestCount/location/notes của Order đã tồn tại; lưu xong reload lại `load()`.
 //
 // Khối "Phân công khảo sát báo giá" tạm hiện placeholder — theo docs/tongquansukien_api.md mục 5 (đã
 // chốt Hướng A: dùng `schedule_plans` + seed thêm `work_tasks` "Khảo sát hiện trường"), nhưng backend
@@ -255,6 +257,7 @@ function ManagerOrderDetailContent() {
 
   const [isCancelOpen, setIsCancelOpen] = useState(false);
   const [isRescheduleOpen, setIsRescheduleOpen] = useState(false);
+  const [isEditOrderOpen, setIsEditOrderOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [isCancelling, setIsCancelling] = useState(false);
   const [isChangingStatus, setIsChangingStatus] = useState(false);
@@ -905,9 +908,11 @@ function ManagerOrderDetailContent() {
               <Lock className="h-4 w-4" /> Đóng đơn hàng
             </Button>
           )}
-          {/* <Button disabled title="Modal Chỉnh sửa đơn đặt chưa tương thích dữ liệu thật — xem docs/taodondatlichtiecmoi_api.md">
-            Chỉnh sửa đơn đặt
-          </Button> */}
+          {!order.closedAt && (
+            <Button variant="secondary" onClick={() => setIsEditOrderOpen(true)}>
+              <Pencil className="h-4 w-4" /> Chỉnh sửa đơn đặt
+            </Button>
+          )}
         </div>
       </div>
 
@@ -918,6 +923,13 @@ function ManagerOrderDetailContent() {
         orderCode={order.orderCode}
         currentEventDate={order.eventDate}
         currentEndDate={order.endDate}
+        onSuccess={load}
+      />
+
+      <EditOrderModal
+        isOpen={isEditOrderOpen}
+        order={order}
+        onClose={() => setIsEditOrderOpen(false)}
         onSuccess={load}
       />
 

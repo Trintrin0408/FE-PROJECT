@@ -2552,3 +2552,66 @@ trả sẵn).
   `D:\sep490-backend-api` (chỉ đọc đối chiếu, theo CLAUDE.md). FE vẫn giữ nguyên logic fallback đã viết
   (đúng yêu cầu) — không cần đổi gì thêm phía FE, chỉ cần Backend bổ sung dòng map trên là ảnh khảo sát sẽ
   tự hiện đúng ở phần fallback mà không phải sửa lại FE.
+
+## (bc) 2026-08-25 — [ĐÃ XONG] Nút "Chỉnh sửa đơn đặt" (chi tiết đơn, tab header) đã dựng lại giao diện đúng nội dung form tạo đơn, nhưng CHƯA có API để sửa `eventName`/`eventType`/`guestCount`/`location`/`notes` của Order đã tồn tại
+
+> **Cập nhật cùng ngày 2026-08-25**: Backend đã bổ sung `PATCH /api/v1/orders/:orderId`
+> (`order.routes.ts` dòng 64-69, `updateOrderInfoBodySchema` ở `order.validators.ts`, controller/service/
+> repository method `updateInfo`) — đúng shape đã đề xuất bên dưới (mọi field optional, chặn 400 nếu đơn
+> đã ở trạng thái kết thúc qua `assertNotTerminal`). FE đã nối xong: thêm `orderApiService.updateOrderInfo`
+> (`order.service.ts`) + type `UpdateOrderInfoPayload` (`types/order.ts`), sửa `EditOrderModal.tsx` gọi API
+> thật (bỏ optimistic `onSaved`, đổi sang `onSuccess` reload lại trang qua `load()` giống pattern
+> `RescheduleOrderModal`), xử lý lỗi qua `parseApiError`. Lưu ý nhỏ (không chặn FE): route
+> `PATCH /:orderId` ở backend hiện **không** có `validate(orderIdParamSchema, 'params')` như các route
+> khác cùng file (chỉ validate body) — không ảnh hưởng hành vi vì `orderId` vẫn lấy đúng từ `req.params`,
+> chỉ là thiếu 1 lớp validate hình thức, không cần FE xử lý gì thêm.
+
+- **Bối cảnh**: nút "Chỉnh sửa đơn đặt" ở `manager/orders/[id]/page.tsx` trước đây bị khóa cứng
+  (`disabled`) vì modal cũ `BookingFormModal.tsx` theo shape mock lỗi thời, không tương thích `OrderDetail`
+  thật (xem `docs/taodondatlichtiecmoi_api.md`). Theo yêu cầu người dùng 2026-08-24, đã dựng lại modal mới
+  `src/components/orders/EditOrderModal.tsx` — nội dung/bố cục copy đúng theo form "Tạo đơn hàng mới"
+  thật (`CreateOrderModal.tsx`: khối thông tin khách hàng + Tên sự kiện/Loại sự kiện/Số lượng khách/Địa
+  điểm tổ chức/Ghi chú) — nhưng **chỉ dựng giao diện theo yêu cầu người dùng ở bước đó**, bấm "Lưu thay
+  đổi" hiện chỉ cập nhật state hiển thị tại chỗ trên trang (optimistic, mất khi tải lại), chưa gọi API
+  thật.
+- **Đã đọc thẳng source thật để xác nhận gap** (`D:\sep490-backend-api`, chỉ đọc, không sửa):
+  `src/modules/sales/order.routes.ts` — toàn bộ các route `PUT`/`PATCH` trên `/orders/:orderId/*` hiện có
+  chỉ xử lý riêng lẻ: `/status`, `/items`, `/dates` (đã có sẵn — dùng cho nút "Đổi ngày"/
+  `RescheduleOrderModal.tsx`, xử lý `eventDate`/`endDate`), `/items/confirm-prepared`,
+  `/items/:orderItemId`, `/live-checklist`, `/quotation`, `/picklist/picked-up`, `/close`. **Không có
+  route nào sửa `eventName`/`eventType`/`guestCount`/`location`/`latitude`/`longitude`/`notes`** của 1
+  Order đã tồn tại. Đối chiếu `prisma/schema.prisma` (model `Order`, dòng 457+): các cột này đều là cột
+  đơn giản trên bảng `orders`, không có ràng buộc/side-effect phức tạp như `eventDate`/`endDate` (vốn ảnh
+  hưởng cửa sổ khóa kho theo ngày — lý do cố tình KHÔNG gộp các field này vào form Chỉnh sửa đơn đặt, giữ
+  riêng với "Đổi ngày" để tránh xung đột luồng khóa kho, xem comment cuối `EditOrderModal.tsx`).
+  Đây là phần còn lại của việc (2) đã nêu ở mục (aw) ("cân nhắc thêm 1 endpoint cập nhật thông tin sự
+  kiện của order đã tồn tại") — phần `endDate`/`eventDate` của việc đó đã được Backend làm xong riêng
+  (route `/dates` kể trên), nhưng phần còn lại (`eventName`/`eventType`/`guestCount`/`location`/`notes`)
+  vẫn chưa có.
+- **Việc Backend cần làm**: thêm 1 endpoint mới, ví dụ `PATCH /api/v1/orders/:orderId` (Manager), nhận
+  body toàn bộ optional — chỉ gửi field nào đổi:
+
+  ```json
+  {
+    "eventName": "Lễ cưới Nguyễn Minh Trí",
+    "eventType": "Tiệc cưới",
+    "guestCount": 200,
+    "location": "Riverside Palace (Sảnh Hera)",
+    "latitude": 10.7629,
+    "longitude": 106.6602,
+    "notes": "Ghi chú thêm"
+  }
+  ```
+
+  Response trả lại `Order` đầy đủ, theo đúng pattern `PUT /orders/:id/dates` đang trả `OrderWithDetails`
+  (`order.repository.ts` hàm `updateDates`, dòng 270). Theo pattern đã có, cần thêm: Zod schema (ví dụ
+  `updateOrderInfoBodySchema`, validate `guestCount >= 0` như comment ở `schema.prisma`) ở
+  `order.validators.ts`, route ở `order.routes.ts`, controller method ở `order.controller.ts`, service +
+  repository method update các cột tương ứng — không đụng `eventDate`/`endDate` (đã có endpoint riêng).
+- **Việc FE cần làm sau khi Backend có endpoint**: thêm `updateOrderInfo` vào `order.service.ts`, thêm
+  type payload tương ứng vào `types/order.ts`, sửa `EditOrderModal.tsx` — thay đoạn gọi `onSaved(...)`
+  optimistic hiện tại bằng gọi API thật + xử lý lỗi (400 validate, 404, 403 không phải Manager), gỡ dòng
+  toast "chưa nối API thật".
+- **Phạm vi KHÔNG đổi trong đợt này**: chỉ ghi yêu cầu ở mục này — không sửa code ở
+  `D:\sep490-backend-api` (chỉ đọc đối chiếu, theo CLAUDE.md), không sửa gì thêm ở FE ngoài
+  `EditOrderModal.tsx`/nút "Chỉnh sửa đơn đặt" đã dựng theo yêu cầu người dùng ở bước trước.

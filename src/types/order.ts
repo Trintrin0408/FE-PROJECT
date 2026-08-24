@@ -183,6 +183,20 @@ export interface UpdateOrderItemsPayload {
   items: CreateOrderItemPayload[];
 }
 
+// PATCH /api/v1/orders/:orderId — sửa thông tin sự kiện của Order đã tồn tại (mọi field optional, chỉ
+// gửi field nào đổi). Không gồm eventDate/endDate — dùng riêng PUT /orders/:id/dates (RescheduleOrderModal)
+// để tránh xung đột luồng khóa kho theo ngày. Backend chặn (400) nếu order đang ở trạng thái kết thúc
+// (COMPLETED/CANCELLED).
+export interface UpdateOrderInfoPayload {
+  eventName?: string;
+  eventType?: string;
+  guestCount?: number;
+  location?: string;
+  latitude?: number;
+  longitude?: number;
+  notes?: string;
+}
+
 // PATCH /api/v1/orders/:orderId/live-checklist — xác nhận qua curl thật 2026-07-20 (đúng hướng đã
 // chốt ở docs/tiendosukien_api.md mục 5/9.1): không có GET riêng, response PATCH trả lại object đầy
 // đủ mới nhất — FE tự khởi tạo state ban đầu = tất cả false (không có cách đọc lại state cũ).

@@ -10,6 +10,7 @@ import type {
   UpdateOrderQuotationPayload,
   UpdateOrderStatusPayload,
   UpdateOrderItemsPayload,
+  UpdateOrderInfoPayload,
 } from '@/types/order';
 import type { ApiEnvelope } from './customer.service';
 
@@ -55,6 +56,13 @@ export const orderApiService = {
   /** PUT /api/v1/orders/{id}/dates — đổi ngày sự kiện (đơn đã chốt tự dời cửa sổ giữ chỗ, 409 nếu thiếu). */
   async updateOrderDates(id: string, payload: { eventDate: string; endDate?: string }) {
     const response = await api.put(`/orders/${id}/dates`, payload);
+    return response.data;
+  },
+
+  /** PATCH /api/v1/orders/{id} — sửa eventName/eventType/guestCount/location/notes của đơn đã tồn tại
+   *  (không gồm eventDate/endDate, dùng riêng updateOrderDates). Backend chặn nếu đơn đã kết thúc. */
+  async updateOrderInfo(id: string, payload: UpdateOrderInfoPayload) {
+    const response = await api.patch(`/orders/${id}`, payload);
     return response.data;
   },
 
