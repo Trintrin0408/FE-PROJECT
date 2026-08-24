@@ -1,6 +1,6 @@
 export function formatNumber(amount: number): string {
-  const formatted = new Intl.NumberFormat('en-US').format(amount);
-  return formatted.replace(/,/g, '.');
+  // Use 'vi-VN' locale to automatically get '.' as thousands separator and ',' as decimal separator
+  return new Intl.NumberFormat('vi-VN').format(amount);
 }
 
 export function formatCurrency(amount: number): string {

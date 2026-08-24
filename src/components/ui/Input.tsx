@@ -1,4 +1,4 @@
-import React, { InputHTMLAttributes } from 'react';
+import React, { InputHTMLAttributes, useEffect, useState } from 'react';
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -25,6 +25,20 @@ export const Input: React.FC<InputProps> = ({
   const isUnderline = variant === 'underline';
   const isNumber = props.type === 'number';
 
+  const [internalValue, setInternalValue] = useState<string>(
+    props.value !== undefined ? props.value.toString() : (props.defaultValue !== undefined ? props.defaultValue.toString() : '')
+  );
+
+  useEffect(() => {
+    if (props.value !== undefined) {
+      const propNum = Number(props.value);
+      const internalNum = Number(internalValue);
+      if (propNum !== internalNum && !(isNaN(propNum) && isNaN(internalNum))) {
+        setInternalValue(props.value.toString());
+      }
+    }
+  }, [props.value, internalValue]);
+
   const formatNumber = (val: string | number | readonly string[] | undefined) => {
     if (val === undefined || val === null || val === '') return '';
     let str = val.toString().replace(/[^0-9.-]/g, '');
@@ -38,26 +52,34 @@ export const Input: React.FC<InputProps> = ({
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (isNumber && props.onChange) {
+    if (isNumber) {
       let rawValue = e.target.value;
       
-      // Allow users to type dot or comma as decimal if they haven't typed thousands separators yet?
-      // No, let's stick to standard VN format: dot is thousands, comma is decimal.
+      rawValue = rawValue.replace(/[^0-9.,-]/g, ''); // strip invalid chars
       rawValue = rawValue.replace(/\./g, ''); // Remove thousands separators
       rawValue = rawValue.replace(/,/g, '.'); // Convert decimal comma back to dot for JS
 
       rawValue = rawValue.replace(/^(-?)0+(?=\d)/, '$1'); // Remove leading zeros
       
-      const newEvent = { ...e } as any;
-      newEvent.target = { ...e.target, value: rawValue, name: e.target.name, id: e.target.id };
-      props.onChange(newEvent);
-    } else if (props.onChange) {
-      props.onChange(e);
+      setInternalValue(rawValue);
+
+      if (props.onChange) {
+        const newEvent = { ...e } as any;
+        newEvent.target = { ...e.target, value: rawValue, name: e.target.name, id: e.target.id };
+        props.onChange(newEvent);
+      }
+    } else {
+      if (props.onChange) props.onChange(e);
     }
   };
 
-  const displayValue = isNumber && props.value !== undefined ? formatNumber(props.value) : props.value;
-  const displayDefaultValue = isNumber && props.defaultValue !== undefined ? formatNumber(props.defaultValue) : props.defaultValue;
+  const displayValue = isNumber 
+    ? (props.value !== undefined ? formatNumber(internalValue) : undefined) 
+    : props.value;
+    
+  const displayDefaultValue = isNumber 
+    ? (props.defaultValue !== undefined ? formatNumber(props.defaultValue) : undefined) 
+    : props.defaultValue;
 
   let leadingPadding = '';
   if (icon) leadingPadding = isUnderline ? 'pl-7' : 'pl-10';
