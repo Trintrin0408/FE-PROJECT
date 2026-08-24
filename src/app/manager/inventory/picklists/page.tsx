@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { AlertTriangle, Camera, CheckCircle2, ClipboardList, Loader2, PackageCheck } from 'lucide-react';
+import { AlertTriangle, Camera, CheckCircle2, ClipboardList, Eye, Loader2, PackageCheck } from 'lucide-react';
 import { Table, TableColumn } from '@/components/ui/Table';
 import { Select } from '@/components/ui/Select';
 import { Modal } from '@/components/ui/Modal';
@@ -216,17 +216,23 @@ export default function ManagerPicklistsPage() {
       key: 'actions',
       label: 'Thao tác',
       render: (o) => (
-        <div className="flex items-center gap-2">
-          <Link href={`/manager/orders/${o.orderId}`} className="text-xs font-semibold text-blue-600 hover:underline">
-            Xem chi tiết
+        <div className="flex items-center gap-1">
+          <Link
+            href={`/manager/orders/${o.orderId}`}
+            aria-label="Xem chi tiết"
+            title="Xem chi tiết"
+            className="inline-flex rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-blue-600"
+          >
+            <Eye className="h-4 w-4" />
           </Link>
           <button
             type="button"
             onClick={() => handleViewEvidence(o)}
-            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-bold text-slate-600 hover:border-blue-200 hover:text-blue-600"
+            aria-label="Xem bằng chứng"
+            title="Xem bằng chứng"
+            className="inline-flex rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-blue-600"
           >
-            <Camera className="h-3.5 w-3.5" />
-            Xem bằng chứng
+            <Camera className="h-4 w-4" />
           </button>
           {pickedUpMap.get(o.orderId) ? (
             <span className="inline-flex items-center gap-1 rounded-lg border border-green-200 bg-green-50 px-2.5 py-1 text-xs font-bold text-green-600">
