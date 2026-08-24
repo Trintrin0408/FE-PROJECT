@@ -565,6 +565,13 @@ export default function PurchaseOrderFormModal({ isOpen, mode, transaction, pref
               })}
             </div>
           )}
+
+          <div className="mt-4 flex items-center justify-between border-t border-slate-200 pt-4">
+            <span className="font-semibold text-slate-700">Tổng cộng {reports.length > 0 ? '(sau đền bù)' : ''}:</span>
+            <span className="text-lg font-bold text-slate-900">
+              {formatCurrency(itemsTotal + reports.reduce((sum, report) => sum + report.items.reduce((itemSum, item) => itemSum + (supplierItems.find(si => si.itemId === item.itemId)?.purchasePrice ?? 0) * (item.damagedQuantity + item.lostQuantity), 0), 0))}
+            </span>
+          </div>
         </div>
 
         <Input

@@ -18,7 +18,9 @@ import OrderQuickViewModal from '@/components/orders/OrderQuickViewModal';
 import { formatCurrency } from '@/utils/formatCurrency';
 import { formatDate } from '@/utils/formatDate';
 import { supplierApiService } from '@/services/supplier.service';
-import type { SupplierTransaction, TransactionItemInput } from '@/types/supplier';
+import { inventoryApiService } from '@/services/inventory.service';
+import type { SupplierTransaction, TransactionItemInput, SupplierItem } from '@/types/supplier';
+import type { CollectedEquipmentReport } from '@/types/collectedEquipmentReport';
 import {
   SUPPLIER_TRANSACTION_PAYMENT_STATUS_META,
   SUPPLIER_TRANSACTION_STATUS_META,
@@ -337,20 +339,29 @@ export default function Page() {
 
 function TransactionDetailModal({ transaction, onClose, onDone }: Readonly<{ transaction: SupplierTransaction | null; onClose: () => void; onDone: () => void }>) {
   const [items, setItems] = useState<TransactionItemInput[]>([]);
+  const [reports, setReports] = useState<CollectedEquipmentReport[]>([]);
+  const [supplierItems, setSupplierItems] = useState<SupplierItem[]>([]);
 
   useEffect(() => {
     if (!transaction) return;
     let cancelled = false;
-    supplierApiService
-      .getTransactionById(transaction.transactionId)
-      .then((res) => {
-        if (cancelled) return;
-        const detail = (res as unknown as { data?: SupplierTransaction & { items?: TransactionItemInput[] } })?.data || res;
-        setItems((detail as { items?: TransactionItemInput[] })?.items || []);
-      })
-      .catch(() => {
-        if (!cancelled) setItems([]);
-      });
+    Promise.all([
+      supplierApiService.getTransactionById(transaction.transactionId).catch(() => null),
+      transaction.transactionType === 'RENTAL' 
+        ? inventoryApiService.getReturnReports({ transactionId: transaction.transactionId }).catch(() => null)
+        : Promise.resolve(null),
+      supplierApiService.getSupplierItems(transaction.supplierId).catch(() => null)
+    ]).then(([txRes, reportsRes, itemsRes]) => {
+      if (cancelled) return;
+      const detail = (txRes as unknown as { data?: SupplierTransaction & { items?: TransactionItemInput[] } })?.data || txRes;
+      setItems((detail as { items?: TransactionItemInput[] })?.items || []);
+      
+      const rpts = (reportsRes as any)?.data as CollectedEquipmentReport[] | undefined;
+      setReports(rpts || []);
+      
+      const sups = ((itemsRes as unknown as { data?: SupplierItem[] })?.data || itemsRes || []);
+      setSupplierItems(sups);
+    });
     return () => {
       cancelled = true;
     };
@@ -444,10 +455,76 @@ function TransactionDetailModal({ transaction, onClose, onDone }: Readonly<{ tra
             </div>
           </div>
 
+          {reports.length > 0 && (
+            <div>
+              <p className="mt-4 text-xs font-bold uppercase tracking-wide text-slate-400">Vật tư thu hồi &amp; Phí đền bù</p>
+              <div className="mt-2 space-y-3">
+                {reports.map((report) => {
+                  let reportPenalty = 0;
+                  return (
+                    <div key={report.reportId} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                      <div className="mb-3 flex items-center justify-between">
+                        <span className="text-sm font-bold text-slate-700">Biên bản: {report.reportId.slice(0, 8)}...</span>
+                        <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${report.status === 'CONFIRMED' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                          {report.status === 'CONFIRMED' ? 'Đã xác nhận' : 'Chờ xác nhận'}
+                        </span>
+                      </div>
+                      <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+                        <table className="w-full text-left text-sm">
+                          <thead className="bg-slate-50">
+                            <tr className="border-b border-slate-200 text-[11px] font-bold uppercase tracking-wide text-slate-400">
+                              <th className="px-3 py-2">Hạng mục</th>
+                              <th className="px-3 py-2 text-center">Tổng</th>
+                              <th className="px-3 py-2 text-center text-emerald-600">Tốt</th>
+                              <th className="px-3 py-2 text-center text-red-600">Hỏng</th>
+                              <th className="px-3 py-2 text-center text-amber-600">Mất</th>
+                              <th className="px-3 py-2 text-right">Phí (đ)</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {report.items.map((item, idx) => {
+                              const penaltyQty = item.damagedQuantity + item.lostQuantity;
+                              const totalQty = item.goodQuantity + item.damagedQuantity + item.lostQuantity;
+                              const supplierItem = supplierItems.find(si => si.itemId === item.itemId);
+                              const purchasePrice = supplierItem?.purchasePrice ?? 0;
+                              const linePenalty = purchasePrice * penaltyQty;
+                              reportPenalty += linePenalty;
+                              return (
+                                <tr key={idx}>
+                                  <td className="px-3 py-2 font-medium text-slate-800">{item.itemName}</td>
+                                  <td className="px-3 py-2 text-center text-slate-600">{totalQty}</td>
+                                  <td className="px-3 py-2 text-center font-medium text-emerald-600">{item.goodQuantity}</td>
+                                  <td className="px-3 py-2 text-center font-medium text-red-600">{item.damagedQuantity}</td>
+                                  <td className="px-3 py-2 text-center font-medium text-amber-600">{item.lostQuantity}</td>
+                                  <td className="px-3 py-2 text-right font-medium text-slate-700">{formatCurrency(linePenalty)}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                      {reportPenalty > 0 ? (
+                        <div className="mt-3 text-right text-sm font-bold text-red-600">
+                          Cộng thêm phí đền bù: {formatCurrency(reportPenalty)}
+                        </div>
+                      ) : (
+                        <div className="mt-3 text-right text-sm text-slate-500">
+                          Không phát sinh phí đền bù
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <div className="space-y-2 rounded-xl bg-slate-50 p-4 text-sm">
             <div className="flex justify-between">
-              <span className="text-slate-500">Tổng giá trị đơn hàng:</span>
-              <span className="font-bold text-slate-900">{formatCurrency(transaction.estimatedCost)}</span>
+              <span className="text-slate-500">Tổng giá trị đơn hàng {reports.length > 0 ? '(sau đền bù)' : ''}:</span>
+              <span className="font-bold text-slate-900">
+                {formatCurrency(items.reduce((sum, it) => sum + it.quantity * (it.unitCost ?? 0), 0) + reports.reduce((sum, report) => sum + report.items.reduce((itemSum, item) => itemSum + (supplierItems.find(si => si.itemId === item.itemId)?.purchasePrice ?? 0) * (item.damagedQuantity + item.lostQuantity), 0), 0))}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-500">Đặt cọc:</span>
@@ -455,7 +532,9 @@ function TransactionDetailModal({ transaction, onClose, onDone }: Readonly<{ tra
             </div>
             <div className="flex justify-between border-t border-slate-200 pt-2">
               <span className="font-bold text-slate-700">Dư nợ còn lại (dự kiến):</span>
-              <span className="text-lg font-bold text-red-600">{formatCurrency(remainingDebt)}</span>
+              <span className="text-lg font-bold text-red-600">
+                {formatCurrency((transaction.paymentStatus === 'PAID' ? 0 : items.reduce((sum, it) => sum + it.quantity * (it.unitCost ?? 0), 0) + reports.reduce((sum, report) => sum + report.items.reduce((itemSum, item) => itemSum + (supplierItems.find(si => si.itemId === item.itemId)?.purchasePrice ?? 0) * (item.damagedQuantity + item.lostQuantity), 0), 0) - (transaction.depositAmount || 0)))}
+              </span>
             </div>
           </div>
         </div>
