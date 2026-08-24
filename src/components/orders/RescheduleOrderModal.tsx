@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { CalendarClock } from 'lucide-react';
+import { AlertTriangle, CalendarClock, PackageX } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { orderApiService } from '@/services/order.service';
 import { parseApiError } from '@/utils/apiError';
-import { toDateInputValue } from '@/utils/formatDate';
+import { formatDate, toDateInputValue } from '@/utils/formatDate';
 
 interface RescheduleOrderModalProps {
   isOpen: boolean;
@@ -34,12 +34,14 @@ export default function RescheduleOrderModal({
   const [endDate, setEndDate] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmStep, setConfirmStep] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       setEventDate(toDateInputValue(currentEventDate));
       setEndDate(currentEndDate ? toDateInputValue(currentEndDate) : toDateInputValue(currentEventDate));
       setError(null);
+      setConfirmStep(false);
     }
   }, [isOpen, currentEventDate, currentEndDate]);
 
@@ -50,7 +52,7 @@ export default function RescheduleOrderModal({
   );
   const feeWarning = daysToEvent <= 3;
 
-  const handleSubmit = async () => {
+  const handleRequestConfirm = () => {
     if (!eventDate) {
       setError('Vui lòng chọn ngày sự kiện mới.');
       return;
@@ -59,6 +61,11 @@ export default function RescheduleOrderModal({
       setError('Ngày kết thúc phải >= ngày sự kiện.');
       return;
     }
+    setError(null);
+    setConfirmStep(true);
+  };
+
+  const handleSubmit = async () => {
     setSubmitting(true);
     setError(null);
     try {
@@ -70,7 +77,7 @@ export default function RescheduleOrderModal({
       onClose();
       onSuccess();
     } catch (err) {
-      setError(parseApiError(err, 'Không đổi được ngày — có thể ngày mới trùng khoảng thiếu thiết bị.'));
+      setError(parseApiError(err, 'Không đổi được ngày - có thể ngày mới trùng khoảng thiếu thiết bị.'));
     } finally {
       setSubmitting(false);
     }
@@ -80,35 +87,84 @@ export default function RescheduleOrderModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={`Đổi ngày sự kiện — ${orderCode}`}
+      title={confirmStep ? `Xác nhận đổi ngày — ${orderCode}` : `Đổi ngày sự kiện — ${orderCode}`}
       footer={
-        <>
-          <Button variant="secondary" onClick={onClose} disabled={submitting}>
-            Hủy
-          </Button>
-          <Button onClick={handleSubmit} isLoading={submitting}>
-            <CalendarClock className="h-4 w-4" /> Xác nhận đổi ngày
-          </Button>
-        </>
+        confirmStep ? (
+          <>
+            <Button variant="secondary" onClick={() => setConfirmStep(false)} disabled={submitting}>
+              Quay lại
+            </Button>
+            <Button onClick={handleSubmit} isLoading={submitting}>
+              <CalendarClock className="h-4 w-4" /> Xác nhận đổi ngày
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button variant="secondary" onClick={onClose} disabled={submitting}>
+              Hủy
+            </Button>
+            <Button onClick={handleRequestConfirm}>
+              <CalendarClock className="h-4 w-4" /> Xác nhận đổi ngày
+            </Button>
+          </>
+        )
       }
     >
-      <div className="space-y-3">
-        <p className="text-sm text-slate-500">
-          Đổi ngày sẽ <span className="font-semibold">tự dời cửa sổ giữ chỗ thiết bị</span> theo ngày mới. Nếu ngày mới trùng
-          khoảng đã kín hàng, hệ thống sẽ chặn (báo thiết bị thiếu).
-        </p>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Input type="date" label="Ngày sự kiện mới" value={eventDate} onChange={(e) => setEventDate(e.target.value)} />
-          <Input type="date" label="Ngày kết thúc" min={eventDate || undefined} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+      {confirmStep ? (
+        <div className="space-y-3">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-slate-500">Ngày sự kiện</span>
+              <span>
+                <span className="text-slate-400 line-through">{formatDate(currentEventDate)}</span>{' '}
+                <span className="font-semibold text-slate-900">→ {formatDate(new Date(`${eventDate}T00:00:00`).toISOString())}</span>
+              </span>
+            </div>
+            {endDate && (
+              <div className="mt-1 flex items-center justify-between gap-3">
+                <span className="text-slate-500">Ngày kết thúc</span>
+                <span className="font-semibold text-slate-900">{formatDate(new Date(`${endDate}T00:00:00`).toISOString())}</span>
+              </div>
+            )}
+          </div>
+
+          <div className="flex gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700">
+            <PackageX className="h-4 w-4 shrink-0" />
+            <span>
+              Cửa sổ giữ chỗ thiết bị sẽ được dời theo ngày mới. Nếu ngày mới trùng khoảng đã kín hàng, hệ thống sẽ báo{' '}
+              <span className="font-semibold">thiếu thiết bị</span> và không đổi được - hãy kiểm tra tồn kho trước khi xác nhận.
+            </span>
+          </div>
+
+          {feeWarning && (
+            <div className="flex gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              <span>
+                Còn {daysToEvent < 0 ? 0 : daysToEvent} ngày tới sự kiện - đổi ngày trong ≤3 ngày có thể phát sinh phí (xử lý ở
+                bước quyết toán). Trên 3 ngày thì miễn phí.
+              </span>
+            </div>
+          )}
+
+          <p className="text-sm text-slate-600">Bạn có chắc chắn muốn đổi ngày cho đơn này không?</p>
+
+          {error && <p className="text-sm text-red-600">{error}</p>}
         </div>
-        {feeWarning && (
-          <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700">
-            ⚠️ Còn {daysToEvent < 0 ? 0 : daysToEvent} ngày tới sự kiện — đổi ngày trong ≤3 ngày có thể phát sinh phí (xử lý ở
-            bước quyết toán). Trên 3 ngày thì miễn phí.
-          </p>
-        )}
-        {error && <p className="text-sm text-red-600">{error}</p>}
-      </div>
+      ) : (
+        <div className="space-y-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Input type="date" label="Ngày sự kiện mới" value={eventDate} onChange={(e) => setEventDate(e.target.value)} />
+            <Input type="date" label="Ngày kết thúc" min={eventDate || undefined} value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+          </div>
+          {feeWarning && (
+            <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700">
+              ⚠️ Còn {daysToEvent < 0 ? 0 : daysToEvent} ngày tới sự kiện - đổi ngày trong ≤3 ngày có thể phát sinh phí (xử lý ở
+              bước quyết toán). Trên 3 ngày thì miễn phí.
+            </p>
+          )}
+          {error && <p className="text-sm text-red-600">{error}</p>}
+        </div>
+      )}
     </Modal>
   );
 }
