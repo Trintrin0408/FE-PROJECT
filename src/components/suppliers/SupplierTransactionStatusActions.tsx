@@ -32,15 +32,19 @@ const CONFIRM_TEXT: Partial<Record<SupplierTransactionStatus, string>> = {
   CANCELLED: 'HỦY đơn thuê/mua này? Thao tác không thể hoàn tác. Đơn đã hủy sẽ được trừ khỏi công nợ nhà cung cấp.',
 };
 
-/**
- * Style icon-button 32x32 (bo góc 8px) cho variant="icons". "Đã nhận"/"Hủy đơn" luôn hiện màu (không
- * chỉ khi hover) để nổi bật hơn 2 hành động còn lại — theo yêu cầu thiết kế cụ thể cho 2 nút này.
- * "Duyệt"/"Hoàn thành" giữ kiểu ghost (như Sửa/Xóa) để không lấn át.
- */
-const ICON_BUTTON_STYLE: Record<TargetStatus, string> = {
+/** Icon-button vuông 32x32 (bo góc 8px), kiểu ghost — dùng cho "Duyệt"/"Hoàn thành" ở variant="icons". */
+const ICON_BUTTON_STYLE: Partial<Record<TargetStatus, string>> = {
   APPROVED: 'text-slate-400 hover:bg-blue-50 hover:text-blue-600',
-  RECEIVED: 'border border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100',
   COMPLETED: 'text-slate-400 hover:bg-blue-50 hover:text-blue-600',
+};
+
+/**
+ * "Đã nhận"/"Hủy đơn" render dạng button compact có chữ (không icon-only) ở variant="icons" — theo
+ * yêu cầu thiết kế cụ thể cho 2 hành động này, màu hiện thường trực (không chỉ khi hover).
+ */
+const TEXT_BUTTON_STATUSES = new Set<TargetStatus>(['RECEIVED', 'CANCELLED']);
+const TEXT_BUTTON_STYLE: Partial<Record<TargetStatus, string>> = {
+  RECEIVED: 'border border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100',
   CANCELLED: 'border border-red-200 bg-red-50 text-red-600 hover:bg-red-100',
 };
 
@@ -50,10 +54,11 @@ interface Props {
   size?: 'sm' | 'md';
   className?: string;
   /**
-   * 'icons' render mỗi hành động thành 1 icon-button 32x32 có tooltip (title) thay vì nút full-text
-   * — dùng ở cột "Thao tác" trên bảng danh sách để nhiều hành động cùng lúc (tối đa 2, xem
-   * SUPPLIER_TRANSACTION_NEXT_STATUSES) không kéo cao row. Mặc định 'buttons' (dàn hàng ngang có
-   * label, dùng ở modal chi tiết).
+   * 'icons' = layout gọn dùng ở cột "Thao tác" trên bảng danh sách: "Duyệt"/"Hoàn thành" render
+   * icon-button vuông 32x32 có tooltip (title); "Đã nhận"/"Hủy đơn" render button compact có chữ
+   * (icon + label, cao 32px) — màu xanh/đỏ hiện thường trực. Tối đa 2 hành động cùng lúc (xem
+   * SUPPLIER_TRANSACTION_NEXT_STATUSES) nên không kéo cao row. Mặc định 'buttons' (dàn hàng ngang
+   * đầy đủ label cho mọi hành động, dùng ở modal chi tiết).
    */
   variant?: 'buttons' | 'icons';
 }
@@ -92,6 +97,27 @@ export default function SupplierTransactionStatusActions({ transaction, onDone, 
           {nexts.map((target) => {
             const meta = ACTION_META[target];
             const Icon = meta.icon;
+            const isTextButton = TEXT_BUTTON_STATUSES.has(target);
+            const spinner = (
+              <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+              </svg>
+            );
+            if (isTextButton) {
+              return (
+                <button
+                  key={target}
+                  type="button"
+                  disabled={submitting !== null}
+                  onClick={() => handleClick(target)}
+                  className={`inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${TEXT_BUTTON_STYLE[target]}`}
+                >
+                  {submitting === target ? spinner : <Icon className="h-3.5 w-3.5" />}
+                  {meta.label}
+                </button>
+              );
+            }
             return (
               <button
                 key={target}
@@ -102,14 +128,7 @@ export default function SupplierTransactionStatusActions({ transaction, onDone, 
                 onClick={() => handleClick(target)}
                 className={`inline-flex h-8 w-8 items-center justify-center rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${ICON_BUTTON_STYLE[target]}`}
               >
-                {submitting === target ? (
-                  <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                  </svg>
-                ) : (
-                  <Icon className="h-4 w-4" />
-                )}
+                {submitting === target ? spinner : <Icon className="h-4 w-4" />}
               </button>
             );
           })}
