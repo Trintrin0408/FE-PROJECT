@@ -1,12 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Modal from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { supplierApiService } from '@/services/supplier.service';
 import { orderApiService } from '@/services/order.service';
+import { inventoryApiService } from '@/services/inventory.service';
 import type { SupplierItem, TransactionItemInput, SupplierTransaction } from '@/types/supplier';
 import type { Order } from '@/types/order';
-import { Trash2, Plus, Eye } from 'lucide-react';
+import type { CollectedEquipmentReport } from '@/types/collectedEquipmentReport';
+import { Trash2, Plus, Eye, Box } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { formatDate } from '@/utils/formatDate';
 import { formatCurrency } from '@/utils/formatCurrency';
@@ -61,6 +63,7 @@ export default function UpdateSupplierTransactionModal({
   const [items, setItems] = useState<TransactionItemInput[]>([
     { itemId: '', quantity: 1, unitCost: 0, notes: '' }
   ]);
+  const [returnReports, setReturnReports] = useState<CollectedEquipmentReport[]>([]);
 
   // Load data when opened
   useEffect(() => {
@@ -111,6 +114,52 @@ export default function UpdateSupplierTransactionModal({
         .catch(err => console.error('Failed to load orders:', err));
     }
   }, [isOpen, supplierId, transaction]);
+
+  // Phiếu thu hồi thiết bị NCC (Leader Staff ghi nhận qua mobile) gắn với giao dịch này — chỉ cần khi xem
+  // chi tiết đơn thuê ngoài, để hiện bảng "Danh sách thiết bị hoàn trả" (hỏng/mất/đền bù).
+  useEffect(() => {
+    if (isOpen && mode === 'view' && transaction?.transactionId) {
+      inventoryApiService
+        .getReturnReports({ transactionId: transaction.transactionId, reportType: 'SUPPLIER', limit: 100 })
+        .then((res: any) => setReturnReports(res?.data ?? res ?? []))
+        .catch(() => setReturnReports([]));
+    } else {
+      setReturnReports([]);
+    }
+  }, [isOpen, mode, transaction]);
+
+  // Gộp số lượng nguyên vẹn/hỏng/mất theo itemId từ mọi phiếu trả gắn với giao dịch (có thể có nhiều phiếu).
+  const returnedItems = useMemo(() => {
+    const map = new Map<
+      string,
+      { itemId: string; itemName: string; unit: string; goodQuantity: number; damagedQuantity: number; lostQuantity: number }
+    >();
+    for (const report of returnReports) {
+      for (const it of report.items) {
+        const existing = map.get(it.itemId);
+        if (existing) {
+          existing.goodQuantity += it.goodQuantity;
+          existing.damagedQuantity += it.damagedQuantity;
+          existing.lostQuantity += it.lostQuantity;
+        } else {
+          map.set(it.itemId, {
+            itemId: it.itemId,
+            itemName: it.itemName,
+            unit: it.unit,
+            goodQuantity: it.goodQuantity,
+            damagedQuantity: it.damagedQuantity,
+            lostQuantity: it.lostQuantity,
+          });
+        }
+      }
+    }
+    return Array.from(map.values());
+  }, [returnReports]);
+
+  // Đền bù NCC tính theo đơn giá MUA của hạng mục (không phải đơn giá thuê của giao dịch).
+  const compensationOf = (item: { itemId: string; damagedQuantity: number; lostQuantity: number }) =>
+    (item.damagedQuantity + item.lostQuantity) * (supplierItems.find((si) => si.itemId === item.itemId)?.purchasePrice ?? 0);
+  const totalCompensation = returnedItems.reduce((sum, it) => sum + compensationOf(it), 0);
 
   const handleAddItem = () => {
     setItems([...items, { itemId: '', quantity: 1, unitCost: 0, notes: '' }]);
@@ -306,6 +355,55 @@ export default function UpdateSupplierTransactionModal({
               <span className="text-lg font-bold text-red-600">{formatCurrency(remainingDebt)}</span>
             </div>
           </div>
+
+          {returnedItems.length > 0 && (
+            <div>
+              <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-slate-400">
+                <Box className="h-4 w-4 text-slate-400" />
+                Danh sách thiết bị hoàn trả
+              </p>
+              <div className="mt-2 overflow-hidden rounded-xl border border-slate-200">
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[560px] text-left text-sm">
+                    <thead className="bg-slate-50">
+                      <tr className="text-[11px] font-bold uppercase tracking-wide text-slate-400">
+                        <th className="px-3 py-2">Tên thiết bị</th>
+                        <th className="px-3 py-2 text-center">ĐVT</th>
+                        <th className="px-3 py-2 text-center text-emerald-600">Nguyên vẹn</th>
+                        <th className="px-3 py-2 text-center text-red-600">Hỏng</th>
+                        <th className="px-3 py-2 text-center text-amber-600">Mất</th>
+                        <th className="px-3 py-2 text-right">Đền bù NCC</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {returnedItems.map((item) => (
+                        <tr key={item.itemId}>
+                          <td className="px-3 py-3 font-medium text-slate-800">{item.itemName}</td>
+                          <td className="px-3 py-3 text-center text-slate-500">{item.unit}</td>
+                          <td className="px-3 py-3 text-center font-bold text-emerald-600">{item.goodQuantity}</td>
+                          <td className="px-3 py-3 text-center font-bold text-red-600">{item.damagedQuantity}</td>
+                          <td className="px-3 py-3 text-center font-bold text-amber-600">{item.lostQuantity}</td>
+                          <td className="px-3 py-3 text-right font-semibold text-slate-700">{formatCurrency(compensationOf(item))}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="border-t border-slate-200 bg-slate-50">
+                      <tr>
+                        <td colSpan={5} className="px-3 py-2.5 text-right text-xs font-bold uppercase tracking-wide text-slate-500">
+                          Tổng đền bù NCC (tạm tính)
+                        </td>
+                        <td className="px-3 py-2.5 text-right font-bold text-slate-900">{formatCurrency(totalCompensation)}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+              <p className="mt-1.5 text-[11px] italic text-slate-400">
+                Đền bù NCC tạm tính = (hỏng + mất) × đơn giá mua của nhà cung cấp - chỉ để tham khảo đối soát, hệ thống
+                không lưu con số này.
+              </p>
+            </div>
+          )}
 
           <div className="flex justify-end pt-4">
             <Button onClick={onClose} variant="primary">Đóng</Button>

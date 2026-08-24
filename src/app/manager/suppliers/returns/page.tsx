@@ -29,7 +29,9 @@ import type {
 //
 // Báo cáo SUPPLIER chỉ mang `transactionId` trơ (không kèm tên NCC/mã giao dịch) — phải resolve thêm qua
 // GET /supplier-transactions?orderId=... để hiện tên NCC + mã PO. Tiền "đền bù NCC" = (hỏng+mất) × đơn giá
-// thuê của giao dịch (lấy từ GET /supplier-transactions/:id, chỉ tính hiển thị — BE không lưu con số này).
+// MUA của NCC (đúng quy tắc nghiệp vụ "đền bù Supplier tính theo đơn giá mua", KHÔNG phải đơn giá thuê của
+// giao dịch) — lấy qua GET /supplier-transactions/:id (để biết supplierId) rồi GET /suppliers/:id/items
+// (purchasePrice), chỉ tính hiển thị — BE không lưu con số này.
 
 const STATUS_META: Record<CollectedEquipmentReportStatus, { label: string; badgeClass: string }> = {
   SUBMITTED: { label: 'Chờ xác nhận', badgeClass: 'bg-amber-100 text-amber-700' },
@@ -301,8 +303,9 @@ function SupplierReturnDetailModal({
   onClose: () => void;
   onConfirmed: () => void;
 }>) {
-  // itemId -> đơn giá thuê NCC (để tính đền bù = (hỏng+mất) × đơn giá). Lấy từ chi tiết giao dịch.
-  const [unitCostMap, setUnitCostMap] = useState<Record<string, number>>({});
+  // itemId -> đơn giá MUA của NCC (để tính đền bù = (hỏng+mất) × đơn giá mua). Lấy qua 2 bước: chi tiết
+  // giao dịch (để biết supplierId) rồi danh sách hạng mục NCC (purchasePrice).
+  const [purchasePriceMap, setPurchasePriceMap] = useState<Record<string, number>>({});
   const [isConfirming, setIsConfirming] = useState(false);
   const [error, setError] = useState('');
 
@@ -311,24 +314,33 @@ function SupplierReturnDetailModal({
   useEffect(() => {
     setError('');
     if (!transactionId) {
-      setUnitCostMap({});
+      setPurchasePriceMap({});
       return;
     }
     let cancelled = false;
     supplierApiService
       .getTransactionById(transactionId)
-      .then((res) => {
+      .then(async (res) => {
         if (cancelled) return;
         const detail =
-          (res as unknown as { data?: { items?: { itemId: string; unitCost?: number }[] } })?.data ??
-          (res as unknown as { items?: { itemId: string; unitCost?: number }[] });
-        const items = detail?.items ?? [];
+          (res as unknown as { data?: { supplierId?: string } })?.data ?? (res as unknown as { supplierId?: string });
+        const supplierId = detail?.supplierId;
+        if (!supplierId) {
+          setPurchasePriceMap({});
+          return;
+        }
+        const itemsRes = await supplierApiService.getSupplierItems(supplierId).catch(() => []);
+        if (cancelled) return;
+        const items =
+          (itemsRes as unknown as { data?: { itemId: string; purchasePrice?: number | null }[] })?.data ??
+          (itemsRes as unknown as { itemId: string; purchasePrice?: number | null }[]) ??
+          [];
         const map: Record<string, number> = {};
-        for (const it of items) map[it.itemId] = it.unitCost ?? 0;
-        setUnitCostMap(map);
+        for (const it of items) map[it.itemId] = it.purchasePrice ?? 0;
+        setPurchasePriceMap(map);
       })
       .catch(() => {
-        if (!cancelled) setUnitCostMap({});
+        if (!cancelled) setPurchasePriceMap({});
       });
     return () => {
       cancelled = true;
@@ -338,7 +350,7 @@ function SupplierReturnDetailModal({
   if (!report) return null;
 
   const compensationOf = (item: CollectedEquipmentReportItem) =>
-    (item.damagedQuantity + item.lostQuantity) * (unitCostMap[item.itemId] ?? 0);
+    (item.damagedQuantity + item.lostQuantity) * (purchasePriceMap[item.itemId] ?? 0);
   const totalCompensation = report.items.reduce((sum, it) => sum + compensationOf(it), 0);
 
   const handleConfirm = async () => {
@@ -462,8 +474,8 @@ function SupplierReturnDetailModal({
               </div>
             </div>
             <p className="mt-1.5 text-[11px] italic text-slate-400">
-              Đền bù NCC tạm tính = (hỏng + mất) × đơn giá thuê của giao dịch - chỉ để tham khảo đối soát, hệ thống không
-              lưu con số này.
+              Đền bù NCC tạm tính = (hỏng + mất) × đơn giá mua của nhà cung cấp - chỉ để tham khảo đối soát, hệ thống
+              không lưu con số này.
             </p>
           </div>
 
