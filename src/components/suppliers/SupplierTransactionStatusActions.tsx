@@ -93,7 +93,8 @@ export default function SupplierTransactionStatusActions({ transaction, onDone, 
   return (
     <>
       {variant === 'icons' ? (
-        <div className={`flex items-center gap-1 ${className}`}>
+        // Xếp dọc (trên-dưới) khi có ≥2 hành động cùng lúc — đỡ chiếm bề ngang của cột "Thao tác".
+        <div className={`flex flex-col items-start gap-1 ${className}`}>
           {nexts.map((target) => {
             const meta = ACTION_META[target];
             const Icon = meta.icon;
