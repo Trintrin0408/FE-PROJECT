@@ -21,7 +21,7 @@ const TRANSACTION_STATUS_META: Record<string, { label: string; badgeClass: strin
 
 const PAYMENT_STATUS_META: Record<string, { label: string; badgeClass: string }> = {
   UNPAID: { label: 'Chưa thanh toán', badgeClass: 'bg-rose-50 text-rose-600 border border-rose-200' },
-  PARTIAL: { label: 'Đã đặt cọc', badgeClass: 'bg-blue-50 text-blue-600 border border-blue-200' },
+  DEPOSITED: { label: 'Đã đặt cọc', badgeClass: 'bg-blue-50 text-blue-600 border border-blue-200' },
   PAID: { label: 'Đã thanh toán', badgeClass: 'bg-emerald-50 text-emerald-600 border border-emerald-200' },
 };
 
@@ -155,6 +155,11 @@ export default function UpdateSupplierTransactionModal({
       return;
     }
     
+    if (status === 'COMPLETED' && paymentStatus !== 'PAID') {
+      toast.error('Đơn chưa thanh toán đủ không thể hoàn thành');
+      return;
+    }
+
     const validItems = items.filter(i => i.itemId);
     if (validItems.length === 0) {
       toast.error('Vui lòng chọn ít nhất 1 hạng mục thiết bị');
@@ -395,7 +400,9 @@ export default function UpdateSupplierTransactionModal({
                   {transaction?.status === 'RECEIVED' && (
                     <>
                       <option value="RECEIVED">Đã nhận</option>
-                      <option value="COMPLETED">Hoàn thành</option>
+                      <option value="COMPLETED" disabled={paymentStatus !== 'PAID'}>
+                        Hoàn thành {paymentStatus !== 'PAID' ? '(Cần thanh toán đủ)' : ''}
+                      </option>
                     </>
                   )}
                   {transaction?.status === 'COMPLETED' && (

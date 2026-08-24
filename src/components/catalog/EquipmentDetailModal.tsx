@@ -42,7 +42,7 @@ export function EquipmentDetailModal({ isOpen, onClose, equipment, onAdjustStock
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={equipment.name} subtitle={`Mã: ${equipment.id} · Danh mục: ${equipment.category}`} size="xl">
       <div className="space-y-6">
-        <div className="grid grid-cols-2 gap-4 rounded-lg bg-slate-50 p-4 text-sm sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 rounded-lg bg-slate-50 p-4 text-sm sm:grid-cols-2">
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Đơn giá</p>
             <p className="mt-0.5 font-semibold text-slate-800">
@@ -52,18 +52,6 @@ export function EquipmentDetailModal({ isOpen, onClose, equipment, onAdjustStock
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Giá trị đền bù</p>
             <p className="mt-0.5 font-semibold text-slate-800">{formatCurrency(equipment.replacementValue)}</p>
-          </div>
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Kích thước</p>
-            <p className="mt-0.5 font-semibold text-slate-800">{equipment.dimensions || '—'}</p>
-          </div>
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Chất liệu</p>
-            <p className="mt-0.5 font-semibold text-slate-800">{equipment.material || '—'}</p>
-          </div>
-          <div className="col-span-2 sm:col-span-4">
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Mô tả kỹ thuật</p>
-            <p className="mt-0.5 text-slate-600">{equipment.specs || 'Không có mô tả.'}</p>
           </div>
         </div>
 

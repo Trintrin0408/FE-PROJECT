@@ -29,8 +29,6 @@ import type { Order } from '@/types/order';
 
 type AdjustKind = 'INBOUND' | 'RECOUNT';
 
-const MOCK_DIMENSIONS = '1.2m x 0.8m x 1.5m';
-const MOCK_MATERIAL = 'Nhựa ABS + kim loại';
 const MOCK_LOCATION = 'Kho A - Kệ 03';
 
 interface LockingOrderRow {
@@ -208,7 +206,7 @@ export function InventoryDetailModal({ isOpen, onClose, itemId, selectedDate, on
         <p className="py-10 text-center text-sm text-slate-400">Đang tải chi tiết thiết bị...</p>
       ) : (
         <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-4 rounded-lg bg-slate-50 p-4 text-sm sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-4 rounded-lg bg-slate-50 p-4 text-sm sm:grid-cols-2">
             <div>
               <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Đơn giá</p>
               <p className="mt-0.5 font-semibold text-slate-800">
@@ -218,18 +216,6 @@ export function InventoryDetailModal({ isOpen, onClose, itemId, selectedDate, on
             <div>
               <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Giá trị đền bù</p>
               <p className="mt-0.5 font-semibold text-slate-800">{item?.purchasePrice != null ? formatCurrency(item.purchasePrice) : '—'}</p>
-            </div>
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Kích thước</p>
-              <p className="mt-0.5 font-semibold italic text-slate-500">{MOCK_DIMENSIONS}</p>
-            </div>
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Chất liệu</p>
-              <p className="mt-0.5 font-semibold italic text-slate-500">{MOCK_MATERIAL}</p>
-            </div>
-            <div className="col-span-2 sm:col-span-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-400">Mô tả kỹ thuật</p>
-              <p className="mt-0.5 text-slate-600">{item?.description || 'Không có mô tả.'}</p>
             </div>
           </div>
           {/* <p className="text-[10px] italic text-slate-400">

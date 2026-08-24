@@ -23,6 +23,35 @@ export const Input: React.FC<InputProps> = ({
   ...props
 }) => {
   const isUnderline = variant === 'underline';
+  const isNumber = props.type === 'number';
+
+  const formatNumber = (val: string | number | readonly string[] | undefined) => {
+    if (val === undefined || val === null || val === '') return '';
+    let str = val.toString().replace(/[^0-9.-]/g, '');
+    if (str === '-' || str === '.') return str;
+    
+    str = str.replace(/^(-?)0+(?=\d)/, '$1'); // Remove leading zeros (05 -> 5)
+    
+    const parts = str.split('.');
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return parts.join('.');
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (isNumber && props.onChange) {
+      let rawValue = e.target.value.replace(/,/g, '');
+      rawValue = rawValue.replace(/^(-?)0+(?=\d)/, '$1'); // Remove leading zeros
+      
+      const newEvent = { ...e } as any;
+      newEvent.target = { ...e.target, value: rawValue, name: e.target.name, id: e.target.id };
+      props.onChange(newEvent);
+    } else if (props.onChange) {
+      props.onChange(e);
+    }
+  };
+
+  const displayValue = isNumber && props.value !== undefined ? formatNumber(props.value) : props.value;
+  const displayDefaultValue = isNumber && props.defaultValue !== undefined ? formatNumber(props.defaultValue) : props.defaultValue;
 
   let leadingPadding = '';
   if (icon) leadingPadding = isUnderline ? 'pl-7' : 'pl-10';
@@ -68,7 +97,16 @@ export const Input: React.FC<InputProps> = ({
             {icon}
           </span>
         )}
-        <input id={id} {...props} className={`${fieldClassName} ${className}`} />
+        <input 
+          id={id} 
+          {...props} 
+          type={isNumber ? 'text' : props.type}
+          inputMode={isNumber ? 'numeric' : props.inputMode}
+          value={displayValue}
+          defaultValue={displayDefaultValue}
+          onChange={handleChange}
+          className={`${fieldClassName} ${className}`} 
+        />
         {trailingIcon && onTrailingIconClick && (
           <button
             type="button"
