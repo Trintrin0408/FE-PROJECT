@@ -369,7 +369,8 @@ export default function UpdateSupplierTransactionModal({
                       <tr className="text-[11px] font-bold uppercase tracking-wide text-slate-400">
                         <th className="px-3 py-2">Tên thiết bị</th>
                         <th className="px-3 py-2 text-center">ĐVT</th>
-                        <th className="px-3 py-2 text-center text-emerald-600">Nguyên vẹn</th>
+                        <th className="px-3 py-2 text-center">Tổng</th>
+                        <th className="px-3 py-2 text-center text-emerald-600">Tốt</th>
                         <th className="px-3 py-2 text-center text-red-600">Hỏng</th>
                         <th className="px-3 py-2 text-center text-amber-600">Mất</th>
                         <th className="px-3 py-2 text-right">Đền bù NCC</th>
@@ -380,6 +381,7 @@ export default function UpdateSupplierTransactionModal({
                         <tr key={item.itemId}>
                           <td className="px-3 py-3 font-medium text-slate-800">{item.itemName}</td>
                           <td className="px-3 py-3 text-center text-slate-500">{item.unit}</td>
+                          <td className="px-3 py-3 text-center font-bold text-slate-700">{item.goodQuantity + item.damagedQuantity + item.lostQuantity}</td>
                           <td className="px-3 py-3 text-center font-bold text-emerald-600">{item.goodQuantity}</td>
                           <td className="px-3 py-3 text-center font-bold text-red-600">{item.damagedQuantity}</td>
                           <td className="px-3 py-3 text-center font-bold text-amber-600">{item.lostQuantity}</td>

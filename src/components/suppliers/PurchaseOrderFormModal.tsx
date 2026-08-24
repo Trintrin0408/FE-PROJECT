@@ -523,14 +523,17 @@ export default function PurchaseOrderFormModal({ isOpen, mode, transaction, pref
                       <thead>
                         <tr className="border-b border-slate-200 text-slate-500">
                           <th className="pb-1 font-medium">Hạng mục</th>
-                          <th className="pb-1 text-right font-medium">Hỏng/Mất</th>
+                          <th className="pb-1 text-center font-medium">Tổng</th>
+                          <th className="pb-1 text-center font-medium text-emerald-600">Tốt</th>
+                          <th className="pb-1 text-center font-medium text-red-600">Hỏng</th>
+                          <th className="pb-1 text-center font-medium text-amber-600">Mất</th>
                           <th className="pb-1 text-right font-medium">Phí</th>
                         </tr>
                       </thead>
                       <tbody>
                         {report.items.map((item, idx) => {
                           const penaltyQty = item.damagedQuantity + item.lostQuantity;
-                          if (penaltyQty === 0) return null;
+                          const totalQty = item.goodQuantity + item.damagedQuantity + item.lostQuantity;
                           const supplierItem = supplierItems.find(si => si.itemId === item.itemId);
                           const purchasePrice = supplierItem?.purchasePrice ?? 0;
                           const linePenalty = purchasePrice * penaltyQty;
@@ -538,7 +541,10 @@ export default function PurchaseOrderFormModal({ isOpen, mode, transaction, pref
                           return (
                             <tr key={idx} className="border-b border-slate-100">
                               <td className="py-1 text-slate-700">{item.itemName}</td>
-                              <td className="py-1 text-right font-medium text-red-600">{penaltyQty}</td>
+                              <td className="py-1 text-center font-medium text-slate-700">{totalQty}</td>
+                              <td className="py-1 text-center font-medium text-emerald-600">{item.goodQuantity}</td>
+                              <td className="py-1 text-center font-medium text-red-600">{item.damagedQuantity}</td>
+                              <td className="py-1 text-center font-medium text-amber-600">{item.lostQuantity}</td>
                               <td className="py-1 text-right text-slate-700">{formatCurrency(linePenalty)}</td>
                             </tr>
                           );
