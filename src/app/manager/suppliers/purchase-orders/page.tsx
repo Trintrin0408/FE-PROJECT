@@ -199,7 +199,7 @@ export default function Page() {
             aria-label="Chỉnh sửa"
             title="Chỉnh sửa đơn"
             onClick={() => setFormModal({ mode: 'edit', transaction: t })}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-400 hover:bg-amber-50 hover:text-amber-600"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-amber-50 hover:text-amber-600"
           >
             <Pencil className="h-4 w-4" />
           </button>
@@ -209,7 +209,7 @@ export default function Page() {
             title={t.status === 'PENDING' ? 'Xóa đơn hàng' : 'Chỉ được xóa đơn ở trạng thái Chờ duyệt'}
             disabled={t.status !== 'PENDING' || deletingId === t.transactionId}
             onClick={() => handleDeleteTransaction(t)}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:text-slate-200 disabled:hover:bg-transparent"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:text-slate-200 disabled:hover:bg-transparent"
           >
             <Trash2 className="h-4 w-4" />
           </button>

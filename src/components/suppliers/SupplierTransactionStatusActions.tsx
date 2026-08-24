@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { CheckCircle2, Flag, PackageCheck, XCircle, type LucideIcon } from 'lucide-react';
+import { CheckCircle2, CircleX, Flag, PackageCheck, type LucideIcon } from 'lucide-react';
 import Modal from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { supplierApiService } from '@/services/supplier.service';
@@ -24,7 +24,7 @@ const ACTION_META: Record<TargetStatus, { label: string; icon: LucideIcon; varia
   APPROVED: { label: 'Duyệt', icon: CheckCircle2, variant: 'primary', confirm: false },
   RECEIVED: { label: 'Đã nhận', icon: PackageCheck, variant: 'primary', confirm: false },
   COMPLETED: { label: 'Hoàn thành', icon: Flag, variant: 'primary', confirm: true },
-  CANCELLED: { label: 'Hủy đơn', icon: XCircle, variant: 'danger', confirm: true },
+  CANCELLED: { label: 'Hủy đơn', icon: CircleX, variant: 'danger', confirm: true },
 };
 
 const CONFIRM_TEXT: Partial<Record<SupplierTransactionStatus, string>> = {
@@ -32,10 +32,16 @@ const CONFIRM_TEXT: Partial<Record<SupplierTransactionStatus, string>> = {
   CANCELLED: 'HỦY đơn thuê/mua này? Thao tác không thể hoàn tác. Đơn đã hủy sẽ được trừ khỏi công nợ nhà cung cấp.',
 };
 
-/** Ghost icon-button 32x32 — cùng kiểu với nút Sửa/Xóa ở cột "Thao tác" của bảng danh sách. */
-const ICON_BUTTON_HOVER: Record<'primary' | 'danger', string> = {
-  primary: 'hover:bg-blue-50 hover:text-blue-600',
-  danger: 'hover:bg-red-50 hover:text-red-600',
+/**
+ * Style icon-button 32x32 (bo góc 8px) cho variant="icons". "Đã nhận"/"Hủy đơn" luôn hiện màu (không
+ * chỉ khi hover) để nổi bật hơn 2 hành động còn lại — theo yêu cầu thiết kế cụ thể cho 2 nút này.
+ * "Duyệt"/"Hoàn thành" giữ kiểu ghost (như Sửa/Xóa) để không lấn át.
+ */
+const ICON_BUTTON_STYLE: Record<TargetStatus, string> = {
+  APPROVED: 'text-slate-400 hover:bg-blue-50 hover:text-blue-600',
+  RECEIVED: 'border border-blue-200 bg-blue-50 text-blue-600 hover:bg-blue-100',
+  COMPLETED: 'text-slate-400 hover:bg-blue-50 hover:text-blue-600',
+  CANCELLED: 'border border-red-200 bg-red-50 text-red-600 hover:bg-red-100',
 };
 
 interface Props {
@@ -94,7 +100,7 @@ export default function SupplierTransactionStatusActions({ transaction, onDone, 
                 title={meta.label}
                 disabled={submitting !== null}
                 onClick={() => handleClick(target)}
-                className={`inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-400 disabled:cursor-not-allowed disabled:opacity-50 ${ICON_BUTTON_HOVER[meta.variant]}`}
+                className={`inline-flex h-8 w-8 items-center justify-center rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${ICON_BUTTON_STYLE[target]}`}
               >
                 {submitting === target ? (
                   <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
