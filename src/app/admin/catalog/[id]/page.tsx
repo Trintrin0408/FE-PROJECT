@@ -75,7 +75,7 @@ export default function ItemDetailPage() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="secondary" className="bg-white shadow-sm">
+          <Button variant="secondary" className="bg-white shadow-sm" onClick={() => router.push(`/admin/catalog/${id}/edit`)}>
             <Edit className="h-4 w-4 mr-2" />
             Sửa thiết bị
           </Button>
