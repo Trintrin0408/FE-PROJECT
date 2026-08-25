@@ -76,12 +76,13 @@ export function explodePhysicalDemand(items: OrderItem[]): ExplodedDemandRow[] {
   };
 
   items.forEach((item) => {
-    const components = item.itemName ? ITEM_COMPONENTS_BY_PARENT_NAME[item.itemName] : undefined;
-    if (components && components.length > 0) {
-      components.forEach((c) => {
+    if (item.isCombo && item.components && item.components.length > 0) {
+      item.components.forEach((c) => {
         addRow({
-          physicalItemName: c.childItemName,
-          quantityNeeded: item.quantity * c.quantityPerUnit,
+          physicalItemName: c.childItemName || c.childItemCode,
+          quantityNeeded: item.quantity * c.quantity,
+          knownItemId: c.childItemId,
+          unit: c.unit,
           componentOfPackages: [item.itemName as string],
         });
       });
