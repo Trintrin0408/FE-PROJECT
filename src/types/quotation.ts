@@ -121,8 +121,15 @@ export interface QuotationDetailItem {
   price: number;
   discount: number;
   lineTotal: number;
+  isCombo?: boolean;
+  components?: {
+    childItemId: string;
+    childItemCode: string;
+    childItemName: string;
+    unit: string;
+    quantity: number;
+  }[];
 }
-
 export interface QuotationDetailApi {
   quotationId: string;
   quotationCode: string;

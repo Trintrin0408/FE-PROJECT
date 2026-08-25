@@ -21,6 +21,14 @@ export interface OrderItem {
   source: OrderItemSource;
   preparedQty?: number;
   notes?: string;
+  isCombo?: boolean;
+  components?: {
+    childItemId: string;
+    childItemCode: string;
+    childItemName: string;
+    unit: string;
+    quantity: number;
+  }[];
 }
 
 // GET /api/v1/orders — customerName/customerPhone xác nhận có JOIN sẵn qua test thật ngày 2026-07-20

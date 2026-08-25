@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import type { AxiosError } from 'axios';
-import { Check, CheckCircle2, Copy, FileSignature, Mail, MapPin, PackageCheck, Pencil, Phone, Printer, Trash2, X } from 'lucide-react';
+import { Check, CheckCircle2, Copy, FileSignature, Mail, MapPin, PackageCheck, Pencil, Phone, Plus, Printer, Trash2, X } from 'lucide-react';
 import { BackButton } from '@/components/ui/BackButton';
 import { Badge } from '@/components/ui/Badge';
 import { Breadcrumb } from '@/components/ui/Breadcrumb';
@@ -102,6 +102,15 @@ export default function ManagerQuotationDetailPage() {
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [generalPolicies, setGeneralPolicies] = useState<BusinessPolicy[]>([]);
+  const [expandedCombos, setExpandedCombos] = useState<Set<string>>(new Set());
+  const toggleComboExpand = (id: string) => {
+    setExpandedCombos(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
   const quotationCardRef = useRef<HTMLDivElement>(null);
 
   const load = () => {
@@ -456,12 +465,61 @@ export default function ManagerQuotationDetailPage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {detail.items.map((item) => (
-                  <tr key={item.quotationItemId}>
-                    <td className="px-3 py-2.5 font-semibold text-slate-900">{item.itemName}</td>
-                    <td className="px-3 py-2.5 text-slate-600">{item.categoryName}</td>
-                    <td className="px-3 py-2.5 text-center text-slate-600">{item.unit}</td>
-                    <td className="px-3 py-2.5 text-center font-bold text-slate-800">{item.quantity}</td>
-                  </tr>
+                  <React.Fragment key={item.quotationItemId}>
+                    <tr className="hover:bg-slate-50/50">
+                      <td className="px-3 py-2.5 font-semibold text-slate-900">
+                        <div className="flex items-center gap-2">
+                          {item.isCombo && item.components && item.components.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => toggleComboExpand(item.quotationItemId)}
+                              className="flex h-5 w-5 items-center justify-center rounded bg-indigo-50 text-indigo-600 transition-colors hover:bg-indigo-100"
+                              title={expandedCombos.has(item.quotationItemId) ? 'Thu gọn thành phần' : 'Xem thành phần'}
+                            >
+                              <span className="text-sm font-bold leading-none">
+                                {expandedCombos.has(item.quotationItemId) ? '−' : '+'}
+                              </span>
+                            </button>
+                          )}
+                          {item.itemName}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2.5 text-slate-600">{item.categoryName}</td>
+                      <td className="px-3 py-2.5 text-center text-slate-600">{item.unit}</td>
+                      <td className="px-3 py-2.5 text-center font-bold text-slate-800">{item.quantity}</td>
+                    </tr>
+                    {item.isCombo && expandedCombos.has(item.quotationItemId) && item.components && item.components.length > 0 && (
+                      <tr className="bg-indigo-50/30">
+                        <td colSpan={4} className="p-0">
+                          <div className="border-b border-t border-indigo-100/50 px-4 py-3">
+                            <p className="mb-2 text-xs font-semibold text-indigo-900">Thành phần Combo cần chuẩn bị:</p>
+                            <table className="w-full text-left text-xs">
+                              <thead className="text-slate-500">
+                                <tr>
+                                  <th className="pb-2 font-medium">Mã thiết bị</th>
+                                  <th className="pb-2 font-medium">Tên thiết bị con</th>
+                                  <th className="pb-2 text-center font-medium">ĐVT</th>
+                                  <th className="pb-2 text-right font-medium">SL / Combo</th>
+                                  <th className="pb-2 text-right font-medium text-indigo-700">Tổng SL (x{item.quantity})</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-indigo-50">
+                                {item.components.map(comp => (
+                                  <tr key={comp.childItemId}>
+                                    <td className="py-1.5 font-mono text-slate-500">{comp.childItemCode}</td>
+                                    <td className="py-1.5 font-medium text-slate-800">{comp.childItemName}</td>
+                                    <td className="py-1.5 text-center text-slate-600">{comp.unit}</td>
+                                    <td className="py-1.5 text-right text-slate-600">{comp.quantity}</td>
+                                    <td className="py-1.5 text-right font-bold text-indigo-700">{comp.quantity * item.quantity}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>
@@ -577,9 +635,26 @@ export default function ManagerQuotationDetailPage() {
                         editItems.map((item) => {
                           const lineTotal = (Number(item.priceInput) || 0) * (Number(item.quantityInput) || 0) - (Number(item.discountInput) || 0);
                           return (
-                            <tr key={item.quotationItemId} className="hover:bg-slate-50/50">
-                              <td className="px-3 py-2 font-medium text-slate-800">{item.itemName}</td>
-                              <td className="px-3 py-2 text-slate-600">{item.categoryName}</td>
+                            <React.Fragment key={item.quotationItemId}>
+                              <tr className="hover:bg-slate-50/50">
+                                <td className="px-3 py-2 font-medium text-slate-800">
+                                  <div className="flex items-center gap-2">
+                                    {item.isCombo && item.components && item.components.length > 0 && (
+                                      <button
+                                        type="button"
+                                        onClick={() => toggleComboExpand(item.quotationItemId)}
+                                        className="flex h-5 w-5 items-center justify-center rounded bg-indigo-50 text-indigo-600 transition-colors hover:bg-indigo-100"
+                                        title={expandedCombos.has(item.quotationItemId) ? 'Thu gọn thành phần' : 'Xem thành phần'}
+                                      >
+                                        <span className="text-sm font-bold leading-none">
+                                          {expandedCombos.has(item.quotationItemId) ? '−' : '+'}
+                                        </span>
+                                      </button>
+                                    )}
+                                    {item.itemName}
+                                  </div>
+                                </td>
+                                <td className="px-3 py-2 text-slate-600">{item.categoryName}</td>
                               <td className="px-2 py-2">
                                 <input
                                   type="number"
@@ -614,6 +689,54 @@ export default function ManagerQuotationDetailPage() {
                                 </button>
                               </td>
                             </tr>
+                            {item.isCombo && expandedCombos.has(item.quotationItemId) && item.components && item.components.length > 0 && (
+                              <tr className="bg-indigo-50/30">
+                                <td colSpan={7} className="p-0">
+                                  <div className="border-b border-t border-indigo-100/50 px-10 py-3">
+                                    <p className="mb-2 text-xs font-semibold text-indigo-900">Thành phần Combo:</p>
+                                    <table className="w-full text-left text-xs">
+                                      <thead className="text-slate-500">
+                                        <tr>
+                                          <th className="pb-2 font-medium">Mã thiết bị</th>
+                                          <th className="pb-2 font-medium">Tên thiết bị con</th>
+                                          <th className="pb-2 text-center font-medium">ĐVT</th>
+                                          <th className="pb-2 text-right font-medium">SL / Combo</th>
+                                          <th className="pb-2 text-right font-medium">Thao tác</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody className="divide-y divide-indigo-50">
+                                        {item.components.map(comp => (
+                                          <tr key={comp.childItemId}>
+                                            <td className="py-1.5 font-mono text-slate-500">{comp.childItemCode}</td>
+                                            <td className="py-1.5 font-medium text-slate-800">{comp.childItemName}</td>
+                                            <td className="py-1.5 text-center text-slate-600">{comp.unit}</td>
+                                            <td className="py-1.5 text-right font-bold text-indigo-700">{comp.quantity}</td>
+                                            <td className="py-1.5 text-right">
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  const catalogItem = catalogItems.find(c => c.itemId === comp.childItemId);
+                                                  if (catalogItem) {
+                                                    addEditItemFromCatalog(catalogItem);
+                                                  } else {
+                                                    alert('Chưa tải xong dữ liệu kho hoặc thiết bị này không còn trong kho.');
+                                                  }
+                                                }}
+                                                className="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-800"
+                                              >
+                                                <Plus className="h-3 w-3" />
+                                                Thuê thêm
+                                              </button>
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
                           );
                         })
                       )}
@@ -654,16 +777,63 @@ export default function ManagerQuotationDetailPage() {
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {detail.items.map((item, idx) => (
-                        <tr key={item.quotationItemId}>
-                          <td className="py-3 px-4 text-center font-medium text-slate-500">{idx + 1}</td>
-                          <td className="py-3 px-4 font-semibold text-slate-900">{item.itemName}</td>
-                          <td className="py-3 px-4 text-slate-600">{item.categoryName}</td>
-                          <td className="py-3 px-4 text-center text-slate-600">{item.unit}</td>
-                          <td className="py-3 px-4 text-center font-bold text-slate-800">{item.quantity}</td>
-                          <td className="py-3 px-4 text-right text-slate-700">{formatCurrency(item.price)}</td>
-                          <td className="py-3 px-4 text-right font-medium text-red-600">-{formatCurrency(item.discount)}</td>
-                          <td className="py-3 px-4 text-right font-bold text-slate-950">{formatCurrency(item.lineTotal)}</td>
-                        </tr>
+                        <React.Fragment key={item.quotationItemId}>
+                          <tr className="hover:bg-slate-50/50">
+                            <td className="py-3 px-4 text-center font-medium text-slate-500">{idx + 1}</td>
+                            <td className="py-3 px-4 font-semibold text-slate-900">
+                              <div className="flex items-center gap-2">
+                                {item.isCombo && item.components && item.components.length > 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleComboExpand(item.quotationItemId)}
+                                    className="flex h-5 w-5 items-center justify-center rounded bg-indigo-50 text-indigo-600 transition-colors hover:bg-indigo-100"
+                                    title={expandedCombos.has(item.quotationItemId) ? 'Thu gọn thành phần' : 'Xem thành phần'}
+                                  >
+                                    <span className="text-sm font-bold leading-none">
+                                      {expandedCombos.has(item.quotationItemId) ? '−' : '+'}
+                                    </span>
+                                  </button>
+                                )}
+                                {item.itemName}
+                              </div>
+                            </td>
+                            <td className="py-3 px-4 text-slate-600">{item.categoryName}</td>
+                            <td className="py-3 px-4 text-center text-slate-600">{item.unit}</td>
+                            <td className="py-3 px-4 text-center font-bold text-slate-800">{item.quantity}</td>
+                            <td className="py-3 px-4 text-right text-slate-700">{formatCurrency(item.price)}</td>
+                            <td className="py-3 px-4 text-right font-medium text-red-600">-{formatCurrency(item.discount)}</td>
+                            <td className="py-3 px-4 text-right font-bold text-slate-950">{formatCurrency(item.lineTotal)}</td>
+                          </tr>
+                          {item.isCombo && expandedCombos.has(item.quotationItemId) && item.components && item.components.length > 0 && (
+                            <tr className="bg-indigo-50/30">
+                              <td colSpan={8} className="p-0">
+                                <div className="border-b border-t border-indigo-100/50 px-10 py-3">
+                                  <p className="mb-2 text-xs font-semibold text-indigo-900">Thành phần Combo:</p>
+                                  <table className="w-full text-left text-xs">
+                                    <thead className="text-slate-500">
+                                      <tr>
+                                        <th className="pb-2 font-medium">Mã thiết bị</th>
+                                        <th className="pb-2 font-medium">Tên thiết bị con</th>
+                                        <th className="pb-2 text-center font-medium">ĐVT</th>
+                                        <th className="pb-2 text-right font-medium">SL / Combo</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-indigo-50">
+                                      {item.components.map(comp => (
+                                        <tr key={comp.childItemId}>
+                                          <td className="py-1.5 font-mono text-slate-500">{comp.childItemCode}</td>
+                                          <td className="py-1.5 font-medium text-slate-800">{comp.childItemName}</td>
+                                          <td className="py-1.5 text-center text-slate-600">{comp.unit}</td>
+                                          <td className="py-1.5 text-right font-bold text-indigo-700">{comp.quantity}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
                       ))}
                     </tbody>
                   </table>

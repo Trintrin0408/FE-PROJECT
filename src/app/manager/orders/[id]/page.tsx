@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
@@ -238,6 +238,16 @@ function ManagerOrderDetailContent() {
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<DetailTab>(() => parseTabParam(searchParams.get('tab')));
+  const [expandedCombos, setExpandedCombos] = useState<Set<string>>(new Set());
+
+  const toggleComboExpand = (id: string) => {
+    setExpandedCombos(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   // Toast sau khi "Xuất thiết bị" từ trang chi tiết báo giá điều hướng sang đây
   // (docs/xuatthietbi_tubaogia_api.md mục 5.3/5.4 bản v2: 'unchanged' = đơn đã khớp báo giá, no-op)
@@ -1380,30 +1390,79 @@ function ManagerOrderDetailContent() {
                               : Math.max(item.quantity - inv.quantityAvailable, 0);
                           const isShort = item.source === 'INTERNAL' && shortfall > 0;
                           return (
-                            <tr key={item.orderItemId}>
-                              <td className="px-3 py-3">
-                                <p className="font-semibold text-slate-900">{item.itemName}</p>
-                                <p className="text-xs text-slate-400">{item.unit}</p>
-                              </td>
-                              <td className="px-3 py-3">
-                                <Badge variant={item.source === 'INTERNAL' ? 'neutral' : 'info'}>{ORDER_ITEM_SOURCE_LABEL[item.source]}</Badge>
-                              </td>
-                              <td className="px-3 py-3 text-center font-bold text-slate-900">{item.quantity}</td>
-                              <td className="px-3 py-3 text-center">
-                                {inv ? (
-                                  <>
-                                    <span className={`font-bold ${inv.quantityAvailable < item.quantity ? 'text-red-600' : 'text-emerald-600'}`}>
-                                      {inv.quantityAvailable}
-                                    </span>
-                                    <p className="mt-0.5 text-[10px] text-slate-400">ngày {formatDate(itemsViewInventoryDate[item.itemId] ?? eventDateStr)}</p>
-                                    {isShort && <p className="mt-0.5 text-[10px] font-bold text-red-600">Thiếu {shortfall}</p>}
-                                  </>
-                                ) : (
-                                  <span className="text-slate-300">—</span>
-                                )}
-                              </td>
-                              <td className="px-3 py-3 text-right font-bold text-slate-900">{formatCurrency(item.subtotal ?? item.unitPrice * item.quantity)}</td>
-                            </tr>
+                            <React.Fragment key={item.orderItemId}>
+                              <tr className="hover:bg-slate-50/50">
+                                <td className="px-3 py-3">
+                                  <div className="flex items-center gap-2">
+                                    {item.isCombo && item.components && item.components.length > 0 && (
+                                      <button
+                                        type="button"
+                                        onClick={() => toggleComboExpand(item.orderItemId! || item.itemId)}
+                                        className="flex h-5 w-5 items-center justify-center rounded bg-indigo-50 text-indigo-600 transition-colors hover:bg-indigo-100"
+                                        title={expandedCombos.has(item.orderItemId! || item.itemId) ? 'Thu gọn thành phần' : 'Xem thành phần'}
+                                      >
+                                        <span className="text-sm font-bold leading-none">
+                                          {expandedCombos.has(item.orderItemId! || item.itemId) ? '−' : '+'}
+                                        </span>
+                                      </button>
+                                    )}
+                                    <div>
+                                      <p className="font-semibold text-slate-900">{item.itemName}</p>
+                                      <p className="text-xs text-slate-400">{item.unit}</p>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="px-3 py-3">
+                                  <Badge variant={item.source === 'INTERNAL' ? 'neutral' : 'info'}>{ORDER_ITEM_SOURCE_LABEL[item.source]}</Badge>
+                                </td>
+                                <td className="px-3 py-3 text-center font-bold text-slate-900">{item.quantity}</td>
+                                <td className="px-3 py-3 text-center">
+                                  {inv ? (
+                                    <>
+                                      <span className={`font-bold ${inv.quantityAvailable < item.quantity ? 'text-red-600' : 'text-emerald-600'}`}>
+                                        {inv.quantityAvailable}
+                                      </span>
+                                      <p className="mt-0.5 text-[10px] text-slate-400">ngày {formatDate(itemsViewInventoryDate[item.itemId] ?? eventDateStr)}</p>
+                                      {isShort && <p className="mt-0.5 text-[10px] font-bold text-red-600">Thiếu {shortfall}</p>}
+                                    </>
+                                  ) : (
+                                    <span className="text-slate-300">—</span>
+                                  )}
+                                </td>
+                                <td className="px-3 py-3 text-right font-bold text-slate-900">{formatCurrency(item.subtotal ?? item.unitPrice * item.quantity)}</td>
+                              </tr>
+                              {item.isCombo && expandedCombos.has(item.orderItemId! || item.itemId) && item.components && item.components.length > 0 && (
+                                <tr className="bg-indigo-50/30">
+                                  <td colSpan={5} className="p-0">
+                                    <div className="border-b border-t border-indigo-100/50 px-4 py-3">
+                                      <p className="mb-2 text-xs font-semibold text-indigo-900">Thành phần Combo:</p>
+                                      <table className="w-full text-left text-xs">
+                                        <thead className="text-slate-500">
+                                          <tr>
+                                            <th className="pb-2 font-medium">Mã thiết bị</th>
+                                            <th className="pb-2 font-medium">Tên thiết bị con</th>
+                                            <th className="pb-2 text-center font-medium">ĐVT</th>
+                                            <th className="pb-2 text-right font-medium">SL / Combo</th>
+                                            <th className="pb-2 text-right font-medium text-indigo-700">Tổng SL (x{item.quantity})</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-indigo-50">
+                                          {item.components.map(comp => (
+                                            <tr key={comp.childItemId}>
+                                              <td className="py-1.5 font-mono text-slate-500">{comp.childItemCode}</td>
+                                              <td className="py-1.5 font-medium text-slate-800">{comp.childItemName}</td>
+                                              <td className="py-1.5 text-center text-slate-600">{comp.unit}</td>
+                                              <td className="py-1.5 text-right text-slate-600">{comp.quantity}</td>
+                                              <td className="py-1.5 text-right font-bold text-indigo-700">{comp.quantity * item.quantity}</td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
                           );
                         })}
                       </tbody>

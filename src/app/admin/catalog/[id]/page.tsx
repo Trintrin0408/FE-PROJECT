@@ -136,6 +136,42 @@ export default function ItemDetailPage() {
         </div>
       </Reveal>
 
+      {item.isCombo && item.components && item.components.length > 0 && (
+        <Reveal>
+          <div className="rounded-xl border border-slate-200 bg-white shadow-sm mt-6 p-6">
+            <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-slate-900">
+              <Package className="h-5 w-5 text-indigo-600" /> Thiết bị thành phần trong Combo
+            </h3>
+            <div className="overflow-x-auto border rounded-lg">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-50/50 border-b border-slate-200">
+                  <tr>
+                    <th className="px-4 py-3 font-semibold text-slate-600">Mã TB</th>
+                    <th className="px-4 py-3 font-semibold text-slate-600">Tên thiết bị con</th>
+                    <th className="px-4 py-3 font-semibold text-slate-600">Đơn vị</th>
+                    <th className="px-4 py-3 text-right font-semibold text-slate-600">SL trong 1 Combo</th>
+                    <th className="px-4 py-3 text-right font-semibold text-slate-600">Kho đang có</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {item.components.map((comp) => (
+                    <tr key={comp.componentId} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-4 py-3 font-mono text-slate-500">{comp.childItemCode}</td>
+                      <td className="px-4 py-3 font-medium text-slate-900">{comp.childItemName}</td>
+                      <td className="px-4 py-3 text-slate-600">{comp.unit}</td>
+                      <td className="px-4 py-3 text-right font-semibold text-blue-600">{comp.quantity}</td>
+                      <td className="px-4 py-3 text-right font-medium text-slate-700">
+                        {comp.quantityAvailable != null ? comp.quantityAvailable : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </Reveal>
+      )}
+
       <Reveal>
         <div className="rounded-xl border border-slate-200 bg-white shadow-sm mt-6">
           <div className="border-b border-slate-100 p-5 flex items-center justify-between">
