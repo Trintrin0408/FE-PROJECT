@@ -130,7 +130,6 @@ const MANAGER_NAV_SECTIONS: NavSection[] = [
   {
     items: [
       { label: 'Tổng quan', href: '/manager/dashboard', icon: LayoutGrid },
-      { label: 'Sẵn sàng vận hành', href: '/manager/readiness', icon: ShieldCheck },
       { label: 'Khách hàng', href: '/manager/customers', icon: Users },
       {
         label: 'Quản lý đơn đặt',
