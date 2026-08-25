@@ -135,10 +135,11 @@ export default function AdminWarehouseOutboundPage() {
 
   if (selectedOrderId && (isLoadingDetail || selectedOrderDetail)) {
     const order = selectedOrderDetail;
-    const totalUnits = order?.items.reduce((sum, item) => sum + item.quantity, 0) ?? 0;
+    const picklistArray = Array.from(picklistMap.values());
+    const totalUnits = picklistArray.reduce((sum, item) => sum + item.quantityOrdered, 0);
     const isExported = !!order?.pickedUpAt;
 
-    const itemColumns: TableColumn<OrderItem>[] = [
+    const itemColumns: TableColumn<PicklistItem>[] = [
       { key: 'itemId', label: 'Mã', render: (row) => <span className="font-mono text-xs text-slate-400">{row.itemId}</span> },
       { key: 'name', label: 'Tên sản phẩm & thiết bị', render: (row) => <span className="font-semibold text-slate-800">{row.itemName}</span> },
       { key: 'unit', label: 'Đơn vị' },
@@ -146,17 +147,15 @@ export default function AdminWarehouseOutboundPage() {
           <Badge variant={row.source === 'INTERNAL' ? 'neutral' : 'info'}>{row.source === 'INTERNAL' ? 'Kho nhà' : 'Thuê ngoài'}</Badge>
         ) 
       },
-      { key: 'requestedQty', label: 'Số lượng đặt', className: 'text-center font-bold text-slate-800', render: (row) => row.quantity },
+      { key: 'requestedQty', label: 'Số lượng đặt', className: 'text-center font-bold text-slate-800', render: (row) => row.quantityOrdered },
       { key: 'availableQty', label: 'Tồn kho khả dụng', className: 'text-center', render: (row) => {
           if (row.source !== 'INTERNAL') return <span className="text-slate-300">—</span>;
-          const pi = picklistMap.get(row.itemId);
-          if (!pi) return <span className="text-slate-300">...</span>;
-          const shortage = Math.max(0, row.quantity - (pi.quantityAvailable ?? 0));
+          const shortage = Math.max(0, row.quantityOrdered - (row.quantityAvailable ?? 0));
           if (shortage > 0) return <span className="font-bold text-red-600">⚠ Thiếu {shortage}</span>;
-          return <span className="font-bold text-emerald-600">✓ {pi.quantityAvailable}</span>;
+          return <span className="font-bold text-emerald-600">✓ {row.quantityAvailable}</span>;
         }
       },
-      { key: 'note', label: 'Ghi chú', render: (row) => row.notes || <span className="italic text-slate-300">Không có ghi chú</span> },
+      { key: 'note', label: 'Ghi chú', render: () => <span className="italic text-slate-300">Không có ghi chú</span> },
     ];
 
     return (
@@ -260,11 +259,11 @@ export default function AdminWarehouseOutboundPage() {
             >
               <h2 className="text-sm font-semibold text-slate-900">Danh sách thiết bị cần xuất</h2>
               <p className="mt-0.5 text-xs text-slate-400">
-                Tổng cộng <span className="font-bold text-blue-600">{order.items.length}</span> thiết bị /{' '}
+                Tổng cộng <span className="font-bold text-blue-600">{picklistArray.length}</span> thiết bị /{' '}
                 <span className="font-bold text-blue-600">{totalUnits}</span> đơn vị cần xuất
               </p>
               <div className="mt-4">
-                <Table columns={itemColumns} rows={order.items} rowKey={(row) => row.itemId + row.source} />
+                <Table columns={itemColumns} rows={picklistArray} rowKey={(row) => row.itemId + row.source} />
               </div>
             </motion.div>
           </>
