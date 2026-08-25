@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { AlertTriangle, Calendar, CheckCircle2, Clock, MapPin, Package, User, X } from 'lucide-react';
+import { AlertTriangle, Calendar, CheckCircle2, Clock, MapPin, User, X } from 'lucide-react';
 import { Badge, type BadgeVariant } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { EvidenceBlock } from '@/components/payments/EvidenceBlock';
@@ -130,18 +130,6 @@ export default function SurveyDetailDrawer({ report, onClose, onConfirm }: Reado
                 {report.notes}
               </div>
             )}
-          </div>
-
-          <div className="space-y-3">
-            <h4 className="flex items-center gap-1.5 border-l-2 border-blue-500 pl-2 text-xs font-bold uppercase tracking-wider text-slate-900">
-              <Package className="h-4 w-4 text-blue-600" />
-              Đồ đạc / thiết bị đề xuất thuê
-            </h4>
-            <div className="rounded-xl border border-slate-200 bg-white p-3.5 text-xs leading-relaxed text-slate-700 shadow-xs">
-              {report.proposedItems || (
-                <span className="italic text-slate-400">Chưa khai báo trang bị / đồ thuê kèm theo.</span>
-              )}
-            </div>
           </div>
 
           <div className="space-y-3">

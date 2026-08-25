@@ -287,7 +287,6 @@ function ManagerOrderDetailContent() {
   const [isSettlementModalOpen, setIsSettlementModalOpen] = useState(false);
   const [isCompletingSettlement, setIsCompletingSettlement] = useState(false);
   const [isClosingOrder, setIsClosingOrder] = useState(false);
-  const [isConfirmingPrepared, setIsConfirmingPrepared] = useState(false);
 
   const [picklistInventory, setPicklistInventory] = useState<Record<string, InventoryRow>>({});
   const [itemSupplierMap, setItemSupplierMap] = useState<Record<string, { supplierName: string; quantity: number }>>({});
@@ -741,28 +740,6 @@ function ManagerOrderDetailContent() {
       load();
     } finally {
       setIsClosingOrder(false);
-    }
-  };
-
-  // Ghi nhận "đã chuẩn bị xong" = set preparedQty = quantity cho mọi dòng (điều kiện để "Đánh dấu xuất
-  // kho" ở trang Xuất kho & bàn giao). Chỉ áp cho dòng lấy từ kho nhà (INTERNAL) có orderItemId.
-  const handleConfirmPrepared = async () => {
-    const items = order.items
-      .filter((it) => it.orderItemId)
-      .map((it) => ({ orderItemId: it.orderItemId as string, preparedQty: it.quantity }));
-    if (items.length === 0) {
-      toast.error('Đơn chưa có hạng mục thiết bị để xác nhận chuẩn bị.');
-      return;
-    }
-    setIsConfirmingPrepared(true);
-    try {
-      await orderApiService.confirmPreparedItems(order.orderId, { items });
-      toast.success('Đã xác nhận chuẩn bị đủ thiết bị. Có thể xuất kho ở trang "Xuất kho và bàn giao".');
-      load();
-    } catch (err) {
-      toast.error(parseApiError(err, 'Không thể xác nhận chuẩn bị. Vui lòng thử lại.'));
-    } finally {
-      setIsConfirmingPrepared(false);
     }
   };
 
@@ -1637,19 +1614,6 @@ function ManagerOrderDetailContent() {
                       : `Số liệu "Tồn kho khả dụng" là số nhỏ nhất trong khoảng ngày đã chọn ở trên cho từng vật tư - dòng nhỏ dưới số liệu cho biết đó là ngày nào.`}
                     {' '}Các hạng mục dạng &quot;gói&quot; đã được nổ thành từng vật tư/thiết bị vật lý con (xem docs/thietbikhohang_api.md mục 8).
                   </p> */}
-
-                  <div className="mt-4 flex justify-end">
-                    <Button
-                      size="sm"
-                      onClick={handleConfirmPrepared}
-                      isLoading={isConfirmingPrepared}
-                      disabled={order.orderStatus === 'COMPLETED' || order.orderStatus === 'CANCELLED' || !!order.pickedUpAt}
-                      title={order.pickedUpAt ? 'Đơn đã xuất kho.' : 'Ghi nhận đã chuẩn bị đủ số lượng cho mọi thiết bị (bắt buộc trước khi xuất kho).'}
-                    >
-                      <CheckCircle2 className="h-4 w-4" />
-                      Xác nhận đã chuẩn bị xong
-                    </Button>
-                  </div>
                 </motion.div>
               )}
             </div>
