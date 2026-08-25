@@ -762,31 +762,31 @@ export default function ManagerQuotationDetailPage() {
                   )}
                 </div>
                 <div className="overflow-x-auto rounded-lg border border-slate-200">
-                  <table className="w-full text-left text-xs">
+                  <table className="w-full table-fixed text-left text-xs">
                     <thead className="border-b border-slate-100 bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-600">
                       <tr>
-                        <th className="w-12 py-3 px-4 text-center">STT</th>
-                        <th className="py-3 px-4">Tên hạng mục sự kiện / Dịch vụ</th>
-                        <th className="w-28 py-3 px-4">Phân loại</th>
-                        <th className="w-16 py-3 px-4 text-center">ĐVT</th>
-                        <th className="w-16 py-3 px-4 text-center">SL</th>
-                        <th className="w-28 py-3 px-4 text-right">Đơn giá</th>
-                        <th className="w-24 py-3 px-4 text-right">Chiết khấu</th>
-                        <th className="w-28 py-3 px-4 text-right">Thành tiền</th>
+                        <th className="w-[6%] py-3 px-2 text-center">STT</th>
+                        <th className="w-[26%] py-3 px-2">Tên hạng mục sự kiện / Dịch vụ</th>
+                        <th className="w-[12%] py-3 px-2">Phân loại</th>
+                        <th className="w-[7%] py-3 px-2 text-center">ĐVT</th>
+                        <th className="w-[6%] py-3 px-2 text-center">SL</th>
+                        <th className="w-[14%] py-3 px-2 text-right">Đơn giá</th>
+                        <th className="w-[13%] py-3 px-2 text-right">Chiết khấu</th>
+                        <th className="w-[16%] py-3 px-2 text-right">Thành tiền</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {detail.items.map((item, idx) => (
                         <React.Fragment key={item.quotationItemId}>
                           <tr className="hover:bg-slate-50/50">
-                            <td className="py-3 px-4 text-center font-medium text-slate-500">{idx + 1}</td>
-                            <td className="py-3 px-4 font-semibold text-slate-900">
+                            <td className="py-3 px-2 text-center font-medium text-slate-500">{idx + 1}</td>
+                            <td className="break-words py-3 px-2 font-semibold text-slate-900">
                               <div className="flex items-center gap-2">
                                 {item.isCombo && item.components && item.components.length > 0 && (
                                   <button
                                     type="button"
                                     onClick={() => toggleComboExpand(item.quotationItemId)}
-                                    className="flex h-5 w-5 items-center justify-center rounded bg-indigo-50 text-indigo-600 transition-colors hover:bg-indigo-100"
+                                    className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded bg-indigo-50 text-indigo-600 transition-colors hover:bg-indigo-100"
                                     title={expandedCombos.has(item.quotationItemId) ? 'Thu gọn thành phần' : 'Xem thành phần'}
                                   >
                                     <span className="text-sm font-bold leading-none">
@@ -794,15 +794,15 @@ export default function ManagerQuotationDetailPage() {
                                     </span>
                                   </button>
                                 )}
-                                {item.itemName}
+                                <span>{item.itemName}</span>
                               </div>
                             </td>
-                            <td className="py-3 px-4 text-slate-600">{item.categoryName}</td>
-                            <td className="py-3 px-4 text-center text-slate-600">{item.unit}</td>
-                            <td className="py-3 px-4 text-center font-bold text-slate-800">{item.quantity}</td>
-                            <td className="py-3 px-4 text-right text-slate-700">{formatCurrency(item.price)}</td>
-                            <td className="py-3 px-4 text-right font-medium text-red-600">-{formatCurrency(item.discount)}</td>
-                            <td className="py-3 px-4 text-right font-bold text-slate-950">{formatCurrency(item.lineTotal)}</td>
+                            <td className="break-words py-3 px-2 text-slate-600">{item.categoryName}</td>
+                            <td className="py-3 px-2 text-center text-slate-600">{item.unit}</td>
+                            <td className="py-3 px-2 text-center font-bold text-slate-800">{item.quantity}</td>
+                            <td className="py-3 px-2 text-right text-slate-700">{formatCurrency(item.price)}</td>
+                            <td className="py-3 px-2 text-right font-medium text-red-600">-{formatCurrency(item.discount)}</td>
+                            <td className="py-3 px-2 text-right font-bold text-slate-950">{formatCurrency(item.lineTotal)}</td>
                           </tr>
                           {item.isCombo && expandedCombos.has(item.quotationItemId) && item.components && item.components.length > 0 && (
                             <tr className="bg-indigo-50/30">
