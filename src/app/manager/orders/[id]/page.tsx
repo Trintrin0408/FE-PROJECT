@@ -417,16 +417,12 @@ function ManagerOrderDetailContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ set lại khi order đổi thật sự, schedulePlans đọc qua closure cùng lúc set ở load()
   }, [order?.orderId, order?.eventDate, order?.endDate]);
 
-  // Mục "Thiết bị" — cảnh báo tồn kho CỐ ĐỊNH đúng 2 ngày [ngày liền trước, ngày tổ chức], đọc thẳng
-  // order.items (không nổ BOM) — hoàn toàn độc lập với stockCheckFrom/To (khoảng ngày tùy chỉnh chỉ
-  // phục vụ mục "Chuẩn bị kho" bên dưới), để đổi khoảng ngày ở "Chuẩn bị kho" không ảnh hưởng số liệu
-  // cảnh báo ở đây.
+  // Mục "Thiết bị" — cảnh báo tồn kho kiểm tra theo khoảng ngày [stockCheckFrom, stockCheckTo],
+  // đọc thẳng order.items (không nổ BOM).
   useEffect(() => {
-    if (!order || order.items.length === 0) return;
+    if (!order || order.items.length === 0 || !stockCheckFrom || !stockCheckTo) return;
     let cancelled = false;
-    const eventDateStr = order.eventDate.slice(0, 10);
-    const dayBeforeStr = new Date(new Date(order.eventDate).getTime() - 86_400_000).toISOString().slice(0, 10);
-    const datesToCheck = [dayBeforeStr, eventDateStr];
+    const datesToCheck = enumerateDates(stockCheckFrom, stockCheckTo);
 
     Promise.all(
       order.items.map((item) =>
@@ -459,8 +455,7 @@ function ManagerOrderDetailContent() {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ tải lại khi đơn/danh sách hạng mục đổi, KHÔNG phụ thuộc stockCheckFrom/To
-  }, [order?.orderId, order?.items, order?.eventDate]);
+  }, [order?.orderId, order?.items, stockCheckFrom, stockCheckTo]);
 
   // Mục "Chuẩn bị kho" — nổ order.items thành nhu cầu vật tư vật lý thật qua BOM mock
   // (src/mocks/db/itemComponents.ts, xem comment đầu file), tra itemId/unit thật của từng vật tư con
@@ -1399,7 +1394,6 @@ function ManagerOrderDetailContent() {
                                       <span className={`font-bold ${inv.quantityAvailable < item.quantity ? 'text-red-600' : 'text-emerald-600'}`}>
                                         {inv.quantityAvailable}
                                       </span>
-                                      <p className="mt-0.5 text-[10px] text-slate-400">ngày {formatDate(itemsViewInventoryDate[item.itemId] ?? eventDateStr)}</p>
                                       {isShort && <p className="mt-0.5 text-[10px] font-bold text-red-600">Thiếu {shortfall}</p>}
                                     </>
                                   ) : (
@@ -1566,9 +1560,7 @@ function ManagerOrderDetailContent() {
                                     <span className={`font-bold ${inv.quantityAvailable < row.quantityNeeded ? 'text-red-600' : 'text-emerald-600'}`}>
                                       {inv.quantityAvailable}
                                     </span>
-                                    <p className="mt-0.5 text-[10px] text-slate-400">
-                                      ngày {formatDate((physicalItemId && inventoryCheckDates[physicalItemId]) || eventDateStr)}
-                                    </p>
+
                                   </>
                                 ) : (
                                   <span className="text-slate-300">—</span>

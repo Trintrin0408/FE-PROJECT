@@ -70,7 +70,7 @@ export default function Page() {
         <InventoryHealthHeatmap items={timeline} />
       </Reveal>
 
-      <Reveal className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
+      <Reveal className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-xs hidden">
         <h3 className="text-sm font-extrabold text-slate-800">Top thiết bị theo mức giữ chỗ</h3>
         <div className="mt-3">
           <Table columns={reservedCols} rows={topReserved} rowKey={(r) => r.itemId} isLoading={loading} emptyText="Chưa có thiết bị nào bị giữ chỗ." />

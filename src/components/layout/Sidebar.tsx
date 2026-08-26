@@ -119,7 +119,7 @@ const ADMIN_NAV_SECTIONS: NavSection[] = [
     items: [
       { label: 'Báo cáo doanh thu', href: '/admin/reports/revenue', icon: TrendingUp },
       { label: 'Lịch sử giao dịch', href: '/admin/transactions', icon: Wallet },
-      { label: 'Thống kê đơn hàng', href: '/admin/reports/orders', icon: BarChart3 },
+      // { label: 'Thống kê đơn hàng', href: '/admin/reports/orders', icon: BarChart3 },
       { label: 'Báo cáo tồn kho', href: '/admin/reports/inventory', icon: Boxes },
       // { label: 'Nhật ký hệ thống', href: '/admin/settings/audit-log', icon: History }, // chưa có endpoint audit ở BE
     ],

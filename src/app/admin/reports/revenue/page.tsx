@@ -149,16 +149,16 @@ export default function CEORevenueReportPage() {
               {/* P&L Top KPIs */}
               <div className="mb-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
                 <KpiTile
-                  label="Tổng giá trị hợp đồng"
+                  label="Tổng giá trị đơn hàng ước tính"
                   value={formatCurrency(pnl.committed)}
                   sub={`Từ ${pnl.orderCount} sự kiện chốt`}
                   icon={Banknote}
                   tone="blue"
                 />
                 <KpiTile
-                  label="Chi phí NCC ước tính"
+                  label="Chi phí NCC"
                   value={formatCurrency(pnl.supplierCost)}
-                  sub="Theo các giao dịch thuê NCC"
+                  sub="Theo các giao dịch NCC"
                   icon={Receipt}
                   tone="red"
                 />
@@ -196,7 +196,9 @@ export default function CEORevenueReportPage() {
 
               {/* Additional Breakdowns */}
               <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
-                <EventTypeBar data={pnl.byType} />
+                <div className="hidden">
+                  <EventTypeBar data={pnl.byType} />
+                </div>
                 <TopCustomersBar data={pnl.topCustomers} />
               </div>
             </div>
