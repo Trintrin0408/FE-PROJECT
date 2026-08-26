@@ -146,53 +146,53 @@ export default function CEORevenueReportPage() {
 
           {activeTab === 'pnl' ? (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              {/* P&L Top KPIs */}
-              <div className="mb-8 grid grid-cols-1 gap-6 sm:grid-cols-2">
-                <KpiTile
-                  label="Tổng giá trị đơn hàng ước tính"
-                  value={formatCurrency(pnl.committed)}
-                  sub={`Từ ${pnl.orderCount} sự kiện chốt`}
-                  icon={Banknote}
-                  tone="blue"
-                />
-                <KpiTile
-                  label="Chi phí NCC"
-                  value={formatCurrency(pnl.supplierCost)}
-                  sub="Theo các giao dịch NCC"
-                  icon={Receipt}
-                  tone="red"
-                />
-              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* P&L Top KPIs */}
+                <div className="flex flex-col gap-6">
+                  <KpiTile
+                    label="Tổng giá trị đơn hàng ước tính"
+                    value={formatCurrency(pnl.committed)}
+                    sub={`Từ ${pnl.orderCount} sự kiện chốt`}
+                    icon={Banknote}
+                    tone="blue"
+                  />
+                  <KpiTile
+                    label="Chi phí NCC"
+                    value={formatCurrency(pnl.supplierCost)}
+                    sub="Theo các giao dịch NCC"
+                    icon={Receipt}
+                    tone="red"
+                  />
+                </div>
 
-              {/* P&L Charts */}
-              <div className="grid grid-cols-1 gap-6">
-                <div>
+                {/* P&L Charts */}
+                <div className="lg:col-span-2">
                   <MonthlyMoneyChart data={pnl.monthly} />
                 </div>
               </div>
             </div>
           ) : (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-              {/* Cash-flow Top KPIs */}
-              <div className="mb-8 grid grid-cols-1 gap-6 sm:grid-cols-2">
-                <KpiTile
-                  label="Dòng tiền vào"
-                  value={formatCurrency(cf.totalCashIn)}
-                  sub="Tổng Cọc & Quyết toán đã nhận"
-                  icon={TrendingUp}
-                  tone="green"
-                />
-                <KpiTile
-                  label="Dòng tiền ra"
-                  value={formatCurrency(cf.totalCashOut)}
-                  sub="Tiền thanh toán cho NCC"
-                  icon={Receipt}
-                  tone="red"
-                />
-              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Cash-flow Top KPIs */}
+                <div className="flex flex-col gap-6">
+                  <KpiTile
+                    label="Dòng tiền vào"
+                    value={formatCurrency(cf.totalCashIn)}
+                    sub="Tổng Cọc & Quyết toán đã nhận"
+                    icon={TrendingUp}
+                    tone="green"
+                  />
+                  <KpiTile
+                    label="Dòng tiền ra"
+                    value={formatCurrency(cf.totalCashOut)}
+                    sub="Tiền thanh toán cho NCC"
+                    icon={Receipt}
+                    tone="red"
+                  />
+                </div>
 
-              {/* Cash-flow Charts */}
-              <div className="grid grid-cols-1 gap-6">
+                {/* Cash-flow Charts */}
                 <div className="lg:col-span-2">
                   <MonthlyCashFlowChart data={cf.monthly} />
                 </div>
