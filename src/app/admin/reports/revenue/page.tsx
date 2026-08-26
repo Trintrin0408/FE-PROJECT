@@ -183,7 +183,7 @@ export default function CEORevenueReportPage() {
                 <div>
                   <MonthlyMoneyChart data={pnl.monthly} />
                 </div>
-                <div>
+                <div className="hidden">
                   <StatusDonut
                     title="Tiến độ thu tiền dự án"
                     subtitle="So với tổng hợp đồng đã chốt"
@@ -199,7 +199,9 @@ export default function CEORevenueReportPage() {
                 <div className="hidden">
                   <EventTypeBar data={pnl.byType} />
                 </div>
-                <TopCustomersBar data={pnl.topCustomers} />
+                <div className="hidden">
+                  <TopCustomersBar data={pnl.topCustomers} />
+                </div>
               </div>
             </div>
           ) : (
