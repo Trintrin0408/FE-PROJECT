@@ -45,13 +45,13 @@ export function KpiTile({
   tone = 'blue',
 }: Readonly<{ label: string; value: React.ReactNode; sub?: string; icon: LucideIcon; tone?: keyof typeof ICON_BG }>) {
   return (
-    <div className="group rounded-2xl border border-slate-200/60 bg-white/50 p-5 shadow-[0_2px_12px_rgb(0,0,0,0.03)] backdrop-blur-md transition-all hover:shadow-[0_8px_24px_rgb(0,0,0,0.08)] hover:-translate-y-0.5">
+    <div className="group h-full flex flex-col justify-center rounded-2xl border border-slate-200/60 bg-white/50 p-5 shadow-[0_2px_12px_rgb(0,0,0,0.03)] backdrop-blur-md transition-all hover:shadow-[0_8px_24px_rgb(0,0,0,0.08)] hover:-translate-y-0.5">
       <div className="flex items-center gap-4">
         <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-transform group-hover:scale-110 ${ICON_BG[tone]}`}>
           <Icon className="h-6 w-6" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium text-slate-500">{label}</p>
+          <p className="text-sm font-medium text-slate-500">{label}</p>
           <p className="mt-1 truncate text-2xl font-bold tracking-tight text-slate-900">{value}</p>
           {sub && <p className="mt-1 text-xs font-medium text-slate-400">{sub}</p>}
         </div>

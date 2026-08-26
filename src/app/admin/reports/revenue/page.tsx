@@ -179,8 +179,8 @@ export default function CEORevenueReportPage() {
               </div>
 
               {/* P&L Charts */}
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                <div className="lg:col-span-2">
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                <div>
                   <MonthlyMoneyChart data={pnl.monthly} />
                 </div>
                 <div>
@@ -195,7 +195,7 @@ export default function CEORevenueReportPage() {
               </div>
 
               {/* Additional Breakdowns */}
-              <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <div className="mt-6 grid grid-cols-1 gap-6">
                 <div className="hidden">
                   <EventTypeBar data={pnl.byType} />
                 </div>
