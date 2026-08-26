@@ -162,20 +162,24 @@ export default function CEORevenueReportPage() {
                   icon={Receipt}
                   tone="red"
                 />
-                <KpiTile
-                  label="Lãi gộp"
-                  value={formatCurrency(pnl.revenueAfterSupplier)}
-                  sub={`Tỷ suất lãi gộp: ${pnl.committed > 0 ? Math.round((pnl.revenueAfterSupplier / pnl.committed) * 100) : 0}%`}
-                  icon={Scale}
-                  tone="amber"
-                />
-                <KpiTile
-                  label="Tỷ lệ thu tiền hợp đồng"
-                  value={`${Math.round(pnl.collectionRate * 100)}%`}
-                  sub={`Đã thu ${formatCurrency(pnl.collected)}`}
-                  icon={BadgeCheck}
-                  tone="green"
-                />
+                <div className="hidden">
+                  <KpiTile
+                    label="Lãi gộp"
+                    value={formatCurrency(pnl.revenueAfterSupplier)}
+                    sub={`Tỷ suất lãi gộp: ${pnl.committed > 0 ? Math.round((pnl.revenueAfterSupplier / pnl.committed) * 100) : 0}%`}
+                    icon={Scale}
+                    tone="amber"
+                  />
+                </div>
+                <div className="hidden">
+                  <KpiTile
+                    label="Tỷ lệ thu tiền hợp đồng"
+                    value={`${Math.round(pnl.collectionRate * 100)}%`}
+                    sub={`Đã thu ${formatCurrency(pnl.collected)}`}
+                    icon={BadgeCheck}
+                    tone="green"
+                  />
+                </div>
               </div>
 
               {/* P&L Charts */}
@@ -222,13 +226,15 @@ export default function CEORevenueReportPage() {
                   icon={Receipt}
                   tone="red"
                 />
-                <KpiTile
-                  label="Dòng tiền thuần"
-                  value={formatCurrency(cf.netCashFlow)}
-                  sub="Tiền vào - Tiền ra trong kỳ"
-                  icon={DollarSign}
-                  tone={cf.netCashFlow >= 0 ? 'blue' : 'amber'}
-                />
+                <div className="hidden">
+                  <KpiTile
+                    label="Dòng tiền thuần"
+                    value={formatCurrency(cf.netCashFlow)}
+                    sub="Tiền vào - Tiền ra trong kỳ"
+                    icon={DollarSign}
+                    tone={cf.netCashFlow >= 0 ? 'blue' : 'amber'}
+                  />
+                </div>
               </div>
 
               {/* Cash-flow Charts */}
@@ -238,7 +244,7 @@ export default function CEORevenueReportPage() {
                 </div>
               </div>
               
-              <div className="mt-6 p-6 rounded-2xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100/50 flex flex-col sm:flex-row justify-between items-center gap-6">
+              <div className="hidden mt-6 p-6 rounded-2xl bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-100/50 flex flex-col sm:flex-row justify-between items-center gap-6">
                 <div>
                   <h3 className="text-xl font-bold text-emerald-900">Quản trị dòng tiền</h3>
                   <p className="mt-1 max-w-2xl text-sm text-emerald-700">Dòng tiền thuần dương là tín hiệu tốt. Bạn có thể theo dõi chi tiết ở các báo cáo khác. Số dư nợ đọng cần thu hồi hiện tại là <strong>{formatCurrency(cf.totalOutstandingDebt)}</strong>.</p>
