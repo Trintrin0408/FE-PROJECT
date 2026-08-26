@@ -1724,7 +1724,7 @@ function ManagerOrderDetailContent() {
                               plan.evidenceIds && plan.evidenceIds.length > 0
                                 ? plan.evidenceIds
                                 : plan.taskCode === 'COLLECT' && returnReports.length > 0
-                                  ? (returnReports[0].evidenceIds ?? [])
+                                  ? returnReports.flatMap(r => r.evidenceIds ?? [])
                                   : plan.taskCode === 'SURVEY' && surveyReport
                                     ? (surveyReport.evidenceIds ?? [])
                                     : []
