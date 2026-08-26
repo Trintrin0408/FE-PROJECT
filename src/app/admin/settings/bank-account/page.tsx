@@ -155,14 +155,7 @@ export default function Page() {
               />
             </div>
 
-            <p className="mt-3 text-xs text-slate-400">
-              Chọn ngân hàng từ danh sách (banks.json của VietQR/SePay) rồi nhập số tài khoản &amp; tên chủ tài khoản.
-              {bankBin ? (
-                <>
-                  {' '}Mã ngân hàng đã chọn: <span className="font-mono font-semibold text-slate-600">{bankName || bankBin}</span> (BIN {bankBin}).
-                </>
-              ) : null}
-            </p>
+
 
             {error && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600 ring-1 ring-inset ring-red-600/20">{error}</p>}
             {success && <p className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-600 ring-1 ring-inset ring-emerald-600/20">{success}</p>}
